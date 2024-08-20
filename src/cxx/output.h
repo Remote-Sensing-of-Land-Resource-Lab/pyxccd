@@ -50,6 +50,43 @@ typedef struct
 
 typedef struct
 {
+    int t_start;        /* time when series model gets started */
+    int t_end;          /* time when series model gets ended */
+    int t_break;        /* time when the first break (change) is observed */
+    int pos;            /* the location of each time series model */
+    int num_obs;        /* the number of "good" observations used for model
+                           estimation */
+    short int category; /* the quality of the model estimation (what model
+                     is used, what process is used) */
+    /*
+    The current category in output structure:
+    first digit:
+    0: normal model (no change)
+    1: change at the beginning of time series model
+    2: change at the end of time series model
+    3: disturbance change in the middle
+    4: fmask fail scenario
+    5: permanent snow scenario
+    6: outside user mask
+    second digit:
+    1: model has only constant term
+    4: model has 3 coefs + 1 const
+    6: model has 5 coefs + 1 const
+    8: model has 7 coefs + 1 const*/
+    short int change_prob; /* the probability of a pixel that have undergone
+                              change (between 0 and 100) */
+    float coefs[TOTAL_IMAGE_BANDS_FLEX][NUM_COEFFS];
+    /*  coefficients for each time series model for each
+        spectral band*/
+    float rmse[TOTAL_IMAGE_BANDS_FLEX];
+    /*  RMSE for each time series model for each
+        spectral band*/
+    float magnitude[TOTAL_IMAGE_BANDS_FLEX]; /* the magnitude of change (difference between model
+                                   prediction and observation for each spectral band)*/
+} Output_t_flex;
+
+typedef struct
+{
     int t_start; /* time when series model gets started */
     int t_break; /* time when the first break (change) is observed */
     // float change_prob;     /* the probability of a pixel that have undergone */

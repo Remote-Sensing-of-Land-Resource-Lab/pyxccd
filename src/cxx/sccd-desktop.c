@@ -18,6 +18,7 @@
 #include "output.h"
 #include "misc.h"
 #include "s_ccd.h"
+#include "cold_flex.h"
 
 #define MAX_N_STATES 10000
 
@@ -252,7 +253,7 @@ int main(int argc, char *argv[])
     // bool verbose = TRUE;
 
     char msg_str[MAX_STR_LEN]; /* Input data scene name                 */
-    int i;                     /* Loop counters                         */
+    int i, j;                  /* Loop counters                         */
     int starting_date;
     int status;                /* Return value from function call       */
     char FUNC_NAME[] = "main"; /* For printing error messages           */
@@ -284,6 +285,7 @@ int main(int argc, char *argv[])
     // int *tmp_valid_date_array;             /* Sdate array after cfmask filtering    */
     Output_t *rec_cg;
     Output_sccd *s_rec_cg;
+    Output_t_flex *rec_cg_flex;
     int64_t *sensor_buf;
     double tcg;
     int n_cm_maps = 0;
@@ -347,9 +349,11 @@ int main(int argc, char *argv[])
     int n_coefs_records = 0;
     nrt_coefs_records *coefs_records;
     tcg = 15.086;
+    double pcg = 0.99;
     int state_intervaldays = 30.4;
     int n_state = 0;
     int64_t *state_days;
+    int64_t *buf_stack;
     double *state_ensemble;
 
     /**************************************************************/
@@ -382,6 +386,11 @@ int main(int argc, char *argv[])
     {
         method = SCCDONLINE;
         cm_output_interval = 999999; // assigned an extreme to the interval as only one cm is saved
+    }
+    else if (argv[1][0] == 'f')
+    {
+        method = COLD_FLEX;
+        cm_output_interval = 60;
     }
     else
         RETURN_ERROR("The second input parameter has to be r, s, o or c", FUNC_NAME, FAILURE);
@@ -443,6 +452,12 @@ int main(int argc, char *argv[])
 
     buf = (int64_t **)allocate_2d_array(TOTAL_IMAGE_BANDS, MAX_SCENE_LIST, sizeof(int64_t));
     if (buf == NULL)
+    {
+        RETURN_ERROR("Allocating buf", FUNC_NAME, FAILURE);
+    }
+
+    buf_stack = (int64_t *)malloc(MAX_SCENE_LIST * sizeof(int64_t) * 5);
+    if (buf_stack == NULL)
     {
         RETURN_ERROR("Allocating buf", FUNC_NAME, FAILURE);
     }
@@ -756,6 +771,34 @@ int main(int argc, char *argv[])
                 // for debug
                 // printf("free stage 7 \n");
             }
+            else if (method == COLD_FLEX)
+            {
+                int nbands = 5;
+                rec_cg_flex = malloc(NUM_FC * sizeof(Output_t_flex));
+                if (rec_cg_flex == NULL)
+                {
+                    RETURN_ERROR("ERROR allocating rec_cg_flex",
+                                 FUNC_NAME, FAILURE);
+                }
+
+                //                printf("temporal success2 with processid %d\n", process_id);
+                //                printf("valid_scene_count_scanline[i_col] is %d;i_col is %d; original_row is %d; probability threshold is %f\n",
+                //                       valid_scene_count_scanline[i_col], i_col, original_row, probability_threshold);
+                for (i = 0; i < valid_scene_count; i++)
+                {
+                    for (j = 0; j < nbands; j++)
+                    {
+                        buf_stack[i * nbands + j] = buf[j + 1][i];
+                    }
+                }
+
+                result = cold_flex(buf_stack, fmask_buf, sdate, nbands, 1, 4, valid_scene_count, i_col + 1, pcg, conse, b_outputCM, starting_date, rec_cg_flex, &num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
+                                   CM_outputs_date, gap_days);
+
+                // snprintf (msg_str, sizeof(msg_str), "pixel %d COLD calculation finished\n", i_col+1);
+                // LOG_MESSAGE (msg_str, FUNC_NAME)
+                free(rec_cg_flex);
+            }
             else
             {
                 for (i = 0; i < n_cm_maps; i++)
@@ -816,6 +859,7 @@ int main(int argc, char *argv[])
     {
         RETURN_ERROR("Freeing memory: buf\n", FUNC_NAME, FAILURE);
     }
+    free(buf_stack);
 
     free(fmask_buf);
 

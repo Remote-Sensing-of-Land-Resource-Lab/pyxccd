@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 DEFAULT_CONSE = 8
 NRT_BAND = 6
 SCCD_NUM_C = 6
+TOTAL_FLEX_BAND = 10
 
 reccg_dt = np.dtype(
     [
@@ -24,6 +25,26 @@ reccg_dt = np.dtype(
     ]
 )  # the magnitude of change difference between model prediction
 # and observation for each spectral band)
+
+
+reccg_dt_flex = np.dtype(
+    [
+        ("t_start", np.int32),  # time when series model gets started
+        ("t_end", np.int32),  # time when series model gets ended
+        ("t_break", np.int32),  # time when the first break (change) is observed
+        ("pos", np.int32),  # the location of each time series model
+        ("num_obs", np.int32),  # the number of "good" observations used for model estimation
+        # the quality of the model estimation (what model is used, what process is used)
+        ("category", np.short),
+        # the probability of a pixel that have undergone change (between 0 and 100)
+        ("change_prob", np.short),
+        # coefficients for each time series model for each spectral band
+        ("coefs", np.float32, (TOTAL_FLEX_BAND, 8)),
+        ("rmse", np.float32, TOTAL_FLEX_BAND),  # RMSE for each time series model for each spectral band
+        ("magnitude", np.float32, TOTAL_FLEX_BAND),
+    ]
+)  
+
 
 
 SccdOutput = namedtuple("SccdOutput", "position rec_cg min_rmse nrt_mode nrt_model nrt_queue")

@@ -24,7 +24,7 @@ if (BUILD_SCCD)
   # set_target_properties(GLMnet PROPERTIES LINKER_LANGUAGE Fortran)
 
   # Add other C sources
-  list(APPEND sccd_sources "cold.c" "input.c" "2d_array.c" "utilities.c" "misc.c" "multirobust.c" "output.c" "s_ccd.c" "KFAS.c" "lbfgs.c" "distribution_math.c")
+  list(APPEND sccd_sources "cold.c" "input.c" "2d_array.c" "utilities.c" "misc.c" "multirobust.c" "output.c" "s_ccd.c" "KFAS.c" "lbfgs.c" "distribution_math.c" "cold_flex.c")
   ## Create C++ library. Specify include dirs and link libs as normal
   #add_library(${SCCD_MODULE_NAME} SHARED ${sccd_sources})
 
@@ -53,7 +53,7 @@ else()  # build standalone program that accepts csv as input, mainly for testing
   set_target_properties(GLMnet PROPERTIES LINKER_LANGUAGE Fortran)
 
   # Add other C sources
-  list(APPEND sccd_sources "cold.c" "input.c" "2d_array.c" "utilities.c" "misc.c" "multirobust.c" "output.c" "s_ccd.c" "KFAS.c" "lbfgs.c" "distribution_math.c" "sccd-desktop.c")
+  list(APPEND sccd_sources "cold.c" "input.c" "2d_array.c" "utilities.c" "misc.c" "multirobust.c" "output.c" "s_ccd.c" "KFAS.c" "lbfgs.c" "distribution_math.c" "cold_flex.c" "sccd-desktop.c")
   ## Create C++ library. Specify include dirs and link libs as normal
 
   add_executable(${SCCD_MODULE_NAME} ${sccd_sources})

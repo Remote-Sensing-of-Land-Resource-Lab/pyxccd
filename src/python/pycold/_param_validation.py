@@ -11,7 +11,6 @@ import operator
 import warnings
 import numpy as np
 
-
 def _is_arraylike(x):
     """Returns whether the input is array-like."""
     return hasattr(x, "__len__") or hasattr(x, "shape") or hasattr(x, "__array__")

@@ -784,7 +784,7 @@ int step1_cold_initialize(
     /****************************************************/
     tmp_end = min(*cur_i + conse - 1, *n_clr - 1);
     status = auto_mask(clrx, clry, *i_start, tmp_end, (double)(clrx[tmp_end] - clrx[*i_start]) / NUM_YEARS,
-                       min_rmse[1], min_rmse[4], SCCD_T_CONST, bl_ids);
+                       min_rmse[1], min_rmse[4], SCCD_T_CONST, bl_ids, 2, 5);
     if (status != SUCCESS)
     {
         RETURN_ERROR("ERROR calling auto_mask during model initilization",

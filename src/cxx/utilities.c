@@ -1217,6 +1217,79 @@ int preprocessing(
     return (SUCCESS);
 }
 
+/******************************************************************************
+MODULE:  preprocessing
+
+PURPOSE:  preprocessing time series to flag valid data range, and calculate statistics
+of clear, water, shadow, snow and cloud categories
+
+RETURN VALUE:
+Type = int (SUCCESS OR FAILURE)
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+8/12/2024   Su Ye         Original Development
+******************************************************************************/
+
+int preprocessing_flex(
+    int64_t *ts_data,      /* I:  band 7 time series. Invalid (qa is filled value (255)) must be removed */
+    int64_t *fmask_buf,    /* I:   mask time series  */
+    int *valid_num_scenes, /* I/O: * number of scenes after cfmask counts and  */
+    int *id_range,
+    int *clear_sum,  /* I/O: Total number of clear cfmask pixels          */
+    int *water_sum,  /* I/O: counter for cfmask water pixels.             */
+    int *shadow_sum, /* I/O: counter for cfmask shadow pixels.            */
+    int *sn_sum,     /* I/O: Total number of snow cfmask pixels           */
+    int *cloud_sum,  /* I/O: counter for cfmask cloud pixels.             */
+    int nbands       /* the number of input bands*/
+)
+{
+
+    int i, j;
+    int64_t buf_t_tmp;
+
+    for (i = 0; i < *valid_num_scenes; i++)
+    {
+        id_range[i] = 1;
+        for (j = 0; j < nbands; j++)
+        {
+            if ((ts_data[i * nbands + j] <= 0) || (ts_data[i * nbands + j] >= 10000) || (fmask_buf[i] >= FILL_VALUE))
+            {
+                id_range[i] = 0;
+                break;
+            }
+        }
+
+        switch (fmask_buf[i])
+        {
+        case CFMASK_CLEAR:
+            (*clear_sum)++;
+            break;
+        case CFMASK_WATER:
+            (*water_sum)++;
+            (*clear_sum)++;
+            break;
+        case CFMASK_SHADOW:
+            (*shadow_sum)++;
+            break;
+        case CFMASK_SNOW:
+            (*sn_sum)++;
+            break;
+        case CFMASK_CLOUD:
+            (*cloud_sum)++;
+            break;
+        case FILL_VALUE:
+            break;
+        default:
+            printf("Unknown cfmask value %d\n", (int)fmask_buf[i]);
+            return (FAILURE);
+            break;
+        }
+    }
+    return (SUCCESS);
+}
+
 double angle_decaying(double input, double lowbound, double highbound)
 {
     double prob;

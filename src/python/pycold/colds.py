@@ -1,4 +1,4 @@
-from ._colds_cython import _sccd_update, _sccd_detect, _obcold_reconstruct, _cold_detect
+from ._colds_cython import _sccd_update, _sccd_detect, _obcold_reconstruct, _cold_detect, _cold_detect_flex
 import numpy as np
 from .common import SccdOutput
 from ._param_validation import (
@@ -14,6 +14,7 @@ from .app import defaults
 
 _parameter_constraints: dict = {
     "t_cg": [Interval(Real, 0.0, None, closed="neither")],
+    "p_cg": [Interval(Real, 0.0, 1, closed="neither")],
     "pos": [Interval(Integral, 0, None, closed="neither")],
     "starting_date": [Interval(Integral, 0, None, closed="left")],
     "n_cm": [Interval(Integral, 0, None, closed="left")],
@@ -28,13 +29,13 @@ _parameter_constraints: dict = {
     "t_cg_singleband_scale1000": [Interval(Real, None, None, closed="neither")],
     "t_angle_scale100": [Interval(Integral, 0, 18000, closed="neither")],
     "transform_mode": ["boolean"],
-    "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
-    
+    "state_intervaldays": [Interval(Real, 0.0, None, closed="left")]
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
 NUM_FC_SCCD = 40
 NUM_NRT_QUEUE = 240
+MAX_FLEX_BAND = 10
 
 
 def _validate_params(func_name, **kwargs):
@@ -99,6 +100,28 @@ def _validate_data(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break
         return dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates
     else:
         return dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
+
+
+def _validate_data_flex(dates, ts_data, qas):
+    """
+    validate and forcibly change the data format
+    Parameters
+    ----------
+    dates: 1d array of shape(observation numbers), list of ordinal dates
+    ts_data: 2d array of shape(observation numbers), time series stack for inputs
+    qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+
+    Returns
+    ----------
+    """
+    check_consistent_length(dates, ts_data, qas)
+    check_1d(dates, "dates")
+    check_1d(qas, "qas")
+
+    dates = dates.astype(dtype=np.int64, order="C")
+    ts_data = ts_data.astype(dtype=np.int64, order="C")
+    qas = qas.astype(dtype=np.int64, order="C")
+    return dates, ts_data, qas
 
 
 # def _nrt_stablity_test(sccd_plot, threshold, parameters, conse=6):
@@ -177,8 +200,8 @@ def cold_detect(
     ts_t,
     qas,
     t_cg=15.0863,
-    pos=1,
     conse=6,
+    pos=1,
     b_output_cm=False,
     starting_date=0,
     n_cm=0,
@@ -251,8 +274,8 @@ def cold_detect(
         ts_t,
         qas,
         t_cg,
-        pos,
         conse,
+        pos,
         b_output_cm,
         starting_date,
         n_cm,
@@ -308,8 +331,8 @@ def sccd_detect(
     ts_t,
     qas,
     t_cg=15.0863,
-    pos=1,
     conse=6,
+    pos=1,
     b_c2=False,
     b_pinpoint=False,
     gate_tcg=9.236,
@@ -384,8 +407,8 @@ def sccd_detect(
         ts_t,
         qas,
         t_cg,
-        pos,
         conse,
+        pos,
         b_c2,
         b_pinpoint,
         gate_tcg,
@@ -407,8 +430,8 @@ def sccd_update(
     ts_t,
     qas,
     t_cg=15.0863,
-    pos=1,
     conse=6,
+    pos=1,
     b_c2=False,
     gate_tcg=9.236,
     predictability_tcg=9.236,
@@ -473,8 +496,8 @@ def sccd_update(
         ts_t,
         qas,
         t_cg,
-        pos,
         conse,
+        pos,
         b_c2,
         gate_tcg,
         predictability_tcg
@@ -549,3 +572,91 @@ def sccd_identify(
             )
     else:
         return sccd_pack, 0
+
+
+
+def cold_detect_flex(
+    dates,
+    ts_stack,
+    qas,
+    p_cg=0.99,
+    conse=6,
+    pos=1,
+    b_output_cm=False,
+    starting_date=0,
+    n_cm=0,
+    cm_output_interval=0,
+    gap_days=365.25,
+    tmask_b1=1,
+    tmask_b2=1
+):
+    """
+    pixel-based COLD algorithm.
+    Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., &
+    Zhou, C. (2020). Continuous monitoring of land disturbance based on Landsat time series.
+    Remote Sensing of Environment, 38, 111116.
+    Parameters
+    ----------
+    dates: 1d array of shape (observation numbers), list of ordinal dates
+    ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
+    qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+    pos: position id of the pixel
+    conse: consecutive observation number
+    b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
+    starting_date: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile
+                    should have the same date, only for b_output_cm is True. Only b_output_cm == 'True'
+    n_cm: the length of outputted change magnitude. Only b_output_cm == 'True'
+    cm_output_interval: the temporal interval of outputting change magnitudes. Only b_output_cm == 'True'
+    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
+          test due to the current low quality
+    gap_days: define the day number of the gap year for determining i_dense. Setting a large value (e.g., 1500)
+                if the gap year in the middle of the time range
+
+    Returns
+    ----------
+    change records: the COLD outputs that characterizes each temporal segment if b_output_cm==False
+    Or
+    [change records, cm_outputs, cm_outputs_date] if b_output_cm==True
+    """
+
+    _validate_params(
+        func_name="cold_detect_flex",
+        p_cg=p_cg,
+        pos=pos,
+        conse=conse,
+        b_output_cm=b_output_cm,
+        starting_date=starting_date,
+        n_cm=n_cm,
+        cm_output_interval=cm_output_interval,
+        gap_days=gap_days,
+    )
+
+    # make sure it is c contiguous array and 64 bit
+    dates, ts_stack, qas = _validate_data_flex(
+        dates, ts_stack, qas
+    )
+    valid_num_scenes = ts_stack.shape[0]
+    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
+    if nbands > MAX_FLEX_BAND:
+        raise RuntimeError(f"Can't input more than {MAX_FLEX_BAND} bands ({nbands} > {MAX_FLEX_BAND})")
+        
+    rec_cg = _cold_detect_flex(
+        dates,
+        ts_stack.flatten(),
+        qas,
+        valid_num_scenes,
+        nbands,
+        p_cg,
+        conse,
+        pos,
+        b_output_cm,
+        starting_date,
+        n_cm,
+        cm_output_interval,
+        gap_days,
+        tmask_b1,
+        tmask_b2)
+    # dt = np.dtype([('t_start', np.int32), ('t_end', np.int32), ('t_break', np.int32), ('pos', np.int32), 
+    #                ('nm_obs', np.int32), ('category', np.int16), ('change_prob', np.int16), ('change_prob', np.int16)]) 
+    return rec_cg
