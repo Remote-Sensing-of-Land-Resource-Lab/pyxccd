@@ -240,11 +240,11 @@ def get_stack_date(
     ]
     if low_datebound > 0:
         img_dates, img_files = zip(
-            *filter(lambda x: x[0] >= low_datebound, zip(img_dates, img_files))
+            *filter(lambda x: x[0] >= low_datebound, zip(tuple(img_dates), tuple(img_files)))
         )
     if high_datebound > 0:
         img_dates, img_files = zip(
-            *filter(lambda x: x[0] <= high_datebound, zip(img_dates, img_files))
+            *filter(lambda x: x[0] <= high_datebound, zip(tuple(img_dates), tuple(img_files)))
         )
     files_date_zip = sorted(zip(img_dates, img_files))
     img_files_sorted = [x[1] for x in files_date_zip]
