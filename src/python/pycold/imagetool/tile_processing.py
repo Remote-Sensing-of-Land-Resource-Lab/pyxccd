@@ -209,7 +209,7 @@ def get_stack_date(
     block_y: int,
     stack_path: str,
     low_datebound: int = 0,
-    high_datebound: int = 0,
+    high_datebound: int = 999999,
     nband: int = 8,
 ):
     """
@@ -238,15 +238,10 @@ def get_stack_date(
         )
         for folder_name in img_files
     ]
-    if low_datebound > 0:
-        img_dates, img_files = zip(
-            *filter(lambda x: x[0] >= low_datebound, zip(tuple(img_dates), tuple(img_files)))
-        )
-    if high_datebound > 0:
-        img_dates, img_files = zip(
-            *filter(lambda x: x[0] <= high_datebound, zip(tuple(img_dates), tuple(img_files)))
-        )
-    files_date_zip = sorted(zip(img_dates, img_files))
+    img_dates_selected = [img_dates[i] for i, date in enumerate(img_dates) if img_dates[i] >= low_datebound and img_dates[i] <= high_datebound]
+    img_files_selected = [img_files[i] for i, date in enumerate(img_dates) if img_dates[i] >= low_datebound and img_dates[i] <= high_datebound]
+
+    files_date_zip = sorted(zip(img_dates_selected, img_files_selected))
     img_files_sorted = [x[1] for x in files_date_zip]
     img_dates_sorted = np.asarray([x[0] for x in files_date_zip])
     img_tstack = np.dstack(
@@ -336,7 +331,7 @@ def main(
         low_datebound = parse(low_datebound).toordinal()
 
     if upper_datebound is None:
-        upper_datebound = 0
+        upper_datebound = 999999
     else:
         upper_datebound = parse(upper_datebound).toordinal()
 
