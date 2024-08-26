@@ -160,7 +160,7 @@ This repo provides dockerfiles that illustrate a reproduceable method for
 compling and installing PYCOLD. See `dockerfiles/README.rst
 <dockerfiles/README.rst>`__ for details.
 
-3. Using pycold for pixel-based processing
+3. Using pycold for pixel-based processing (more see `jupyter examples <tool/notebook/pycold_example.ipynb>`)
 ------------------------------------------
 
 COLD:
@@ -169,6 +169,14 @@ COLD:
 
    from pycold import cold_detect
    cold_result = cold_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas)
+
+COLD algorithm for any combination of band inputs from any sensor:
+
+.. code:: python
+
+   from pycold import cold_detect
+   # input a user-defined array instead of multiple lists
+   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, tmask_b1=1, tmask_b2=2)
 
 S-CCD:
 
