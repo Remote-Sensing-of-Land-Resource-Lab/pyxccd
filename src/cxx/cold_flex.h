@@ -14,7 +14,8 @@ int cold_flex(
     int tmask_b2,               /* I: the band id used for tmask */
     int valid_num_scenes,       /* I: number of valid scenes  */
     int pos,                    /* I: the position id of pixel */
-    double pcg,                 /* I: probability threshold of change threshold  */
+    double t_cg,                /* I: threshold for identfying breaks */
+    double max_t_cg,            /* I: threshold for identfying outliers */
     int conse,                  /* I: consecutive observation number   */
     bool b_outputCM,            /* I: indicate if outputting change magnitudes for object-based cold, for cold only, it is the false */
     int starting_date,          /* I: (optional) the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_outputCM is True */
@@ -33,7 +34,8 @@ int stand_procedure_flex(
     int64_t *fmask_buf, /* I:  mask-based time series  */
     int nbands,         /* I: input band number */
     int *id_range,
-    double tcg,            /* I: threshold of change threshold  */
+    double t_cg,           /* I: threshold for identfying breaks */
+    double max_t_cg,       /* I: threshold for identfying outliers */
     int conse,             /* I: consecutive observation number   */
     bool b_outputCM,       /* I: indicate if cold is running as the first step of object-based cold*/
     int starting_date,     /* I: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_outputCM is True */

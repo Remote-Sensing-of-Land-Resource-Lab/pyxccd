@@ -15,6 +15,7 @@ from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from .common import reccg_dt, reccg_dt_flex, sccd_dt, nrtqueue_dt, nrtmodel_dt, pinpoint_dt
 np.import_array()
+from scipy.stats import chi2
 
 try:
     import typing
@@ -103,11 +104,12 @@ cdef extern from "../../cxx/cold.h":
                   short int *cm_outputs_date, double gap_days);
 
 cdef extern from "../../cxx/cold_flex.h":
-    cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1, int tmask_b1, 
-                            int32_t valid_num_scenes, int32_t pos, double tcg, int32_t conse, 
-                            bool b_output_cm, int32_t starting_date, Output_t_flex *rec_cg,
-                            int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs,
-                            short int *cm_outputs_date, double gap_days);
+    cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, 
+                           int tmask_b1, int tmask_b1, int32_t valid_num_scenes, int32_t pos, 
+                           double tcg, double max_tcg, int32_t conse, bool b_output_cm, 
+                           int32_t starting_date, Output_t_flex *rec_cg, int32_t *num_fc, 
+                           int32_t cm_output_interval, short int *cm_outputs, 
+                           short int *cm_outputs_date, double gap_days);
 
 
 cdef extern from "../../cxx/cold.h":
@@ -601,7 +603,7 @@ cpdef _sccd_update(sccd_pack,
 
 cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,
                         np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands,
-                        double p_cg = 0.99, int32_t conse=6, int32_t pos=1, bint b_output_cm=False, 
+                        double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_output_cm=False, 
                         int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, 
                         double gap_days=365.25, int32_t tmask_b1=1, int32_t tmask_b2=1):
     """
@@ -614,7 +616,8 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
         valid_num_scenes: the number of valid observations
         nbands: the number of inputted bands
-        p_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+        t_cg: threshold for change magnitude
+        max_t_cg: threshold for identifying outlier
         pos: position id of the pixel
         conse: consecutive observation number
         b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
@@ -657,9 +660,9 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     cdef short [:] cm_outputs_view = cm_outputs  # memory view
     cdef short [:] cm_outputs_date_view = cm_outputs_date  # memory view
     result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
-                        valid_num_scenes, pos, p_cg, conse, b_output_cm, starting_date, &rec_cg_view[0], 
-                        &num_fc, cm_output_interval, &cm_outputs_view[0], &cm_outputs_date_view[0], 
-                        gap_days)
+                        valid_num_scenes, pos, t_cg, max_t_cg, conse, b_output_cm, starting_date, 
+                        &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], 
+                        &cm_outputs_date_view[0], gap_days)
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:

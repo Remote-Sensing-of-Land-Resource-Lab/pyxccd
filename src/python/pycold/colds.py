@@ -1,4 +1,10 @@
-from ._colds_cython import _sccd_update, _sccd_detect, _obcold_reconstruct, _cold_detect, _cold_detect_flex
+from ._colds_cython import (
+    _sccd_update,
+    _sccd_detect,
+    _obcold_reconstruct,
+    _cold_detect,
+    _cold_detect_flex,
+)
 import numpy as np
 from .common import SccdOutput
 from ._param_validation import (
@@ -11,6 +17,7 @@ from ._param_validation import (
 )
 from .utils import calculate_sccd_cm
 from .app import defaults
+from scipy.stats import chi2
 
 _parameter_constraints: dict = {
     "t_cg": [Interval(Real, 0.0, None, closed="neither")],
@@ -22,20 +29,21 @@ _parameter_constraints: dict = {
     "b_output_cm": ["boolean"],
     "gap_days": [Interval(Real, 0.0, None, closed="left")],
     "b_pinpoint": ["boolean"],
-    "gate_tcg": [Interval(Real, 0.0, None, closed="neither")],
+    "gate_pcg": [Interval(Real, 0.0, 1, closed="neither")],
     "predictability_tcg": [Interval(Real, 0.0, None, closed="neither")],
     "dist_conse": [Interval(Integral, 0, 6, closed="right")],
     "t_cg_scale100": [Interval(Real, 0.0, None, closed="neither")],
-    "t_cg_singleband_scale1000": [Interval(Real, None, None, closed="neither")],
-    "t_angle_scale100": [Interval(Integral, 0, 18000, closed="neither")],
+    "t_cg_singleband": [Interval(Real, None, None, closed="neither")],
+    "t_angle": [Interval(Integral, 0, 180, closed="neither")],
     "transform_mode": ["boolean"],
-    "state_intervaldays": [Interval(Real, 0.0, None, closed="left")]
+    "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
 NUM_FC_SCCD = 40
 NUM_NRT_QUEUE = 240
 MAX_FLEX_BAND = 10
+DEFAULT_BANDS = 5
 
 
 def _validate_params(func_name, **kwargs):
@@ -56,7 +64,9 @@ def _validate_params(func_name, **kwargs):
     )
 
 
-def _validate_data(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates=None):
+def _validate_data(
+    dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates=None
+):
     """
     validate and forcibly change the data format
     Parameters
@@ -199,7 +209,7 @@ def cold_detect(
     ts_s2,
     ts_t,
     qas,
-    t_cg=15.0863,
+    p_cg=0.99,
     conse=6,
     pos=1,
     b_output_cm=False,
@@ -225,7 +235,7 @@ def cold_detect(
     ts_s2: 1d array of shape(observation numbers), time series of swir2 band
     ts_t: 1d array of shape(observation numbers), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+    p_cg: probability threshold of change magnitude, default is 0.99
     pos: position id of the pixel
     conse: consecutive observation number
     b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
@@ -247,7 +257,7 @@ def cold_detect(
 
     _validate_params(
         func_name="cold_detect",
-        t_cg=t_cg,
+        p_cg=p_cg,
         pos=pos,
         conse=conse,
         b_output_cm=b_output_cm,
@@ -262,6 +272,7 @@ def cold_detect(
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
     )
+    t_cg = chi2.ppf(p_cg, DEFAULT_BANDS)
 
     return _cold_detect(
         dates,
@@ -286,7 +297,19 @@ def cold_detect(
 
 
 def obcold_reconstruct(
-    dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates, pos=1, conse=6, b_c2=False
+    dates,
+    ts_b,
+    ts_g,
+    ts_r,
+    ts_n,
+    ts_s1,
+    ts_s2,
+    ts_t,
+    qas,
+    break_dates,
+    pos=1,
+    conse=6,
+    b_c2=False,
 ):
     """
     re-contructructing change records using break dates.
@@ -311,12 +334,26 @@ def obcold_reconstruct(
     change records: the COLD outputs that characterizes each temporal segment
     """
     _validate_params(func_name="sccd_detect", pos=pos, conse=conse, b_c2=b_c2)
-    dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates = _validate_data(
-        dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates
+    dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates = (
+        _validate_data(
+            dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates
+        )
     )
 
     return _obcold_reconstruct(
-        dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates, pos, conse, b_c2
+        dates,
+        ts_b,
+        ts_g,
+        ts_r,
+        ts_n,
+        ts_s1,
+        ts_s2,
+        ts_t,
+        qas,
+        break_dates,
+        pos,
+        conse,
+        b_c2,
     )
 
 
@@ -330,13 +367,13 @@ def sccd_detect(
     ts_s2,
     ts_t,
     qas,
-    t_cg=15.0863,
+    p_cg=0.99,
     conse=6,
     pos=1,
     b_c2=False,
     b_pinpoint=False,
-    gate_tcg=9.236,
-    state_intervaldays=0.0
+    gate_pcg=0.90,
+    state_intervaldays=0.0,
 ):
     """
     pixel-based offline SCCD algorithm.
@@ -363,7 +400,7 @@ def sccd_detect(
     b_pinpoint: bool, output pinpoint break where pinpoint is an overdetection of break using conse =3
                         and threshold = gate_tcg, which are used to simulate the situation of NRT scenario and
                         for training a machine-learning model
-    gate_tcg: the gate change magnitude threshold for defining anomaly
+    gate_pcg: the gate change probability threshold for defining anomaly
     b_output_state: indicate whether to output state variables
     state_intervaldays: the day interval for output states (only b_output_state is True)
     Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
@@ -375,25 +412,26 @@ def sccd_detect(
     """
     _validate_params(
         func_name="sccd_detect",
-        t_cg=t_cg,
+        p_cg=p_cg,
         pos=pos,
         conse=conse,
         b_c2=b_c2,
         b_pinpoint=b_pinpoint,
-        gate_tcg=gate_tcg,
-        state_intervaldays=state_intervaldays
+        gate_pcg=gate_pcg,
+        state_intervaldays=state_intervaldays,
     )
     # make sure it is c contiguous array and 64 bit
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
     )
-
+    t_cg = chi2.ppf(p_cg, DEFAULT_BANDS)
+    gate_tcg = chi2.ppf(gate_pcg, DEFAULT_BANDS)
     # sccd_wrapper = SccdDetectWrapper()
     # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
     #                                 pos, conse, b_c2, b_pinpoint, gate_tcg, b_monitor_init))
     # return tmp
     if state_intervaldays == 0:
-        b_output_state = False;
+        b_output_state = False
     else:
         b_output_state = True
     return _sccd_detect(
@@ -414,7 +452,7 @@ def sccd_detect(
         gate_tcg,
         9.236,
         b_output_state,
-        state_intervaldays
+        state_intervaldays,
     )
 
 
@@ -429,11 +467,11 @@ def sccd_update(
     ts_s2,
     ts_t,
     qas,
-    t_cg=15.0863,
+    p_cg=0.99,
     conse=6,
     pos=1,
     b_c2=False,
-    gate_tcg=9.236,
+    gate_pcg=0.90,
     predictability_tcg=9.236,
 ):
     """
@@ -459,7 +497,7 @@ def sccd_update(
     conse: consecutive observation number
     b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
                 test due to its current low quality
-    gate_tcg: the gate change magnitude threshold for defining anomaly
+    gate_pcg: the gate change magnitude threshold for defining anomaly
     predictability_tcg: the threshold for predictability test
     Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
     Returns
@@ -471,19 +509,20 @@ def sccd_update(
 
     _validate_params(
         func_name="sccd_update",
-        t_cg=t_cg,
+        p_cg=p_cg,
         pos=pos,
         conse=conse,
         b_c2=b_c2,
         b_pinpoint=False,
-        gate_tcg=gate_tcg,
+        gate_pcg=gate_pcg,
         predictability_tcg=predictability_tcg,
     )
 
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
     )
-
+    t_cg = chi2.ppf(p_cg, DEFAULT_BANDS)
+    gate_tcg = chi2.ppf(gate_pcg, DEFAULT_BANDS)
     return _sccd_update(
         sccd_pack,
         dates,
@@ -500,16 +539,16 @@ def sccd_update(
         pos,
         b_c2,
         gate_tcg,
-        predictability_tcg
+        predictability_tcg,
     )
 
 
 def sccd_identify(
     sccd_pack,
     dist_conse=6,
-    t_cg_scale100=1508.6,
-    t_cg_singleband_scale1000=-200,
-    t_angle_scale100=4500,
+    p_cg=0.99,
+    t_cg_singleband=-200,
+    t_angle=45,
     transform_mode=True,
 ):
     """
@@ -518,8 +557,8 @@ def sccd_identify(
     ----------
     sccd_pack: sccd data structure
     dist_conse: user-specify disturbance conse
-    t_cg_scale100: user-specify change magnitudes (scale by 100)
-    t_cg_singleband_scale1000: user-specify change magnitude for each band to identify greener direction
+    p_cg: user-specify change magnitudes 
+    t_cg_singleband: user-specify change magnitude for each band to identify greener direction
       see Eq. 10 in Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., & Zhou, C. (2020).
       Continuous monitoring of land disturbance based on Landsat time series. Remote Sensing of Environment, 238, 111116.
     t_angle_scale100: (scale by 100)
@@ -531,11 +570,13 @@ def sccd_identify(
     _validate_params(
         func_name="sccd_identify",
         dist_conse=dist_conse,
-        t_cg_scale100=t_cg_scale100,
-        t_cg_singleband_scale1000=t_cg_singleband_scale1000,
-        t_angle_scale100=t_angle_scale100,
+        p_cg=p_cg,
+        t_cg_singleband=t_cg_singleband,
+        t_angle=t_angle,
         transform_mode=transform_mode,
     )
+    t_cg_scale100 = chi2.ppf(p_cg, DEFAULT_BANDS) * 100
+    t_angle_scale100 = t_angle * 100
     if (
         sccd_pack.nrt_mode == defaults["SCCD"]["NRT_MONITOR_SNOW"]
         or sccd_pack.nrt_mode == defaults["SCCD"]["NRT_QUEUE_SNOW"]
@@ -550,9 +591,9 @@ def sccd_identify(
     ):
         cm_median = calculate_sccd_cm(sccd_pack)
         if (
-            cm_median[2] < -t_cg_singleband_scale1000
-            and cm_median[3] > t_cg_singleband_scale1000
-            and cm_median[4] < -t_cg_singleband_scale1000
+            cm_median[2] < -t_cg_singleband
+            and cm_median[3] > t_cg_singleband
+            and cm_median[4] < -t_cg_singleband
         ):  # greening
             return sccd_pack, 0
         else:
@@ -566,13 +607,13 @@ def sccd_identify(
             return (
                 sccd_pack,
                 sccd_pack.nrt_model[0]["obs_date_since1982"][
-                    defaults["SCCD"]["DEFAULT_CONSE"] - sccd_pack.nrt_model[0]["conse_last"]
+                    defaults["SCCD"]["DEFAULT_CONSE"]
+                    - sccd_pack.nrt_model[0]["conse_last"]
                 ]
                 + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"],
             )
     else:
         return sccd_pack, 0
-
 
 
 def cold_detect_flex(
@@ -588,7 +629,7 @@ def cold_detect_flex(
     cm_output_interval=0,
     gap_days=365.25,
     tmask_b1=1,
-    tmask_b2=1
+    tmask_b2=1,
 ):
     """
     pixel-based COLD algorithm.
@@ -600,7 +641,7 @@ def cold_detect_flex(
     dates: 1d array of shape (observation numbers), list of ordinal dates
     ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+    p_cg: probaility threshold of change magnitude, default is 0.99
     pos: position id of the pixel
     conse: consecutive observation number
     b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
@@ -633,21 +674,27 @@ def cold_detect_flex(
     )
 
     # make sure it is c contiguous array and 64 bit
-    dates, ts_stack, qas = _validate_data_flex(
-        dates, ts_stack, qas
-    )
+    dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
     valid_num_scenes = ts_stack.shape[0]
     nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
     if nbands > MAX_FLEX_BAND:
-        raise RuntimeError(f"Can't input more than {MAX_FLEX_BAND} bands ({nbands} > {MAX_FLEX_BAND})")
-        
+        raise RuntimeError(
+            f"Can't input more than {MAX_FLEX_BAND} bands ({nbands} > {MAX_FLEX_BAND})"
+        )
+    if (tmask_b1 > nbands) or (tmask_b2 > nbands):
+        raise RuntimeError(
+            f"tmask_b1 or tmask_b2 is larger than the input band number"
+        )
+    t_cg = chi2.ppf(p_cg, nbands)
+    max_t_cg = chi2.ppf(0.99999, nbands)
     rec_cg = _cold_detect_flex(
         dates,
         ts_stack.flatten(),
         qas,
         valid_num_scenes,
         nbands,
-        p_cg,
+        t_cg,
+        max_t_cg,
         conse,
         pos,
         b_output_cm,
@@ -656,7 +703,8 @@ def cold_detect_flex(
         cm_output_interval,
         gap_days,
         tmask_b1,
-        tmask_b2)
-    # dt = np.dtype([('t_start', np.int32), ('t_end', np.int32), ('t_break', np.int32), ('pos', np.int32), 
-    #                ('nm_obs', np.int32), ('category', np.int16), ('change_prob', np.int16), ('change_prob', np.int16)]) 
+        tmask_b2,
+    )
+    # dt = np.dtype([('t_start', np.int32), ('t_end', np.int32), ('t_break', np.int32), ('pos', np.int32),
+    #                ('nm_obs', np.int32), ('category', np.int16), ('change_prob', np.int16), ('change_prob', np.int16)])
     return rec_cg

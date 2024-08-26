@@ -44,7 +44,8 @@ int cold_flex(
     int tmask_b2,               /* I: the band id used for tmask */
     int valid_num_scenes,       /* I: number of valid scenes  */
     int pos,                    /* I: the position id of pixel */
-    double pcg,                 /* I: probability threshold of change threshold  */
+    double t_cg,                /* I: threshold for identfying breaks */
+    double max_t_cg,            /* I: threshold for identfying outliers */
     int conse,                  /* I: consecutive observation number   */
     bool b_outputCM,            /* I: indicate if outputting change magnitudes for object-based cold, for cold only, it is the false */
     int starting_date,          /* I: (optional) the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_outputCM is True */
@@ -67,8 +68,6 @@ int cold_flex(
     int i;
     char FUNC_NAME[] = "cold_flex";
     int result;
-    double t_cg = X2(nbands, pcg);
-
     if (valid_num_scenes == 0)
     {
         return (SUCCESS);
@@ -136,7 +135,7 @@ int cold_flex(
         /* standard_procedure for CCD                                 */
         /*                                                            */
         /**************************************************************/
-        result = stand_procedure_flex(valid_num_scenes, valid_date_array, ts_data, fmask_buf, nbands, id_range, t_cg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
+        result = stand_procedure_flex(valid_num_scenes, valid_date_array, ts_data, fmask_buf, nbands, id_range, t_cg, max_t_cg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
                                       CM_outputs_date, gap_days, tmask_b1, tmask_b2);
         //        result = stand_procedure_fixeddays(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t, fmask_buf, id_range,
         //                                 tcg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
@@ -183,7 +182,8 @@ int stand_procedure_flex(
     int64_t *fmask_buf, /* I:  mask-based time series  */
     int nbands,         /* I: input band number */
     int *id_range,
-    double tcg,            /* I: threshold of change threshold  */
+    double t_cg,           /* I: threshold for identfying breaks */
+    double max_t_cg,       /* I: threshold for identfying outliers */
     int conse,             /* I: consecutive observation number   */
     bool b_outputCM,       /* I: indicate if cold is running as the first step of object-based cold*/
     int starting_date,     /* I: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_outputCM is True */
@@ -271,7 +271,6 @@ int stand_procedure_flex(
     int current_CM_n;
     float prob_angle; // change probability for angle
     int i_span_skip = 0;
-    double t_cg_max = X2(nbands, 0.99999);
 
     fit_cft = (float **)allocate_2d_array(nbands, LASSO_COEFFS,
                                           sizeof(float));
@@ -445,7 +444,7 @@ int stand_procedure_flex(
     //        adj_TCG = tcg;
     //    }
     adj_conse = conse;
-    adj_TCG = tcg;
+    adj_TCG = t_cg;
 
     v_dif_mag = (float **)allocate_2d_array(nbands, adj_conse,
                                             sizeof(float));
@@ -1106,7 +1105,7 @@ int stand_procedure_flex(
                             }
                             break;
                         }
-                        else if (vec_magg[0] > t_cg_max) /* false change */
+                        else if (vec_magg[0] > max_t_cg) /* false change */
                         {
                             for (k = i_ini; k < end - 1; k++)
                             {
@@ -1851,7 +1850,7 @@ int stand_procedure_flex(
                     i_span_skip = 0;
                 }
 
-                else if (vec_mag[0] > t_cg_max) /*false change*/
+                else if (vec_mag[0] > max_t_cg) /*false change*/
                 {
                     /**********************************************/
                     /*                                            */

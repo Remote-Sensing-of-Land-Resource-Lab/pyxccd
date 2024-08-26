@@ -773,8 +773,10 @@ int main(int argc, char *argv[])
             }
             else if (method == COLD_FLEX)
             {
-                int nbands = 5;
+                int nbands = 4;
                 rec_cg_flex = malloc(NUM_FC * sizeof(Output_t_flex));
+                double t_cg = X2(nbands, pcg);
+                double max_t_cg = X2(nbands, 0.99999);
                 if (rec_cg_flex == NULL)
                 {
                     RETURN_ERROR("ERROR allocating rec_cg_flex",
@@ -792,7 +794,7 @@ int main(int argc, char *argv[])
                     }
                 }
 
-                result = cold_flex(buf_stack, fmask_buf, sdate, nbands, 1, 4, valid_scene_count, i_col + 1, pcg, conse, b_outputCM, starting_date, rec_cg_flex, &num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
+                result = cold_flex(buf_stack, fmask_buf, sdate, nbands, 1, 4, valid_scene_count, i_col + 1, t_cg, max_t_cg, conse, b_outputCM, starting_date, rec_cg_flex, &num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
                                    CM_outputs_date, gap_days);
 
                 // snprintf (msg_str, sizeof(msg_str), "pixel %d COLD calculation finished\n", i_col+1);
