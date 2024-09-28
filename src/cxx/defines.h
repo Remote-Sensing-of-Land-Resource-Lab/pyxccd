@@ -4,24 +4,25 @@
 /* and conflicts existed.                                             */
 
 /* from ccdc.c */
-#define TOTAL_IMAGE_BANDS 7       /* Number of image bands, for loops.   */
-#define TOTAL_IMAGE_BANDS_FLEX 10 /* Number of image bands for flexibale mode.   */
-#define TOTAL_IMAGE_BANDS_SCCD 6  /* Number of image bands, for loops.   */
-#define TOTAL_INDICES 0           /* Number of image bands, for loops. */
-#define TOTAL_BANDS 8             /* Total image plus mask bands, for loops.  HLS */
-#define MIN_NUM_C 4               /* Minimum number of coefficients           */
-#define MID_NUM_C 6               /* Mid-point number of coefficients         */
-#define SCCD_MAX_NUM_C 6          /* Maximum number of coefficients           */
-#define SCCD_NUM_C 6              /* Mid-point number of coefficients         */
-#define MAX_NUM_C 8               /* Maximum number of coefficients           */
-#define N_TIMES 3                 /* number of clear observations/coefficients*/
-#define NUM_YEARS 365.25          /* average number of days per year          */
-#define NUM_FC 40                 /*  the maximum number of fitting curve to be outputted */
-#define T_CONST 4.42              /* Threshold for cloud, shadow, and snow detection */
-                                  /* Old T_CONST = 4.89 SY 11/14/2018         */
-#define MIN_YEARS 1               /* minimum year for model intialization     */
-#define T_SN 0.75                 /* no change detection for permanent snow pixels */
-#define T_CLR 0.25                /* Fmask fails threshold                    */
+#define TOTAL_IMAGE_BANDS 7           /* Number of image bands, for loops.   */
+#define TOTAL_IMAGE_BANDS_FLEX 10     /* Number of image bands for flexibale mode.   */
+#define TOTAL_IMAGE_BANDS_FLEX_SCCD 8 /* Number of image bands for flexibale mode.   */
+#define TOTAL_IMAGE_BANDS_SCCD 6      /* Number of image bands, for loops.   */
+#define TOTAL_INDICES 0               /* Number of image bands, for loops. */
+#define TOTAL_BANDS 8                 /* Total image plus mask bands, for loops.  HLS */
+#define MIN_NUM_C 4                   /* Minimum number of coefficients           */
+#define MID_NUM_C 6                   /* Mid-point number of coefficients         */
+#define SCCD_MAX_NUM_C 6              /* Maximum number of coefficients           */
+#define SCCD_NUM_C 6                  /* Mid-point number of coefficients         */
+#define MAX_NUM_C 8                   /* Maximum number of coefficients           */
+#define N_TIMES 3                     /* number of clear observations/coefficients*/
+#define NUM_YEARS 365.25              /* average number of days per year          */
+#define NUM_FC 40                     /*  the maximum number of fitting curve to be outputted */
+#define T_CONST 4.42                  /* Threshold for cloud, shadow, and snow detection */
+                                      /* Old T_CONST = 4.89 SY 11/14/2018         */
+#define MIN_YEARS 1                   /* minimum year for model intialization     */
+#define T_SN 0.75                     /* no change detection for permanent snow pixels */
+#define T_CLR 0.25                    /* Fmask fails threshold                    */
 #define T_MAX_CG_reconstruct 15.0863
 #define T_MAX_CG 30.8562 /* chi-square inversed T_max_cg (1e-5) for    */
                          /* last step noise removal                    */
@@ -118,6 +119,7 @@
 #define OBCOLD_RECONSTRUCT 4
 #define SCCDONLINE 5
 #define COLD_FLEX 6
+#define SCCD_FLEX 7
 
 #define SKIP_PERCENTAGE 0.03
 

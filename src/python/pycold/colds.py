@@ -4,6 +4,7 @@ from ._colds_cython import (
     _obcold_reconstruct,
     _cold_detect,
     _cold_detect_flex,
+    _sccd_detect_flex
 )
 import numpy as np
 from .common import SccdOutput
@@ -30,7 +31,7 @@ _parameter_constraints: dict = {
     "gap_days": [Interval(Real, 0.0, None, closed="left")],
     "b_pinpoint": ["boolean"],
     "gate_pcg": [Interval(Real, 0.0, 1, closed="neither")],
-    "predictability_tcg": [Interval(Real, 0.0, None, closed="neither")],
+    "predictability_pcg": [Interval(Real, 0.0, 1, closed="neither")],
     "dist_conse": [Interval(Integral, 0, 6, closed="right")],
     "t_cg_scale100": [Interval(Real, 0.0, None, closed="neither")],
     "t_cg_singleband": [Interval(Real, None, None, closed="neither")],
@@ -43,6 +44,7 @@ NUM_FC = 40  # define the maximum number of outputted curves
 NUM_FC_SCCD = 40
 NUM_NRT_QUEUE = 240
 MAX_FLEX_BAND = 10
+MAX_FLEX_BAND_SCCD = 8
 DEFAULT_BANDS = 5
 
 
@@ -217,7 +219,7 @@ def cold_detect(
     n_cm=0,
     cm_output_interval=0,
     b_c2=False,
-    gap_days=365.25,
+    gap_days=365.25
 ):
     """
     pixel-based COLD algorithm.
@@ -373,7 +375,7 @@ def sccd_detect(
     b_c2=False,
     b_pinpoint=False,
     gate_pcg=0.90,
-    state_intervaldays=0.0,
+    state_intervaldays=0.0
 ):
     """
     pixel-based offline SCCD algorithm.
@@ -472,7 +474,7 @@ def sccd_update(
     pos=1,
     b_c2=False,
     gate_pcg=0.90,
-    predictability_tcg=9.236,
+    predictability_pcg=0.90,
 ):
     """
     SCCD online update for new observations
@@ -498,7 +500,7 @@ def sccd_update(
     b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
                 test due to its current low quality
     gate_pcg: the gate change magnitude threshold for defining anomaly
-    predictability_tcg: the threshold for predictability test
+    predictability_pcg: the threshold for predictability test
     Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
     Returns
     ----------
@@ -515,7 +517,7 @@ def sccd_update(
         b_c2=b_c2,
         b_pinpoint=False,
         gate_pcg=gate_pcg,
-        predictability_tcg=predictability_tcg,
+        predictability_pcg=predictability_pcg,
     )
 
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
@@ -523,6 +525,7 @@ def sccd_update(
     )
     t_cg = chi2.ppf(p_cg, DEFAULT_BANDS)
     gate_tcg = chi2.ppf(gate_pcg, DEFAULT_BANDS)
+    predictability_tcg = chi2.ppf(predictability_pcg, DEFAULT_BANDS)
     return _sccd_update(
         sccd_pack,
         dates,
@@ -539,7 +542,7 @@ def sccd_update(
         pos,
         b_c2,
         gate_tcg,
-        predictability_tcg,
+        predictability_tcg
     )
 
 
@@ -629,7 +632,7 @@ def cold_detect_flex(
     cm_output_interval=0,
     gap_days=365.25,
     tmask_b1=1,
-    tmask_b2=1,
+    tmask_b2=1
 ):
     """
     pixel-based COLD algorithm.
@@ -653,7 +656,8 @@ def cold_detect_flex(
           test due to the current low quality
     gap_days: define the day number of the gap year for determining i_dense. Setting a large value (e.g., 1500)
                 if the gap year in the middle of the time range
-
+    tmask_b1: the first band id for tmask
+    tmask_b2: the second band id for tmask
     Returns
     ----------
     change records: the COLD outputs that characterizes each temporal segment if b_output_cm==False
@@ -708,3 +712,194 @@ def cold_detect_flex(
     # dt = np.dtype([('t_start', np.int32), ('t_end', np.int32), ('t_break', np.int32), ('pos', np.int32),
     #                ('nm_obs', np.int32), ('category', np.int16), ('change_prob', np.int16), ('change_prob', np.int16)])
     return rec_cg
+
+
+def sccd_detect_flex(
+    dates,
+    ts_stack,
+    qas,
+    p_cg=0.99,
+    conse=6,
+    pos=1,
+    b_c2=False,
+    b_pinpoint=False,
+    gate_pcg=0.90,
+    state_intervaldays=0.0,
+    tmask_b1=1,
+    tmask_b2=1
+):
+    """
+    pixel-based offline SCCD algorithm.
+    Ye, S., Rogan, J., Zhu, Z., & Eastman, J. R. (2021). A near-real-time approach for monitoring forest
+    disturbance using Landsat time series: Stochastic continuous change detection.
+    Remote Sensing of Environment, 252, 112167.
+
+    Parameters
+    ----------
+    dates: 1d array of shape(observation numbers), list of ordinal dates
+    ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
+    qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
+    conse: consecutive observation number
+    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
+                test due to its current low quality
+    b_pinpoint: bool, output pinpoint break where pinpoint is an overdetection of break using conse =3
+                        and threshold = gate_tcg, which are used to simulate the situation of NRT scenario and
+                        for training a machine-learning model
+    gate_pcg: the gate change probability threshold for defining anomaly
+    b_output_state: indicate whether to output state variables
+    state_intervaldays: the day interval for output states (only b_output_state is True)
+    tmask_b1: the first band id for tmask
+    tmask_b2: the second band id for tmask
+    Returns
+    ----------
+    SccdOutput: the SCCD outputs that characterizes each temporal segment if b_pinpoint==False
+    Or
+    [SccdOutput, SccdReccgPinpoint]: b_pinpoint==True
+    """
+    _validate_params(
+        func_name="sccd_detect_flex",
+        p_cg=p_cg,
+        pos=pos,
+        conse=conse,
+        b_c2=b_c2,
+        b_pinpoint=b_pinpoint,
+        gate_pcg=gate_pcg,
+        state_intervaldays=state_intervaldays,
+    )
+    # make sure it is c contiguous array and 64 bit
+    dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
+    valid_num_scenes = ts_stack.shape[0]
+    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
+    if nbands > MAX_FLEX_BAND_SCCD:
+        raise RuntimeError(
+            f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
+        )
+    if (tmask_b1 > nbands) or (tmask_b2 > nbands):
+        raise RuntimeError(
+            f"tmask_b1 or tmask_b2 is larger than the input band number"
+        )
+    
+    t_cg = chi2.ppf(p_cg, nbands)
+    max_t_cg = chi2.ppf(0.9999, nbands)
+    gate_tcg = chi2.ppf(gate_pcg, nbands)
+    # sccd_wrapper = SccdDetectWrapper()
+    # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
+    #                                 pos, conse, b_c2, b_pinpoint, gate_tcg, b_monitor_init))
+    # return tmp
+    if state_intervaldays == 0:
+        b_output_state = False
+    else:
+        b_output_state = True
+    return _sccd_detect_flex(
+            dates,
+            ts_stack.flatten(),
+            qas,
+            valid_num_scenes,
+            nbands,
+            t_cg,
+            max_t_cg,
+            conse,
+            pos,
+            b_c2,
+            b_pinpoint,
+            gate_tcg,
+            0,
+            b_output_state,
+            state_intervaldays,
+            tmask_b1,
+            tmask_b2
+        )
+    
+
+def sccd_update_flex(
+    sccd_pack,
+    dates,
+    ts_stack,
+    qas,
+    p_cg=0.99,
+    conse=6,
+    pos=1,
+    b_c2=False,
+    gate_pcg=0.90,
+    predictability_pcg=0.90,
+    tmask_b1=1,
+    tmask_b2=1
+):
+    """
+    SCCD online update for new observations
+    Ye, S., Rogan, J., Zhu, Z., & Eastman, J. R. (2021). A near-real-time approach for monitoring forest
+    disturbance using Landsat time series: Stochastic continuous change detection.
+    Remote Sensing of Environment, 252, 112167.
+
+    Parameters
+    ----------
+    sccd_pack:
+    dates: 1d array of shape(observation numbers), list of ordinal dates
+    ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
+    qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    p_cg: probability threshold of change magnitude
+    conse: consecutive observation number
+    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
+    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
+                test due to its current low quality
+    gate_pcg: the gate change magnitude probability threshold for defining anomaly
+    predictability_pcg: the probability threshold for predictability test
+    tmask_b1: the first band id for tmask
+    tmask_b2: the second band id for tmas
+    Returns
+    ----------
+    change records: the SCCD outputs that characterizes each temporal segment
+    """
+    # if not isinstance(sccd_pack, SccdOutput):
+    #     raise ValueError("The type of sccd_pack has to be namedtuple 'SccdOutput'!")
+
+    _validate_params(
+        func_name="sccd_update_flex",
+        p_cg=p_cg,
+        pos=pos,
+        conse=conse,
+        b_c2=b_c2,
+        b_pinpoint=False,
+        gate_pcg=gate_pcg,
+        predictability_pcg=predictability_pcg,
+    )
+
+    dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
+    valid_num_scenes = ts_stack.shape[0]
+    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
+    if nbands > MAX_FLEX_BAND_SCCD:
+        raise RuntimeError(
+            f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
+        )
+    if (tmask_b1 > nbands) or (tmask_b2 > nbands):
+        raise RuntimeError(
+            f"tmask_b1 or tmask_b2 is larger than the input band number"
+        )
+    
+    t_cg = chi2.ppf(p_cg, nbands)
+    max_t_cg = chi2.ppf(0.9999, nbands)
+    gate_tcg = chi2.ppf(gate_pcg, nbands)
+    predictability_tcg = chi2.ppf(predictability_pcg, nbands)
+    
+    return _sccd_detect_flex(
+        sccd_pack,
+        dates,
+        ts_stack.flatten(),
+        qas,
+        valid_num_scenes,
+        nbands,
+        t_cg,
+        max_t_cg,
+        conse,
+        pos,
+        b_c2,
+        False,
+        gate_tcg,
+        predictability_tcg,
+        False,
+        0,
+        tmask_b1,
+        tmask_b2
+    )

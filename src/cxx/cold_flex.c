@@ -165,7 +165,7 @@ int cold_flex(
 }
 
 /******************************************************************************
-MODULE:  stand_procedure
+MODULE:  stand_procedure_flex
 PURPOSE:  standard procedure when having enough clear pixels for flexible mode
 RETURN VALUE:
 Type = int (SUCCESS OR FAILURE)

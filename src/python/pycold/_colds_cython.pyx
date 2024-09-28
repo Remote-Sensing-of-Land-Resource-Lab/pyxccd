@@ -13,7 +13,7 @@ cimport cython
 from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 # instead of int32_t and int64_t for cross-platform compatibility,see https://github.com/ansys/pymapdl/issues/14
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
-from .common import reccg_dt, reccg_dt_flex, sccd_dt, nrtqueue_dt, nrtmodel_dt, pinpoint_dt
+from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, pinpoint_dt, reccg_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, pinpoint_dt_flex
 np.import_array()
 from scipy.stats import chi2
 
@@ -29,7 +29,8 @@ cdef int32_t NUM_NRT_QUEUE = 240
 DEF DEFAULT_CONSE = 8
 DEF NRT_BAND = 6
 DEF SCCD_NUM_C = 6
-DEF TOTAL_FLEX_BAND = 10
+DEF TOTAL_BAND_FLEX_NRT = 8
+DEF TOTAL_BAND_FLEX = 10
 
 
 cdef extern from "../../cxx/output.h":
@@ -58,7 +59,7 @@ cdef extern from "../../cxx/output.h":
     ctypedef struct output_nrtqueue:
         short int clry[NRT_BAND]
         short int clrx_since1982
-        
+ 
 cdef extern from "../../cxx/output.h":
     ctypedef struct output_nrtmodel:
         short int t_start_since1982
@@ -83,6 +84,11 @@ cdef extern from "../../cxx/output.h":
         short int cm_angle[DEFAULT_CONSE]
 
 cdef extern from "../../cxx/output.h":
+    ctypedef struct output_nrtqueue:
+        short int clry[NRT_BAND]
+        short int clrx_since1982
+
+cdef extern from "../../cxx/output.h":
     ctypedef struct Output_t_flex:
         int32_t t_start
         int32_t t_end
@@ -91,10 +97,46 @@ cdef extern from "../../cxx/output.h":
         int32_t num_obs
         short int category
         short int change_prob
-        float coefs[TOTAL_FLEX_BAND][8]
-        float rmse[TOTAL_FLEX_BAND]
-        float magnitude[TOTAL_FLEX_BAND]
+        float coefs[TOTAL_BAND_FLEX][8]
+        float rmse[TOTAL_BAND_FLEX]
+        float magnitude[TOTAL_BAND_FLEX]
 
+cdef extern from "../../cxx/output.h":
+    ctypedef struct Output_sccd_flex:
+        int32_t t_start
+        int t_break
+        int num_obs
+        float coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
+        float rmse[TOTAL_BAND_FLEX_NRT]
+        float magnitude[TOTAL_BAND_FLEX_NRT]
+
+cdef extern from "../../cxx/output.h":
+    ctypedef struct Output_sccd_pinpoint_flex:
+        int32_t t_break
+        float coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
+        short int obs[TOTAL_BAND_FLEX_NRT][DEFAULT_CONSE]
+        short int obs_date_since1982[DEFAULT_CONSE]
+        short int norm_cm[DEFAULT_CONSE]
+        short int cm_angle[DEFAULT_CONSE]
+
+cdef extern from "../../cxx/output.h":
+    ctypedef struct output_nrtmodel_flex:
+        short int t_start_since1982
+        short int num_obs
+        short int obs[TOTAL_BAND_FLEX_NRT][DEFAULT_CONSE]
+        short int obs_date_since1982[DEFAULT_CONSE]
+        float covariance[TOTAL_BAND_FLEX_NRT][36]
+        float nrt_coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
+        float H[TOTAL_BAND_FLEX_NRT]
+        uint32_t rmse_sum[TOTAL_BAND_FLEX_NRT]
+        short int norm_cm;
+        short int cm_angle;
+        unsigned char conse_last;
+
+cdef extern from "../../cxx/output.h":
+    ctypedef struct output_nrtqueue_flex:
+        short int clry[TOTAL_BAND_FLEX_NRT]
+        short int clrx_since1982
 
 cdef extern from "../../cxx/cold.h":
     cdef int32_t cold(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2,
@@ -127,6 +169,15 @@ cdef extern from "../../cxx/s_ccd.h":
                   int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg,  bool b_output_state, 
                   double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble);
 
+
+cdef extern from "../../cxx/s_ccd_flex.h":
+    cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, 
+                           int tmask_b1, int tmask_b2, int valid_num_scenes, double tcg, double max_t_cg, 
+                           int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model,
+                           int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
+                           int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint_flex *rec_cg_pinpoint,
+                           int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg, bool b_output_state,
+                           double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble);
 
 
 cdef Output_sccd t
@@ -372,6 +423,8 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     cdef int32_t n_state = 0
     
     # cdef int64_t ** state_ensemble = <int64_t **>malloc(max_n_states * NRT_BAND * 3)
+    if b_pinpoint == True and b_output_state == True:
+        raise RuntimeError("b_pinpoint and b_output_state cannot be set both True")
 
     if b_output_state == True:
         max_n_states = math.ceil((dates[-1] - dates[0]) / state_intervaldays)
@@ -674,3 +727,261 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                                                              # a dtype-object from cython's array
             else:  # for object-based COLD
                 return [rec_cg[:num_fc], cm_outputs, cm_outputs_date]
+
+
+
+cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,
+                        np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands,
+                        double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1,
+                        bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
+                        double predictability_tcg=9.236, bint b_output_state=False, 
+                        double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1):
+    """
+    Helper function to do COLD algorithm.
+
+        Parameters
+        ----------
+        dates: 1d array of shape(observation numbers), list of ordinal dates
+        ts_stack: 2d array of shape(observation numbers), time series of multispectral data.
+        qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+        valid_num_scenes: the number of valid observations
+        nbands: the number of inputted bands
+        t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+        max_t_cg: threshold for identifying outliers
+        conse: consecutive observation number
+        pos: position id of the pixel
+        
+        starting_date: the starting date of the whole dataset to enable reconstruct CM_date,
+                    all pixels for a tile should have the same date, only for b_output_cm is True
+        cm_output_interval: the temporal interval of outputting change magnitudes
+        gap_days: define the day number of the gap year for i_dense
+        tmask_b1: the first band id for tmask
+        tmask_b2: the second band id for tmask
+
+        Returns
+        ----------
+        change records: the COLD outputs that characterizes each temporal segment
+    """
+    if conse > DEFAULT_CONSE:
+        raise RuntimeError("The inputted conse is longer than the maximum conse for S-CCD: {}".format(DEFAULT_CONSE))
+
+    # allocate memory for rec_cg
+    cdef Output_t t
+
+    # allocate memory for rec_cg
+    cdef int32_t num_fc = 0
+    cdef int32_t num_nrt_queue = 0
+    cdef int32_t num_fc_pinpoint = 0
+    cdef int32_t nrt_mode = 0
+    cdef int32_t n_state = 0
+    rec_cg = np.zeros(NUM_FC_SCCD, dtype=sccd_dt_flex)
+    nrt_queue = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
+    nrt_model = np.zeros(1, dtype=nrtmodel_dt_flex)
+    rec_cg_pinpoint = np.zeros(NUM_FC_SCCD, dtype=pinpoint_dt_flex)
+
+    if b_output_state == True:
+        max_n_states = math.ceil((dates[-1] - dates[0]) / state_intervaldays)
+        if max_n_states < 1:
+            raise RuntimeError("Make sure that state_intervaldays must be larger than 0, and not higher than the total day number")
+        state_ensemble = np.zeros(max_n_states * nbands * 3, dtype=np.double)
+        state_days = np.zeros(max_n_states, dtype=np.int64)
+    else:
+        state_ensemble = np.zeros(1, dtype=np.double)
+        state_days = np.zeros(1, dtype=np.int64)
+
+    if dates[-1] - dates[0] < 365.25:
+        raise RuntimeError("The input data length is smaller than 1 year for pos = {}".format(pos))
+
+    # initiate minimum rmse
+    min_rmse = np.full(nbands, 0, dtype=np.short)
+
+    # memory view
+    cdef int64_t [:] dates_view = dates
+    cdef int64_t [:] ts_stack_view = ts_stack
+    cdef int64_t [:] qas_view = qas
+    cdef short [:] min_rmse_view = min_rmse
+
+    cdef Output_sccd_flex [:] rec_cg_view = rec_cg
+    cdef output_nrtqueue_flex [:] nrt_queue_view = nrt_queue
+    cdef output_nrtmodel_flex [:] nrt_model_view = nrt_model
+    cdef Output_sccd_pinpoint_flex [:] rec_cg_pinpoint_view = rec_cg_pinpoint
+
+    cdef int64_t [:] states_days_view = state_days
+    cdef double [:] states_ensemble_view = state_ensemble
+
+
+    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
+                        valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
+                        &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
+                        conse, b_c2, b_pinpoint, &rec_cg_pinpoint_view[0], &num_fc_pinpoint, 
+                        gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
+                        &states_days_view[0], &states_ensemble_view[0])
+
+    # reshape state_ensemble
+    if result != 0:
+        raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
+    else:
+        if num_fc > 0:
+            output_rec_cg = rec_cg[:num_fc]
+        else:
+            output_rec_cg = np.array([])
+
+        if b_pinpoint == False:
+            if b_output_state == False:
+                if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
+                if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue])
+                elif nrt_mode % 10 == 5:  # queue mode
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue])
+                elif nrt_mode == 0:  # void mode
+                    return SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
+                                    np.array([]))
+                else:
+                    raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
+            else:
+                state_ensemble = state_ensemble.reshape(-1, nbands * 3)
+                if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                elif nrt_mode % 10 == 5:  # queue mode
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                elif nrt_mode == 0:  # void mode
+                    return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
+                                    np.array([])), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                else:
+                    raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
+        else:
+            if num_fc_pinpoint > 0:
+                output_rec_cg_pinpoint = rec_cg_pinpoint[:num_fc_pinpoint]
+            else:
+                output_rec_cg_pinpoint = np.array([])
+
+            if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
+                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
+                                   nrt_model, np.array([])),
+                                   SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+            elif nrt_mode % 10 == 2 or nrt_mode == 4:
+                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]),
+                                    SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+            elif nrt_mode % 10 == 5:  # queue mode
+                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]),
+                                   SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+            elif nrt_mode == 0:  # void mode
+                return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
+                                   np.array([])), output_rec_cg_pinpoint]
+            else:
+                raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
+
+
+cpdef _sccd_update_flex(sccd_pack,
+                        np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
+                        np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,
+                        np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, 
+                        int32_t nbands, double t_cg, double max_t_cg, 
+                        int32_t conse=6, int32_t pos=1, bint b_c2=True,
+                        double gate_tcg=9.236, double predictability_tcg=15.086, 
+                        int32_t tmask_b1=1, int32_t tmask_b2=1):
+    """
+    SCCD online update for new observations
+
+       Parameters
+       ----------
+       sccd_pack: a namedtuple of SccdOutput
+       dates: 1d array of shape(observation numbers), list of ordinal dates
+       ts_stack: 2d array of shape(observation numbers), time series of multispectral data.
+       qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+       valid_num_scenes: the number of valid observations
+       nbands: the number of inputted bands
+       t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+       pos: position id of the pixel
+       conse: consecutive observation number
+       b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
+       gate_tcg: the gate change magnitude threshold for defining anomaly
+       tmask_b1: the first band id for tmask
+       tmask_b2: the second band id for tmask
+       Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
+       Returns
+       ----------
+       namedtupe: SccdOutput
+            rec_cg: the S-CCD outputs that characterizes each temporal segment
+            min_rmse
+            int32_t nrt_mode,             /* O: 0 - void; 1 - monitor mode for standard; 2 - queue mode for standard;
+                                            3 - monitor mode for snow; 4 - queue mode for snow  */
+            nrt_model: nrt model if monitor mode, empty if queue mode
+            nrt_queue: obs queue if queue mode, empty if monitor mode
+    """
+
+    # allocate memory for rec_cg
+    # cdef int32_t num_fc = 0
+    # cdef int32_t num_nrt_queue = 0
+    cdef int32_t nrt_mode = sccd_pack.nrt_mode
+
+    if nrt_mode != 0 and nrt_mode % 10 != 1 and nrt_mode % 10 != 2 and nrt_mode != 3 and nrt_mode != 4 and nrt_mode != 5:
+        raise RuntimeError("Invalid nrt_node input {} for pos = {} ".format(nrt_mode, pos))
+
+    cdef int32_t num_fc = len(sccd_pack.rec_cg)
+    cdef int32_t num_nrt_queue = len(sccd_pack.nrt_queue)
+    cdef int32_t num_fc_pinpoint = 0
+    cdef Output_sccd_pinpoint_flex* rec_cg_pinpoint = <Output_sccd_pinpoint_flex*> PyMem_Malloc(sizeof(t4))
+    state_ensemble = np.zeros(1, dtype=np.double)
+    state_days = np.zeros(1, dtype=np.int64)
+    cdef int32_t n_state = 0
+
+    # grab inputs from the input
+    rec_cg_new = np.empty(NUM_FC_SCCD, dtype=sccd_dt_flex)
+    if num_fc > 0:
+        rec_cg_new[0:num_fc] = sccd_pack.rec_cg[0:num_fc]
+
+    nrt_queue_new = np.empty(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
+    if num_nrt_queue > 0:
+        nrt_queue_new[0:num_nrt_queue] = sccd_pack.nrt_queue[0:num_nrt_queue]
+
+    if nrt_mode % 10 == 1 or nrt_mode == 3 or nrt_mode % 10 == 5:
+        nrt_model_new = sccd_pack.nrt_model.copy()
+    else:
+        nrt_model_new = np.empty(1, dtype=nrtmodel_dt_flex)
+
+    min_rmse = sccd_pack.min_rmse
+
+    # memory view
+    cdef Output_sccd_flex [:] rec_cg_view = rec_cg_new
+    cdef output_nrtqueue_flex [:] nrt_queue_view = nrt_queue_new
+    cdef output_nrtmodel_flex [:] nrt_model_view = nrt_model_new
+    cdef short [:] min_rmse_view = min_rmse
+    cdef int64_t [:] dates_view = dates
+    cdef int64_t [:] ts_stack_view = ts_stack
+    cdef int64_t [:] qas_view = qas
+
+    cdef int64_t [:] states_days_view = state_days
+    cdef double [:] states_ensemble_view = state_ensemble
+
+    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
+                    valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
+                    &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
+                    conse, b_c2, False, rec_cg_pinpoint, &num_fc_pinpoint, 
+                    gate_tcg, predictability_tcg, False, 1, &n_state, 
+                    &states_days_view[0], &states_ensemble_view[0])
+
+    PyMem_Free(rec_cg_pinpoint)
+    if result != 0:
+        raise RuntimeError("sccd_update function fails for pos = {} ".format(pos))
+    else:
+        # sccd_pack_copy = None
+        if num_fc > 0:
+            output_rec_cg = rec_cg_new[0:num_fc]
+        else:
+            output_rec_cg = np.array([])
+
+        if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
+            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
+                              nrt_model_new, np.array([]))
+        elif nrt_mode % 10 == 2 or nrt_mode == 4: # queue mode:
+            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue_new[0:num_nrt_queue])
+        elif nrt_mode % 10 == 5:  # queue or m2q mode
+            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model_new, nrt_queue_new[0:num_nrt_queue])
+        elif nrt_mode == 0:  # void mode
+            return SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]), np.array([]))
+        else:
+            raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))

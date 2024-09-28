@@ -19,6 +19,7 @@
 #include "misc.h"
 #include "s_ccd.h"
 #include "cold_flex.h"
+#include "s_ccd_flex.h"
 
 #define MAX_N_STATES 10000
 
@@ -286,6 +287,7 @@ int main(int argc, char *argv[])
     Output_t *rec_cg;
     Output_sccd *s_rec_cg;
     Output_t_flex *rec_cg_flex;
+    Output_sccd_flex *s_rec_cg_flex;
     int64_t *sensor_buf;
     double tcg;
     int n_cm_maps = 0;
@@ -329,7 +331,9 @@ int main(int argc, char *argv[])
     int pixel_qa;
     num_scenes = MAX_SCENE_LIST;
     output_nrtmodel *nrt_model;
+    output_nrtmodel_flex *nrt_model_flex;
     int num_obs_queue = 0;
+    output_nrtqueue_flex *obs_queue_flex;
     output_nrtqueue *obs_queue;
     int nrt_mode = 0;
     int pos;
@@ -340,6 +344,7 @@ int main(int argc, char *argv[])
     int headline = -1;
     bool b_pinpoint = TRUE;
     Output_sccd_pinpoint *rec_cg_pinpoint;
+    Output_sccd_pinpoint_flex *rec_cg_pinpoint_flex;
     int num_fc_pinpoint = 0;
     if (b_header_csv == TRUE)
         headline = 0; // skip the head line of csv
@@ -348,6 +353,7 @@ int main(int argc, char *argv[])
     bool b_coefs_records = TRUE;
     int n_coefs_records = 0;
     nrt_coefs_records *coefs_records;
+    nrt_coefs_records_flex *coefs_records_flex;
     tcg = 15.086;
     double pcg = 0.99;
     int state_intervaldays = 30.4;
@@ -355,6 +361,8 @@ int main(int argc, char *argv[])
     int64_t *state_days;
     int64_t *buf_stack;
     double *state_ensemble;
+    double t_cg;
+    double max_t_cg;
 
     /**************************************************************/
     /*                                                            */
@@ -392,8 +400,13 @@ int main(int argc, char *argv[])
         method = COLD_FLEX;
         cm_output_interval = 60;
     }
+    else if (argv[1][0] == 'g')
+    {
+        method = SCCD_FLEX;
+        cm_output_interval = 60;
+    }
     else
-        RETURN_ERROR("The second input parameter has to be r, s, o or c", FUNC_NAME, FAILURE);
+        RETURN_ERROR("The second input parameter has to be r, s, o, f, g, c", FUNC_NAME, FAILURE);
 
     /* stack is complete image, not partitions */
     if (argv[1][1] == 'c')
@@ -575,10 +588,24 @@ int main(int argc, char *argv[])
                      FUNC_NAME, FAILURE);
     }
 
+    rec_cg_pinpoint_flex = malloc(NUM_FC * sizeof(Output_sccd_pinpoint_flex));
+    if (rec_cg_pinpoint_flex == NULL)
+    {
+        RETURN_ERROR("ERROR allocating rec_cg_pinpoint_flex",
+                     FUNC_NAME, FAILURE);
+    }
+
     nrt_model = malloc(sizeof(output_nrtmodel));
     if (nrt_model == NULL)
     {
         RETURN_ERROR("ERROR allocating nrt_model",
+                     FUNC_NAME, FAILURE);
+    }
+
+    nrt_model_flex = malloc(sizeof(output_nrtmodel_flex));
+    if (nrt_model_flex == NULL)
+    {
+        RETURN_ERROR("ERROR allocating nrt_model_flex",
                      FUNC_NAME, FAILURE);
     }
 
@@ -775,8 +802,8 @@ int main(int argc, char *argv[])
             {
                 int nbands = 4;
                 rec_cg_flex = malloc(NUM_FC * sizeof(Output_t_flex));
-                double t_cg = X2(nbands, pcg);
-                double max_t_cg = X2(nbands, 0.99999);
+                t_cg = X2(nbands, pcg);
+                max_t_cg = X2(nbands, 0.99999);
                 if (rec_cg_flex == NULL)
                 {
                     RETURN_ERROR("ERROR allocating rec_cg_flex",
@@ -800,6 +827,39 @@ int main(int argc, char *argv[])
                 // snprintf (msg_str, sizeof(msg_str), "pixel %d COLD calculation finished\n", i_col+1);
                 // LOG_MESSAGE (msg_str, FUNC_NAME)
                 free(rec_cg_flex);
+            }
+            else if (method == SCCD_FLEX)
+            {
+                int nbands = 4;
+                t_cg = X2(nbands, pcg);
+                max_t_cg = X2(nbands, 0.9999);
+                s_rec_cg_flex = malloc(NUM_FC * sizeof(Output_sccd_flex));
+                if (s_rec_cg_flex == NULL)
+                {
+                    RETURN_ERROR("ERROR allocating s_rec_cg_flex",
+                                 FUNC_NAME, FAILURE);
+                }
+
+                //                printf("temporal success2 with processid %d\n", process_id);
+                //                printf("valid_scene_count_scanline[i_col] is %d;i_col is %d; original_row is %d; probability threshold is %f\n",
+                //                       valid_scene_count_scanline[i_col], i_col, original_row, probability_threshold);
+                for (i = 0; i < valid_scene_count; i++)
+                {
+                    for (j = 0; j < nbands; j++)
+                    {
+                        buf_stack[i * nbands + j] = buf[j + 1][i];
+                    }
+                }
+
+                result = sccd_flex(buf_stack, fmask_buf, sdate, nbands, 1, 4, valid_scene_count, tcg,
+                                   max_t_cg, &num_fc, &nrt_mode, s_rec_cg_flex, nrt_model_flex, &num_obs_queue,
+                                   obs_queue_flex, min_rmse, conse, b_c2, b_pinpoint, rec_cg_pinpoint_flex,
+                                   &num_fc_pinpoint, gate_tcg, t_cg, b_coefs_records,
+                                   state_intervaldays, &n_state, state_days, state_ensemble);
+
+                // snprintf (msg_str, sizeof(msg_str), "pixel %d COLD calculation finished\n", i_col+1);
+                // LOG_MESSAGE (msg_str, FUNC_NAME)
+                free(s_rec_cg_flex);
             }
             else
             {
@@ -880,8 +940,10 @@ int main(int argc, char *argv[])
 
     free(s_rec_cg);
     free(rec_cg_pinpoint);
+    free(rec_cg_pinpoint_flex);
     free(obs_queue);
     free(nrt_model);
+    free(nrt_model_flex);
     free(coefs_records);
     free(state_days);
     free(state_ensemble);

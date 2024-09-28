@@ -2,6 +2,7 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <time.h>
 #include "math.h"
 #include "defines.h"
 #include "misc.h"
@@ -9,13 +10,11 @@
 #include "utilities.h"
 #include "2d_array.h"
 #include "output.h"
-#include "s_ccd.h"
+#include "s_ccd_flex.h"
 #include "distribution_math.h"
-#include <time.h>
+
 #define N_Columns 8
 #define Max_DOF 30
-
-int lasso_blist_sccd[NUM_LASSO_BANDS] = {1, 2, 3, 4, 5};
 
 /******************************************************************************
 MODULE:  sccd_offline
@@ -28,32 +27,29 @@ Type = int (SUCCESS OR FAILURE)
 HISTORY:
 Date        Programmer       Reason
 --------    ---------------  -------------------------------------
-11/14/2018   Su Ye         Original Development
-04/14/2022   Su Ye         update
+08/31/2024   Su Ye         original development
 ******************************************************************************/
-int sccd(
-    int64_t *buf_b,                        /* I:  Landsat blue spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_g,                        /* I:  Landsat green spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_r,                        /* I:  Landsat red spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_n,                        /* I:  Landsat NIR spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_s1,                       /* I:  Landsat swir1 spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_s2,                       /* I:  Landsat swir2 spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_t,                        /* I:  Landsat thermal spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *fmask_buf,                    /* I:  mask-based time series              */
-    int64_t *valid_date_array,             /* I: valid date time series               */
-    int valid_num_scenes,                  /* I: number of valid scenes under cfmask fill counts  */
-    double tcg,                            /* I: the change threshold  */
-    int *num_fc,                           /* O: number of fitting curves                       */
-    int *nrt_mode,                         /* O: 2nd digit: 0 - void; 1 - monitor mode for standard; 2 - queue mode for standard; 3 - monitor mode for snow; 4 - queue mode for snow; 1st digit: 1 - predictability untest */
-    Output_sccd *rec_cg,                   /* O: historical change records for SCCD results    */
-    output_nrtmodel *nrt_model,            /* O: nrt model structure for SCCD results    */
-    int *num_obs_queue,                    /* O: the number of multispectral observations    */
-    output_nrtqueue *obs_queue,            /* O: multispectral observations in queue    */
-    short int *min_rmse,                   /* O: adjusted rmse for the pixel    */
-    int conse,                             /* I: consecutive observation number for change detection   */
-    bool b_c2,                             /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
-    bool b_pinpoint,                       /* I: output pinpoint break for training purpose  */
-    Output_sccd_pinpoint *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
+int sccd_flex(
+    int64_t *ts_data,                           /* I:  multispectral time series reshaped into 1 column. Invalid (qa is filled value (255)) must be removed */
+    int64_t *fmask_buf,                         /* I:  mask-based time series              */
+    int64_t *valid_date_array,                  /* I: valid date time series               */
+    int nbands,                                 /* I: input band number */
+    int tmask_b1,                               /* I: the band id used for tmask */
+    int tmask_b2,                               /* I: the band id used for tmask */
+    int valid_num_scenes,                       /* I: number of valid scenes under cfmask fill counts  */
+    double tcg,                                 /* I: the change threshold  */
+    double max_t_cg,                            /* I: threshold for identfying outliers */
+    int *num_fc,                                /* O: number of fitting curves                       */
+    int *nrt_mode,                              /* O: 2nd digit: 0 - void; 1 - monitor mode for standard; 2 - queue mode for standard; 3 - monitor mode for snow; 4 - queue mode for snow; 1st digit: 1 - predictability untest */
+    Output_sccd_flex *rec_cg,                   /* O: historical change records for SCCD results    */
+    output_nrtmodel_flex *nrt_model,            /* O: nrt model structure for SCCD results    */
+    int *num_obs_queue,                         /* O: the number of multispectral observations    */
+    output_nrtqueue_flex *obs_queue,            /* O: multispectral observations in queue    */
+    short int *min_rmse,                        /* O: adjusted rmse for the pixel    */
+    int conse,                                  /* I: consecutive observation number for change detection   */
+    bool b_c2,                                  /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
+    bool b_pinpoint,                            /* I: output pinpoint break for training purpose  */
+    Output_sccd_pinpoint_flex *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
     int *num_fc_pinpoint,
     double gate_tcg,
     double predictability_tcg,
@@ -81,13 +77,13 @@ int sccd(
     bool b_snow;               // indicate if snow pixels
     float max_date_difference; /* maximum difference between two neighbor dates        */
     float date_vario;          /* median date                                          */
-    float min_rmse_float[TOTAL_IMAGE_BANDS_SCCD];
+    float *min_rmse_float;
     int len_clrx; /* length of clrx  */
     int n_clr_record;
     int valid_nrt_mode[] = {0, 1, 2, 3, 4, 5, 11, 12};
     bool isinvalid_nrtmode = TRUE;
     int arrLen = sizeof valid_nrt_mode / sizeof valid_nrt_mode[0];
-    nrt_coefs_records *coefs_records;
+    nrt_coefs_records_flex *coefs_records;
     int n_coefs_records = 0;
     double days;
     int cur_coefs = 0;
@@ -127,18 +123,19 @@ int sccd(
         RETURN_ERROR("Allocating clrx memory", FUNC_NAME, FAILURE);
     }
 
-    clry = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, len_clrx,
+    clry = (float **)allocate_2d_array(nbands, len_clrx,
                                        sizeof(float));
     if (clry == NULL)
     {
         RETURN_ERROR("Allocating clry memory", FUNC_NAME, FAILURE);
     }
 
-    coefs_records = (nrt_coefs_records *)malloc(len_clrx * sizeof(nrt_coefs_records));
+    coefs_records = (nrt_coefs_records_flex *)malloc(len_clrx * sizeof(nrt_coefs_records_flex));
 
-    status = preprocessing(buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t,
-                           fmask_buf, &valid_num_scenes, id_range, &clear_sum,
-                           &water_sum, &shadow_sum, &sn_sum, &cloud_sum, b_c2);
+    min_rmse_float = (float *)malloc(nbands * sizeof(float));
+
+    status = preprocessing_flex(ts_data, fmask_buf, &valid_num_scenes, id_range, &clear_sum,
+                                &water_sum, &shadow_sum, &sn_sum, &cloud_sum, nbands);
 
     if (status != SUCCESS)
     {
@@ -173,7 +170,7 @@ int sccd(
         for (i = 0; i < *num_obs_queue; i++)
         {
             clrx[i] = obs_queue[i].clrx_since1982 + ORDINAL_LANDSAT4_LAUNCH;
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
                 clry[i_b][i] = obs_queue[i].clry[i_b];
             n_clr++;
         }
@@ -185,7 +182,7 @@ int sccd(
         {
             if (k < conse)
             {
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
                     clry[i_b][k] = nrt_model->obs[i_b][k];
                 }
@@ -219,24 +216,10 @@ int sccd(
                     continue;
                 else
                 {
-                    clrx[n_clr] = (int)valid_date_array[i];
-                    for (k = 0; k < TOTAL_IMAGE_BANDS_SCCD; k++)
-                    {
-                        if (k == 0)
-                            clry[k][n_clr] = (float)buf_b[i];
-                        else if (k == 1)
-                            clry[k][n_clr] = (float)buf_g[i];
-                        else if (k == 2)
-                            clry[k][n_clr] = (float)buf_r[i];
-                        else if (k == 3)
-                            clry[k][n_clr] = (float)buf_n[i];
-                        else if (k == 4)
-                            clry[k][n_clr] = (float)buf_s1[i];
-                        else if (k == 5)
-                            clry[k][n_clr] = (float)buf_s2[i];
-                        else if (k == 6)
-                            clry[k][n_clr] = (float)buf_t[i];
-                    }
+                    clrx[n_clr] = valid_date_array[i];
+                    // printf("%d is %d\n", n_clr + 1, clrx[n_clr]);
+                    for (k = 0; k < nbands; k++)
+                        clry[k][n_clr] = (float)ts_data[i * nbands + k];
                     n_clr++;
                 }
             }
@@ -250,17 +233,18 @@ int sccd(
             {
                 if (*nrt_mode == NRT_VOID)
                 {
-                    status = adjust_median_variogram(clrx, clry, TOTAL_IMAGE_BANDS_SCCD, 0,
+                    status = adjust_median_variogram(clrx, clry, nbands, 0,
                                                      n_clr - 1, &date_vario, &max_date_difference,
                                                      min_rmse_float, 1);
-                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                    for (i_b = 0; i_b < nbands; i_b++)
                         min_rmse[i_b] = (short int)min_rmse_float[i_b];
                 }
             }
 
-            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue,
-                                   obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint,
-                                   gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records);
+            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue,
+                                        obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint,
+                                        gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands,
+                                        tmask_b1, tmask_b2);
         }
     }
     else
@@ -279,30 +263,16 @@ int sccd(
                     continue;
                 else
                 {
-                    clrx[n_clr] = (int)valid_date_array[i];
-                    for (k = 0; k < TOTAL_IMAGE_BANDS_SCCD; k++)
-                    {
-                        if (k == 0)
-                            clry[k][n_clr] = (float)buf_b[i];
-                        else if (k == 1)
-                            clry[k][n_clr] = (float)buf_g[i];
-                        else if (k == 2)
-                            clry[k][n_clr] = (float)buf_r[i];
-                        else if (k == 3)
-                            clry[k][n_clr] = (float)buf_n[i];
-                        else if (k == 4)
-                            clry[k][n_clr] = (float)buf_s1[i];
-                        else if (k == 5)
-                            clry[k][n_clr] = (float)buf_s2[i];
-                        else if (k == 6)
-                            clry[k][n_clr] = (float)buf_t[i];
-                    }
+                    clrx[n_clr] = valid_date_array[i];
+                    // printf("%d is %d\n", n_clr + 1, clrx[n_clr]);
+                    for (k = 0; k < nbands; k++)
+                        clry[k][n_clr] = (float)ts_data[i * nbands + k];
                     n_clr++;
                 }
             }
         }
 
-        result = sccd_snow(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records);
+        result = sccd_snow_flex(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, nbands);
     }
 
     days = clrx[0];
@@ -312,17 +282,17 @@ int sccd(
         {
             state_days[*n_state] = days;
 
-            for (i = 0; i < TOTAL_IMAGE_BANDS_SCCD; i++)
+            for (i = 0; i < nbands; i++)
             {
-                states_ensemble[*n_state * 3 * TOTAL_IMAGE_BANDS_SCCD + i] = (double)coefs_records[cur_coefs].nrt_coefs[i][0] + (double)coefs_records[cur_coefs].nrt_coefs[i][1] * days / SLOPE_SCALE;
+                states_ensemble[*n_state * 3 * nbands + i] = (double)coefs_records[cur_coefs].nrt_coefs[i][0] + (double)coefs_records[cur_coefs].nrt_coefs[i][1] * days / SLOPE_SCALE;
             }
-            for (i = 0; i < TOTAL_IMAGE_BANDS_SCCD; i++)
+            for (i = 0; i < nbands; i++)
             {
-                states_ensemble[*n_state * 3 * TOTAL_IMAGE_BANDS_SCCD + TOTAL_IMAGE_BANDS_SCCD + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][2] * cos((double)days * w) + coefs_records[cur_coefs].nrt_coefs[i][3] * sin((double)days * w));
+                states_ensemble[*n_state * 3 * nbands + nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][2] * cos((double)days * w) + coefs_records[cur_coefs].nrt_coefs[i][3] * sin((double)days * w));
             }
-            for (i = 0; i < TOTAL_IMAGE_BANDS_SCCD; i++)
+            for (i = 0; i < nbands; i++)
             {
-                states_ensemble[*n_state * 3 * TOTAL_IMAGE_BANDS_SCCD + 2 * TOTAL_IMAGE_BANDS_SCCD + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][4] * cos((double)days * w * 2) + coefs_records[cur_coefs].nrt_coefs[i][5] * sin((double)days * w * 2));
+                states_ensemble[*n_state * 3 * nbands + 2 * nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][4] * cos((double)days * w * 2) + coefs_records[cur_coefs].nrt_coefs[i][5] * sin((double)days * w * 2));
             }
             *n_state = *n_state + 1;
             days = days + state_intervaldays;
@@ -345,58 +315,14 @@ int sccd(
 
     free(id_range);
     free(coefs_records);
+    free(min_rmse_float);
     return result;
 }
 
 // Solve for f so that Pr[F < f] = pr where F has an F distribution with
 // v1, v2 degrees of freedom.
 
-double F(int v1, int v2, double pr)
-{
-    double f0 = 0.0;
-    double f = 2.0;
-    double diff;
-    double delta = 0.1;
-    double p;
-    int n = 0;
-
-    f = 1.0;
-    while ((p = F_Distribution(f, v1, v2)) < pr)
-    {
-        f += delta;
-        if (p > 0.999)
-        {
-            delta /= 10.0;
-            f = (f - delta) / 10;
-        }
-    }
-
-    f0 = f - delta;
-    while ((p = F_Distribution(f0, v1, v2)) > pr)
-    {
-        f0 -= delta;
-        if (p < 0.001)
-        {
-            delta /= 10.0;
-            f0 = (f0 + delta) / 10;
-        }
-    }
-
-    while (fabs(f - f0) > 1.e-6)
-    {
-        diff = F_Distribution(f, v1, v2) - pr;
-        diff /= F_Density(f, v1, v2);
-        diff /= 2.0;
-        f0 = f;
-        f -= diff;
-        n++;
-        if (n > 40)
-            exit(0);
-    }
-    return f;
-}
-
-int step1_ssm_initialize(
+int step1_ssm_initialize_flex(
     ssmodel_constants *instance, /* I/O: the outputted initial SSM model, we will assign H     */
     int *clrx,                   /* I: clear pixel curve in X direction (date)             */
     float *clry,                 /* I: clear pixel curve in Y direction (spectralbands)    */
@@ -409,7 +335,8 @@ int step1_ssm_initialize(
     int n_clr,
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records_flex *coefs_records,
+    int nbands)
 {
     char FUNC_NAME[] = "step1_ssm_initialize";
     float *state_sum;
@@ -438,22 +365,6 @@ int step1_ssm_initialize(
     }
     state_a = gsl_vector_alloc(instance->m);
 
-    /* generate a copy of observation at the head of clrx_extend and clry_extend */
-    //    for (i = 0; i < stable_nobs + EXTEND_OBS  + 1; i++)
-    //    {
-    //        if (i < EXTEND_OBS)
-    //        {
-    //            clrx_extend[i] = clrx[stable_start] - EXTEND_OBS_INTERVAL * EXTEND_OBS + EXTEND_OBS_INTERVAL * i;
-    //            auto_ts_predict(clrx_extend, fit_cft, SCCD_NUM_C, i_b, i, i, &tmp);
-
-    //            clry_extend[i] = (float)floor(tmp);
-    //        }else{
-    //            clrx_extend[i] = clrx[stable_start + i - EXTEND_OBS];
-    //            clry_extend[i] = clry[stable_start + i - EXTEND_OBS];
-    //        }
-    //        // printf("i = %d, clrx = %d, clry = %d \n", i, clrx_extend[i], (int)clry_extend[i]);
-
-    //    }
     for (i = 0; i < stable_nobs * 2 + 1; i++)
     {
         if (i < stable_nobs)
@@ -480,21 +391,6 @@ int step1_ssm_initialize(
 
         // printf("i = %d, clrx = %d, clry = %d \n", i, clrx_extend[i], (int)clry_extend[i]);
     }
-
-    //    printf("fit_cft[0][0]: %f\n", fit_cft[i_b][0]);
-    //    printf("fit_cft[0][1]: %f\n", fit_cft[i_b][1]);
-    //    printf("fit_cft[0][2]: %f\n", fit_cft[i_b][2]);
-    //    printf("fit_cft[0][3]: %f\n", fit_cft[i_b][3]);
-    //    printf("fit_cft[0][4]: %f\n", fit_cft[i_b][4]);
-    //    printf("fit_cft[0][5]: %f\n", fit_cft[i_b][5]);
-    //    fit_cft2vec_a(fit_cft, state_a, clrx[stable_start]);
-    //    vec_a2fit_cft(state_a, fit_cft, clrx[stable_start]);
-    //    printf("fit_cft[0][0]: %f\n", fit_cft[0]);
-    //    printf("fit_cft[0][1]: %f\n", fit_cft[1]);
-    //    printf("fit_cft[0][2]: %f\n", fit_cft[2]);
-    //    printf("fit_cft[0][3]: %f\n", fit_cft[3]);
-    //    printf("fit_cft[0][4]: %f\n", fit_cft[4]);
-    //    printf("fit_cft[0][5]: %f\n", fit_cft[5]);
 
     /* assign memory and initialize them to zero */
     state_sum = (float *)calloc(instance->m, sizeof(float));
@@ -526,13 +422,6 @@ int step1_ssm_initialize(
         }
     }
 
-    //        printf("instance->Q[1] = %f\n", gsl_matrix_get(instance->Q, 1, 1));
-    //        printf("instance->Q[2] = %f\n", gsl_matrix_get(instance->Q, 2, 2));
-    //        printf("instance->Q[3] = %f\n", gsl_matrix_get(instance->Q, 3, 3));
-    //        printf("instance->Q[4] = %f\n", gsl_matrix_get(instance->Q, 4, 4));
-    //        printf("instance->Q[5] = %f\n", gsl_matrix_get(instance->Q, 5, 5));
-    //        printf("instance->H = %f\n", instance->H);
-
     /********************************************************/
     /*     running regular kalman filter for stable stage   */
     /********************************************************/
@@ -557,7 +446,7 @@ int step1_ssm_initialize(
         }
     }
     *sum_square_vt = (*sum_square_vt) / 2.0;
-    if (i_b == (TOTAL_IMAGE_BANDS_SCCD - 1))
+    if (i_b == (nbands - 1))
         *n_coefs_records = n_coefs_records_cp;
 
     //    for(i = 0; i < stable_nobs + EXTEND_OBS; i++){
@@ -583,22 +472,25 @@ int step1_ssm_initialize(
     return SUCCESS;
 }
 
-int step1_cold_initialize(
+int step1_cold_initialize_flex(
     int conse,           /* I: adjusted consecutive observation number               */
     short int *min_rmse, /* I: the adjusted RMS                        */
     int *n_clr,          /* I: number of clear observations                         */
     double tcg,          /* I: the threshold of change magnitude                       */
-    int *i_dense,        /* I: used to count i for dense time point check          */
-    int *num_curve,      /* I/O: the number of fitting curve                        */
-    int *clrx,           /* I/O: clear pixel curve in X direction (date)             */
-    float **clry,        /* I/O: clear pixel curve in Y direction (spectralbands)    */
-    int *cur_i,          /* I/O: the current number of monitoring observation          */
-    int *i_start,        /* I/O: the start number of current curve                   */
-    Output_sccd *rec_cg, /* I/O: records of change points info                    */
-    int i_span_min,      /* I: the minimum value for i_span                    */
-    int *prev_i_break,   /*I : the i_break of the last curve                    */
-    float *rmse          /* I/O: Root Mean Squared Error array used for initialized kalman filter model    */
-)
+    double max_t_cg,
+    int *i_dense,             /* I: used to count i for dense time point check          */
+    int *num_curve,           /* I/O: the number of fitting curve                        */
+    int *clrx,                /* I/O: clear pixel curve in X direction (date)             */
+    float **clry,             /* I/O: clear pixel curve in Y direction (spectralbands)    */
+    int *cur_i,               /* I/O: the current number of monitoring observation          */
+    int *i_start,             /* I/O: the start number of current curve                   */
+    Output_sccd_flex *rec_cg, /* I/O: records of change points info                    */
+    int i_span_min,           /* I: the minimum value for i_span                    */
+    int *prev_i_break,        /*I : the i_break of the last curve                    */
+    float *rmse,              /* I/O: Root Mean Squared Error array used for initialized kalman filter model    */
+    int nbands,
+    int tmask_b1,
+    int tmask_b2)
 {
     int status;
     int k, m, b;
@@ -650,7 +542,7 @@ int step1_cold_initialize(
     /*     allocac memory for variables                 */
     /*                                                  */
     /****************************************************/
-    rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, *n_clr,
+    rec_v_dif = (float **)allocate_2d_array(nbands, *n_clr,
                                             sizeof(float));
     if (rec_v_dif == NULL)
     {
@@ -675,38 +567,38 @@ int step1_cold_initialize(
         RETURN_ERROR("ERROR allocating rm_ids memory", FUNC_NAME, FAILURE);
     }
 
-    v_start = (float *)malloc(NUM_LASSO_BANDS * sizeof(float));
+    v_start = (float *)malloc(nbands * sizeof(float));
     if (v_start == NULL)
     {
         RETURN_ERROR("ERROR allocating v_start memory", FUNC_NAME, FAILURE);
     }
 
-    v_end = (float *)malloc(NUM_LASSO_BANDS * sizeof(float));
+    v_end = (float *)malloc(nbands * sizeof(float));
     if (v_end == NULL)
     {
         RETURN_ERROR("ERROR allocating v_end memory", FUNC_NAME, FAILURE);
     }
 
-    v_slope = (float *)malloc(NUM_LASSO_BANDS * sizeof(float));
+    v_slope = (float *)malloc(nbands * sizeof(float));
     if (v_slope == NULL)
     {
         RETURN_ERROR("ERROR allocating v_slope memory", FUNC_NAME, FAILURE);
     }
 
-    v_dif = (float *)malloc(NUM_LASSO_BANDS * sizeof(float));
+    v_dif = (float *)malloc(nbands * sizeof(float));
     if (v_dif == NULL)
     {
         RETURN_ERROR("ERROR allocating v_dif memory", FUNC_NAME, FAILURE);
     }
 
-    tmp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, *n_clr,
+    tmp_v_dif = (float **)allocate_2d_array(nbands, *n_clr,
                                             sizeof(float));
     if (tmp_v_dif == NULL)
     {
         RETURN_ERROR("Allocating tmp_v_dif memory", FUNC_NAME, FAILURE);
     }
 
-    v_dif_mag = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse,
+    v_dif_mag = (float **)allocate_2d_array(nbands, conse,
                                             sizeof(float));
     if (v_dif_mag == NULL)
     {
@@ -714,7 +606,7 @@ int step1_cold_initialize(
                      FUNC_NAME, FAILURE);
     }
 
-    fit_cft = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, SCCD_NUM_C, sizeof(float));
+    fit_cft = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
     if (fit_cft == NULL)
     {
         RETURN_ERROR("Allocating fit_cft memory", FUNC_NAME, FAILURE);
@@ -784,7 +676,7 @@ int step1_cold_initialize(
     /****************************************************/
     tmp_end = min(*cur_i + conse - 1, *n_clr - 1);
     status = auto_mask(clrx, clry, *i_start, tmp_end, (double)(clrx[tmp_end] - clrx[*i_start]) / NUM_YEARS,
-                       min_rmse[1], min_rmse[4], SCCD_T_CONST, bl_ids, 2, 5);
+                       min_rmse[tmask_b1 - 1], min_rmse[tmask_b2 - 1], SCCD_T_CONST, bl_ids, tmask_b1, tmask_b2);
     if (status != SUCCESS)
     {
         RETURN_ERROR("ERROR calling auto_mask during model initilization",
@@ -900,7 +792,7 @@ int step1_cold_initialize(
     if (cpx == NULL)
         RETURN_ERROR("ERROR allocating cpx memory", FUNC_NAME, FAILURE);
 
-    cpy = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, *n_clr,
+    cpy = (float **)allocate_2d_array(nbands, *n_clr,
                                       sizeof(float));
     if (cpy == NULL)
     {
@@ -922,7 +814,7 @@ int step1_cold_initialize(
             continue;
         }
         cpx[k_new] = clrx[k];
-        for (b = 0; b < TOTAL_IMAGE_BANDS_SCCD; b++)
+        for (b = 0; b < nbands; b++)
         {
             cpy[b][k_new] = clry[b][k];
         }
@@ -1036,7 +928,7 @@ int step1_cold_initialize(
     for (k = 0; k < *n_clr; k++)
     {
         clrx[k] = cpx[k];
-        for (m = 0; m < TOTAL_IMAGE_BANDS_SCCD; m++)
+        for (m = 0; m < nbands; m++)
         {
             clry[m][k] = cpy[m][k];
         }
@@ -1063,7 +955,7 @@ int step1_cold_initialize(
 
     // update_num_c = MIN_NUM_C;
 
-    for (b = 0; b < TOTAL_IMAGE_BANDS_SCCD; b++)
+    for (b = 0; b < nbands; b++)
     {
         /**********************************************/
         /*                                            */
@@ -1083,7 +975,7 @@ int step1_cold_initialize(
 
     v_dif_norm = 0.0;
 
-    for (i_b = 0; i_b < NUM_LASSO_BANDS; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
     {
 
         /**********************************************/
@@ -1092,15 +984,14 @@ int step1_cold_initialize(
         /*                                            */
         /**********************************************/
 
-        mini_rmse = max(min_rmse[lasso_blist_sccd[i_b]], rmse[lasso_blist_sccd[i_b]]);
-        // mini_rmse = rmse[lasso_blist_sccd[i_b]];
+        mini_rmse = max(min_rmse[i_b], rmse[i_b]);
         /**********************************************/
         /*                                            */
         /* Compare the first observation.             */
         /*                                            */
         /**********************************************/
 
-        v_start[i_b] = (rec_v_dif[lasso_blist_sccd[i_b]][0]) / mini_rmse;
+        v_start[i_b] = (rec_v_dif[i_b][0]) / mini_rmse;
 
         /**********************************************/
         /*                                            */
@@ -1108,14 +999,14 @@ int step1_cold_initialize(
         /*                                            */
         /**********************************************/
 
-        v_end[i_b] = rec_v_dif[lasso_blist_sccd[i_b]][*cur_i - *i_start] / mini_rmse;
+        v_end[i_b] = rec_v_dif[i_b][*cur_i - *i_start] / mini_rmse;
 
         /**********************************************/
         /*                                            */
         /* Astandardized slope values.                  */
         /*                                            */
         /**********************************************/
-        v_slope[i_b] = fit_cft[lasso_blist_sccd[i_b]][1] *
+        v_slope[i_b] = fit_cft[i_b][1] *
                        (clrx[*cur_i] - clrx[*i_start]) / mini_rmse / SLOPE_SCALE;
 
         /**********************************************/
@@ -1245,7 +1136,7 @@ int step1_cold_initialize(
             /*                                        */
             /******************************************/
 
-            v_diff = (float **)allocate_2d_array(NUM_LASSO_BANDS,
+            v_diff = (float **)allocate_2d_array(nbands,
                                                  ini_conse, sizeof(float));
             if (v_diff == NULL)
             {
@@ -1272,7 +1163,7 @@ int step1_cold_initialize(
             for (i_conse = 1; i_conse < ini_conse + 1; i_conse++) // SY 09192018
             {
                 v_dif_norm = 0.0;
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
 
                     /**********************************/
@@ -1281,10 +1172,6 @@ int step1_cold_initialize(
                     /*                                */
                     /**********************************/
 
-                    // SY 09192018 moving fitting into (i_b == lasso_blist_sccd[b])to save time //
-                    // SY 02/13/2019 delete these speed-up modification as non-lasso bands
-                    // are important for change agent classification
-                    // printf("i_b = %d\n", i_b);
                     auto_ts_predict_float(clrx, fit_cft, update_num_c, i_b, i_ini - i_conse + 1,
                                           i_ini - i_conse + 1, &ts_pred_temp);
                     v_dif_mag[i_b][i_conse - 1] = (float)clry[i_b][i_ini - i_conse + 1] -
@@ -1296,29 +1183,17 @@ int step1_cold_initialize(
                     /*                                */
                     /**********************************/
 
-                    for (b = 0; b < NUM_LASSO_BANDS; b++)
-                    {
-                        if (i_b == lasso_blist_sccd[b])
-                        {
-                            /**************************/
-                            /*                        */
-                            /* Minimum rmse.          */
-                            /*                        */
-                            /**************************/
+                    mini_rmse = max(min_rmse[i_b], rmse[i_b]);
 
-                            mini_rmse = max(min_rmse[i_b], rmse[i_b]);
+                    /**************************/
+                    /*                        */
+                    /* z-scores.              */
+                    /*                        */
+                    /**************************/
 
-                            /**************************/
-                            /*                        */
-                            /* z-scores.              */
-                            /*                        */
-                            /**************************/
-
-                            v_diff[b][i_conse - 1] = v_dif_mag[i_b][i_conse - 1] // SY 09192018
-                                                     / mini_rmse;
-                            v_dif_norm += v_diff[b][i_conse - 1] * v_diff[b][i_conse - 1]; // SY 09192018
-                        }
-                    }
+                    v_diff[i_b][i_conse - 1] = v_dif_mag[i_b][i_conse - 1] // SY 09192018
+                                               / mini_rmse;
+                    v_dif_norm += v_diff[i_b][i_conse - 1] * v_diff[i_b][i_conse - 1]; // SY 09192018
                 }
 
                 vec_magg[i_conse - 1] = v_dif_norm; // SY 09192018
@@ -1335,7 +1210,7 @@ int step1_cold_initialize(
             /*                                        */
             /******************************************/
 
-            mean_angle = MeanAngl_float(v_diff, NUM_LASSO_BANDS, ini_conse);
+            mean_angle = MeanAngl_float(v_diff, nbands, ini_conse);
 
             if ((vec_magg_min > tcg) && (mean_angle < NSIGN)) /* i_start found*/
             {
@@ -1348,12 +1223,12 @@ int step1_cold_initialize(
                 }
                 break;
             }
-            else if ((vec_magg[0] > T_MAX_CG) && (i_ini >= *prev_i_break)) /* false change */
+            else if ((vec_magg[0] > max_t_cg) && (i_ini >= *prev_i_break)) /* false change */
             {
                 for (k = i_ini; k < *n_clr - 1; k++)
                 {
                     clrx[k] = clrx[k + 1];
-                    for (b = 0; b < TOTAL_IMAGE_BANDS_SCCD; b++)
+                    for (b = 0; b < nbands; b++)
                     {
                         clry[b][k] = clry[b][k + 1];
                     }
@@ -1401,12 +1276,12 @@ int step1_cold_initialize(
         /*                                            */
         /**********************************************/
         // printf("%d\n", conse);
-        fit_cft_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, SCCD_NUM_C, sizeof(float));
+        fit_cft_tmp = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
         if (fit_cft_tmp == NULL)
         {
             RETURN_ERROR("Allocating fit_cft_tmp memory", FUNC_NAME, FAILURE);
         }
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             if (*num_curve == 0)
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, *i_dense, *i_start,
@@ -1423,7 +1298,7 @@ int step1_cold_initialize(
 
         ini_conse = conse;
 
-        v_dif_magg = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD,
+        v_dif_magg = (float **)allocate_2d_array(nbands,
                                                  ini_conse, sizeof(float));
         if (v_dif_magg == NULL)
         {
@@ -1434,7 +1309,7 @@ int step1_cold_initialize(
         for (i_conse = 1; i_conse < ini_conse + 1; i_conse++) // SY 09192018
         {
             v_dif_norm = 0.0;
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
             {
                 auto_ts_predict_float(clrx, fit_cft, MIN_NUM_C, i_b, *i_start - i_conse,
                                       *i_start - i_conse, &ts_pred_temp);
@@ -1456,7 +1331,7 @@ int step1_cold_initialize(
         rec_cg[*num_curve].num_obs = *i_start - *prev_i_break; // SY 09182018
         *prev_i_break = *i_start;
 
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             quick_sort_float(v_dif_magg[i_b], 0, ini_conse - 1);
             matlab_2d_float_median(v_dif_magg, i_b, ini_conse,
@@ -1466,7 +1341,7 @@ int step1_cold_initialize(
             // rec_cg[*num_curve].magnitude[i_b] = -v_dif_mean;
         }
 
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             for (k = 0; k < SCCD_NUM_C; k++)
             {
@@ -1550,7 +1425,7 @@ int step1_cold_initialize(
 }
 
 /************************************************************************
-FUNCTION: step2_KF_ChangeDetection
+FUNCTION: step2_KF_ChangeDetection_flex
 
 PURPOSE:
 Step 2 of S-CCD: change detection using kalman filter.
@@ -1559,7 +1434,7 @@ Type = int (SUCCESS OR FAILURE)
 
 Programmer: Su Ye
 **************************************************************************/
-int step2_KF_ChangeDetection(
+int step2_KF_ChangeDetection_flex(
     ssmodel_constants *instance, /* I: ssm constant structure */
     int *clrx,                   /* I: dates   */
     float **clry,                /* I: observations   */
@@ -1571,21 +1446,22 @@ int step2_KF_ChangeDetection(
     int *n_clr,                  /* I: the total observation of current observation queue  */
     gsl_matrix **cov_p,          /* I/O: covariance matrix */
     float **fit_cft,             /* I/O: state variables  */
-    Output_sccd *rec_cg,         /* I/O: the outputted S-CCD result structure   */
+    Output_sccd_flex *rec_cg,    /* I/O: the outputted S-CCD result structure   */
     unsigned int *sum_square_vt, /* I/O:  the sum of predicted square of residuals  */
     int *num_obs_processed,      /* I/O:  the number of current non-noise observations being processed */
     int t_start,
     bool b_pinpoint,
-    Output_sccd_pinpoint *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
+    Output_sccd_pinpoint_flex *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
     int *num_fc_pinpoint,
     double gate_tcg,
     short int *norm_cm_scale100,
     short int *mean_angle_scale100,
     float *CM_outputs,
-    float t_max_cg_sccd,
+    float t_max_cg_sccd, /* I: the threshold of identifying outliers */
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records_flex *coefs_records,
+    int nbands)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1593,7 +1469,7 @@ int step2_KF_ChangeDetection(
     // int j_conse;
     float pred_y;
     float pred_y_f;
-    char FUNC_NAME[] = "step2_KF_ChangeDetection";
+    char FUNC_NAME[] = "step2_KF_ChangeDetection_flex";
     float **v_dif_mag;
     float **v_dif;
     float *v_dif_mag_norm;
@@ -1601,12 +1477,12 @@ int step2_KF_ChangeDetection(
     int RETURN_VALUE;
     // double c0, c1;
     float *medium_v_dif;
-    float max_rmse[TOTAL_IMAGE_BANDS_SCCD];
+    float *max_rmse;
     bool change_flag = TRUE;
     float mean_angle = 0;
     float tmp;
     double vt;
-    float rmse_band[TOTAL_IMAGE_BANDS_SCCD];
+    float *rmse_band;
     bool steady = FALSE;
     float break_mag = 9999.0;
     short int tmp_CM = -9999;
@@ -1616,14 +1492,14 @@ int step2_KF_ChangeDetection(
     int current_CM_n;
     int current_pinpoint;
 
-    v_dif = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse, sizeof(float));
+    v_dif = (float **)allocate_2d_array(nbands, conse, sizeof(float));
     if (v_dif == NULL)
     {
         RETURN_ERROR("Allocating v_dif memory",
                      FUNC_NAME, FAILURE);
     }
 
-    v_dif_mag = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse,
+    v_dif_mag = (float **)allocate_2d_array(nbands, conse,
                                             sizeof(float));
     if (v_dif_mag == NULL)
     {
@@ -1631,30 +1507,19 @@ int step2_KF_ChangeDetection(
                      FUNC_NAME, FAILURE);
     }
 
-    v_dif_mag_norm = (float *)malloc(conse * sizeof(float));
-    if (v_dif_mag_norm == NULL)
-    {
-        RETURN_ERROR("Allocating v_dif_mag_norm memory", FUNC_NAME, FAILURE);
-    }
-    for (k = 0; k < conse; k++)
-    {
-        v_dif_mag_norm[k] = 0.0;
-    }
+    v_dif_mag_norm = (float *)calloc(conse, sizeof(float));
+    max_rmse = (float *)calloc(nbands, sizeof(float));
+    rmse_band = (float *)calloc(nbands, sizeof(float));
+    medium_v_dif = (float *)malloc(nbands * sizeof(float));
 
-    medium_v_dif = (float *)malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(float));
-    if (medium_v_dif == NULL)
-    {
-        RETURN_ERROR("Allocating medium_v_dif memory", FUNC_NAME, FAILURE);
-    }
-
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
         rmse_band[i_b] = (float)sum_square_vt[i_b] / (*num_obs_processed - SCCD_NUM_C);
 
     /* sccd examine i to be break or not so current obs is included in conse windw, while cold is not */
     // we do reverse to facilitate probability calculate
     for (i_conse = 0; i_conse < conse; i_conse++)
     {
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             KF_ts_predict_conse(&instance[i_b], clrx, cov_p[i_b], fit_cft, cur_i + i_conse, cur_i + i_conse,
                                 i_b, cur_i, &pred_y, &pred_y_f, FALSE);
@@ -1665,15 +1530,8 @@ int step2_KF_ChangeDetection(
             //                printf("############################be careful! \n");
             //            }
             v_dif_mag[i_b][i_conse] = clry[i_b][cur_i + i_conse] - pred_y;
-            for (b = 0; b < NUM_LASSO_BANDS; b++)
-            {
-                if (i_b == lasso_blist_sccd[b])
-                {
-                    v_dif[b][i_conse] = v_dif_mag[i_b][i_conse] / max_rmse[i_b];
-                    v_dif_mag_norm[i_conse] = v_dif_mag_norm[i_conse] + v_dif[b][i_conse] * v_dif[b][i_conse];
-                    break;
-                }
-            }
+            v_dif[i_b][i_conse] = v_dif_mag[i_b][i_conse] / max_rmse[i_b];
+            v_dif_mag_norm[i_conse] = v_dif_mag_norm[i_conse] + v_dif[i_b][i_conse] * v_dif[i_b][i_conse];
         }
 
         if (v_dif_mag_norm[i_conse] < break_mag)
@@ -1736,19 +1594,14 @@ int step2_KF_ChangeDetection(
             {
                 for (conse_last = 1; conse_last <= conse; conse_last++)
                 {
-                    v_diff_tmp = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse_last, sizeof(float)); // used to calculate angle
-                    v_dif_mag_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse_last,
+                    v_diff_tmp = (float **)allocate_2d_array(nbands, conse_last, sizeof(float)); // used to calculate angle
+                    v_dif_mag_tmp = (float **)allocate_2d_array(nbands, conse_last,
                                                                 sizeof(float));
-                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                    for (i_b = 0; i_b < nbands; i_b++)
                     {
-                        for (b = 0; b < NUM_LASSO_BANDS; b++)
-                        {
-                            if (i_b == lasso_blist_sccd[b])
-                            {
-                                for (j = 0; j < conse_last; j++)
-                                    v_diff_tmp[b][j] = v_dif[b][j];
-                            }
-                        }
+                        for (j = 0; j < conse_last; j++)
+                            v_diff_tmp[i_b][j] = v_dif[i_b][j];
+
                         for (j = 0; j < conse_last; j++)
                             v_dif_mag_tmp[i_b][j] = v_dif_mag[i_b][j];
                     }
@@ -1756,7 +1609,7 @@ int step2_KF_ChangeDetection(
                     float min_cm = 999999;
                     float mean_angle_pinpoint;
                     // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, conse_last, lasso_blist_sccd);
-                    mean_angle_pinpoint = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, conse_last) * 100;
+                    mean_angle_pinpoint = MeanAngl_float(v_diff_tmp, nbands, conse_last) * 100;
 
                     for (j = 0; j < conse_last; j++)
                         if (v_dif_mag_norm[j] * 100 < min_cm)
@@ -1770,13 +1623,13 @@ int step2_KF_ChangeDetection(
                     rec_cg_pinpoint[current_pinpoint].norm_cm[conse_last - 1] = (short int)min_cm;
                     for (k = 0; k < DEFAULT_CONSE_SCCD; k++)
                     {
-                        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                        for (i_b = 0; i_b < nbands; i_b++)
                         {
                             rec_cg_pinpoint[current_pinpoint].obs[i_b][k] = (short int)clry[i_b][cur_i + k];
                         }
                         rec_cg_pinpoint[current_pinpoint].obs_date_since1982[k] = (short int)(clrx[cur_i + k] - ORDINAL_LANDSAT4_LAUNCH);
                     }
-                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                    for (i_b = 0; i_b < nbands; i_b++)
                     {
                         for (k = 0; k < SCCD_NUM_C; k++)
                         {
@@ -1838,7 +1691,7 @@ int step2_KF_ChangeDetection(
         else
         {
             // mean_angle = angl_scatter_measure(medium_v_dif, v_dif, NUM_LASSO_BANDS, conse, lasso_blist_sccd);
-            mean_angle = MeanAngl_float(v_dif, NUM_LASSO_BANDS, conse);
+            mean_angle = MeanAngl_float(v_dif, nbands, conse);
 
             // prob_MCM = Chi_Square_Distribution(break_mag, NUM_LASSO_BANDS);
             tmp = round(break_mag * 100);
@@ -1865,7 +1718,7 @@ int step2_KF_ChangeDetection(
             tmp = MAX_SHORT;
         *norm_cm_scale100 = tmp;
 
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             rec_cg[*num_curve].rmse[i_b] = sqrtf((float)rmse_band[i_b]);
         }
@@ -1873,7 +1726,7 @@ int step2_KF_ChangeDetection(
         rec_cg[*num_curve].num_obs = *num_obs_processed;
         rec_cg[*num_curve].t_start = t_start;
 
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             quick_sort_float(v_dif_mag[i_b], 0, conse - 1);
             matlab_2d_float_median(v_dif_mag, i_b, conse,
@@ -1888,7 +1741,7 @@ int step2_KF_ChangeDetection(
                 /**********************************/
                 rec_cg[*num_curve].coefs[i_b][k] = fit_cft[i_b][k];
             }
-        } // for(i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        } // for(i_b = 0; i_b < nbands; i_b++)
 
         /* record break  */
         rec_cg[*num_curve].t_break = clrx[cur_i];
@@ -1914,7 +1767,7 @@ int step2_KF_ChangeDetection(
         /**********************************************/
         if (steady == FALSE)
         {
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
             {
                 KF_ts_filter_falsechange(&instance[i_b], clrx, cov_p[i_b], cur_i);
             }
@@ -1928,7 +1781,7 @@ int step2_KF_ChangeDetection(
         for (m = cur_i; m < *n_clr - 1; m++)
         {
             clrx[m] = clrx[m + 1];
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
                 clry[i_b][m] = clry[i_b][m + 1];
         }
 
@@ -1941,7 +1794,7 @@ int step2_KF_ChangeDetection(
         /*    need to update both p and fit_cft       */
         /*                                            */
         /**********************************************/
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             KF_ts_filter_regular(&instance[i_b], clrx, clry[i_b], cov_p[i_b],
                                  fit_cft, cur_i, i_b, &vt, steady);
@@ -1952,7 +1805,7 @@ int step2_KF_ChangeDetection(
                 {
                     coefs_records[*n_coefs_records].nrt_coefs[i_b][k] = fit_cft[i_b][k];
                 }
-                if (i_b == (TOTAL_IMAGE_BANDS_SCCD - 1))
+                if (i_b == (nbands - 1))
                 {
                     *n_coefs_records = *n_coefs_records + 1;
                 }
@@ -1988,6 +1841,9 @@ int step2_KF_ChangeDetection(
     v_dif_mag_norm = NULL;
     free(medium_v_dif);
 
+    free(max_rmse);
+    free(rmse_band);
+
     return (RETURN_VALUE);
 }
 
@@ -2002,7 +1858,7 @@ Type = int (SUCCESS OR FAILURE)
 Programmer: Su Ye
 **************************************************************************/
 
-int step3_processing_end(
+int step3_processing_end_flex(
     ssmodel_constants *instance,
     gsl_matrix **cov_p,
     float **fit_cft,
@@ -2012,18 +1868,19 @@ int step3_processing_end(
     int *n_clr,
     int *nrt_mode,
     int i_start,
-    int prev_i_break,           /* I: the i_break of the last curve*/
-    output_nrtmodel *nrt_model, /* I/O: the NRT change records */
-    int *num_obs_queue,         /* O: the number of multispectral observations    */
-    output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
-    unsigned *sum_square_vt,    /* I/O:  the sum of predicted square of residuals  */
+    int prev_i_break,                /* I: the i_break of the last curve*/
+    output_nrtmodel_flex *nrt_model, /* I/O: the NRT change records */
+    int *num_obs_queue,              /* O: the number of multispectral observations    */
+    output_nrtqueue_flex *obs_queue, /* O: multispectral observations in queue    */
+    unsigned *sum_square_vt,         /* I/O:  the sum of predicted square of residuals  */
     int num_obs_processed,
     int t_start,
     int conse,
     short int *min_rmse,
     double gate_tcg,
     bool change_detected,
-    double predictability_tcg)
+    double predictability_tcg,
+    int nbands)
 {
     int k, k1, k2;
     int i_b, b;
@@ -2042,7 +1899,7 @@ int step3_processing_end(
     float **v_dif_mag_tmp;
     float pred_y;
     float pred_y_f;
-    float rmse_band[TOTAL_IMAGE_BANDS_SCCD];
+    float *rmse_band;
     float max_rmse;
     float *v_dif_mag_norm;
     float **v_dif;
@@ -2061,14 +1918,14 @@ int step3_processing_end(
     w = TWO_PI / AVE_DAYS_IN_A_YEAR;
     w2 = 2.0 * w;
 
-    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, *n_clr - i_start,
+    temp_v_dif = (float **)allocate_2d_array(nbands, *n_clr - i_start,
                                              sizeof(float));
     if (temp_v_dif == NULL)
     {
         RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
     }
 
-    rmse = (float *)malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(float));
+    rmse = (float *)malloc(nbands * sizeof(float));
     if (rmse == NULL)
     {
         RETURN_ERROR("Allocating rmse memory", FUNC_NAME, FAILURE);
@@ -2091,7 +1948,7 @@ int step3_processing_end(
         RETURN_ERROR("ERROR allocating bl_ids memory", FUNC_NAME, FAILURE);
     }
 
-    v_dif = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse, sizeof(float));
+    v_dif = (float **)allocate_2d_array(nbands, conse, sizeof(float));
     if (v_dif == NULL)
     {
         RETURN_ERROR("Allocating v_dif memory",
@@ -2099,12 +1956,8 @@ int step3_processing_end(
     }
 
     v_dif_mag_norm = (float *)malloc(conse * sizeof(float));
-    if (v_dif_mag_norm == NULL)
-    {
-        RETURN_ERROR("Allocating v_dif_mag_norm memory", FUNC_NAME, FAILURE);
-    }
 
-    v_dif_mag = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse,
+    v_dif_mag = (float **)allocate_2d_array(nbands, conse,
                                             sizeof(float));
     if (v_dif_mag == NULL)
     {
@@ -2112,11 +1965,9 @@ int step3_processing_end(
                      FUNC_NAME, FAILURE);
     }
 
-    medium_v_dif = (float *)malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(float));
-    if (medium_v_dif == NULL)
-    {
-        RETURN_ERROR("Allocating v_dif_mag_norm memory", FUNC_NAME, FAILURE);
-    }
+    medium_v_dif = (float *)malloc(nbands * sizeof(float));
+
+    rmse_band = (float *)calloc(nbands, sizeof(float));
 
     //    time_taken = (clock() - (double)t_time)/CLOCKS_PER_SEC; // calculate the elapsed time
     //    printf("step3 timepoint 1 took %f seconds to execute\n", time_taken);
@@ -2127,7 +1978,7 @@ int step3_processing_end(
         /*   need to save nrt records for monitor mode      */
         /****************************************************/
         // note that covariance and P are forceibly assigned with 0 if the status is not monitor mode
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
             for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
@@ -2159,7 +2010,7 @@ int step3_processing_end(
             {
                 if (k < conse)
                 {
-                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                    for (i_b = 0; i_b < nbands; i_b++)
                     {
                         nrt_model->obs[i_b][k] = (short int)clry[i_b][cur_i + k];
                     }
@@ -2167,7 +2018,7 @@ int step3_processing_end(
                 }
                 else
                 {
-                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                    for (i_b = 0; i_b < nbands; i_b++)
                     {
                         nrt_model->obs[i_b][k] = 0;
                     }
@@ -2176,7 +2027,7 @@ int step3_processing_end(
             }
             else
             {
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
                     nrt_model->obs[i_b][k] = 0;
                 }
@@ -2185,7 +2036,7 @@ int step3_processing_end(
         }
 
         /*     6. square adjust rmse, H, sum       */
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             // nrt_model->min_rmse[i_b] = (short int)min_rmse[i_b];
             if (*nrt_mode % 10 == NRT_MONITOR_STANDARD)
@@ -2206,7 +2057,7 @@ int step3_processing_end(
         /**********************************************************/
         update_cft(num_obs_processed, N_TIMES, MIN_NUM_C, MID_NUM_C, MID_NUM_C,
                    SCCD_NUM_C, &update_num_c);
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
             rmse_band[i_b] = (float)sum_square_vt[i_b] / (num_obs_processed - update_num_c);
 
         //        time_taken = (clock() - (double)t_time)/CLOCKS_PER_SEC; // calculate the elapsed time
@@ -2216,22 +2067,15 @@ int step3_processing_end(
         for (i_conse = 0; i_conse < conse; i_conse++)
         {
             v_dif_mag_norm[i_conse] = 0;
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
             {
                 KF_ts_predict_conse(&instance[i_b], clrx, cov_p[i_b], fit_cft, *n_clr - 1 - i_conse, *n_clr - 1 - i_conse,
                                     i_b, cur_i, &pred_y, &pred_y_f, FALSE);
                 // max_rmse[i_b] = max(min_rmse[i_b], sqrtf(pred_y_f));
                 max_rmse = max(min_rmse[i_b], sqrtf(rmse_band[i_b]));
                 v_dif_mag[i_b][i_conse] = clry[i_b][*n_clr - 1 - i_conse] - pred_y;
-                for (b = 0; b < NUM_LASSO_BANDS; b++)
-                {
-                    if (i_b == lasso_blist_sccd[b])
-                    {
-                        v_dif[b][i_conse] = v_dif_mag[i_b][i_conse] / max_rmse;
-                        v_dif_mag_norm[i_conse] = v_dif_mag_norm[i_conse] + v_dif[b][i_conse] * v_dif[b][i_conse];
-                        break;
-                    }
-                }
+                v_dif[i_b][i_conse] = v_dif_mag[i_b][i_conse] / max_rmse;
+                v_dif_mag_norm[i_conse] = v_dif_mag_norm[i_conse] + v_dif[i_b][i_conse] * v_dif[i_b][i_conse];
             }
         }
 
@@ -2296,19 +2140,15 @@ int step3_processing_end(
             /**********************************************************/
             for (conse_last = 1; conse_last <= valid_conse_last; conse_last++) // equal to *n_clr - 1 to *n_clr - 1 - conse + 1
             {
-                v_diff_tmp = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse_last, sizeof(float));
-                v_dif_mag_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse_last,
+                v_diff_tmp = (float **)allocate_2d_array(nbands, conse_last, sizeof(float));
+                v_dif_mag_tmp = (float **)allocate_2d_array(nbands, conse_last,
                                                             sizeof(float));
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
-                    for (b = 0; b < NUM_LASSO_BANDS; b++)
-                    {
-                        if (i_b == lasso_blist_sccd[b])
-                        {
-                            for (j = 0; j < conse_last; j++)
-                                v_diff_tmp[b][j] = v_dif[b][j];
-                        }
-                    }
+
+                    for (j = 0; j < conse_last; j++)
+                        v_diff_tmp[i_b][j] = v_dif[i_b][j];
+
                     for (j = 0; j < conse_last; j++)
                         v_dif_mag_tmp[i_b][j] = v_dif_mag[i_b][j];
                 }
@@ -2333,7 +2173,7 @@ int step3_processing_end(
                         if (min_cm > MAX_SHORT)
                             min_cm = MAX_SHORT;
                         // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, conse_last, lasso_blist_sccd);
-                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, conse_last - 1) * 100;
+                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, nbands, conse_last - 1) * 100;
                         if (mean_angle_scale100 > MAX_SHORT)
                             mean_angle_scale100 = MAX_SHORT;
 
@@ -2373,7 +2213,7 @@ int step3_processing_end(
                                 min_cm = v_dif_mag_norm[j] * 100;
                         if (min_cm > MAX_SHORT)
                             min_cm = MAX_SHORT;
-                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, conse_last) * 100;
+                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, nbands, conse_last) * 100;
                         if (mean_angle_scale100 > MAX_SHORT)
                             mean_angle_scale100 = MAX_SHORT;
 
@@ -2421,7 +2261,7 @@ int step3_processing_end(
         for (k = 0; k < *num_obs_queue; k++)
         {
             obs_queue[k].clrx_since1982 = (short int)(clrx[istart_queue + k] - ORDINAL_LANDSAT4_LAUNCH);
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
                 obs_queue[k].clry[i_b] = (short int)(clry[i_b][istart_queue + k]);
         }
     }
@@ -2450,31 +2290,36 @@ int step3_processing_end(
         RETURN_ERROR("Freeing memory: v_dif_mag\n", FUNC_NAME,
                      FAILURE);
     }
+    free(rmse_band);
 
     return SUCCESS;
 }
 
-int sccd_standard(
+int sccd_standard_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
     float **clry, /* I: clear pixel curve in Y direction (spectralbands)    */
     int *n_clr,
-    double tcg,                 /* I:  threshold of change magnitude   */
-    Output_sccd *rec_cg,        /* O: offline change records */
-    int *num_fc,                /* O: intialize NUM of Functional Curves    */
-    int *nrt_mode,              /* O: 1 - monitor mode; 2 - queue mode    */
-    output_nrtmodel *nrt_model, /* O: nrt records    */
-    int *num_obs_queue,         /* O: the number of multispectral observations    */
-    output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
-    short int *min_rmse,        /* O: adjusted rmse for the pixel    */
+    double tcg, /* I:  threshold of change magnitude   */
+    double max_t_cg,
+    Output_sccd_flex *rec_cg,        /* O: offline change records */
+    int *num_fc,                     /* O: intialize NUM of Functional Curves    */
+    int *nrt_mode,                   /* O: 1 - monitor mode; 2 - queue mode    */
+    output_nrtmodel_flex *nrt_model, /* O: nrt records    */
+    int *num_obs_queue,              /* O: the number of multispectral observations    */
+    output_nrtqueue_flex *obs_queue, /* O: multispectral observations in queue    */
+    short int *min_rmse,             /* O: adjusted rmse for the pixel    */
     int conse,
     bool b_pinpoint,
-    Output_sccd_pinpoint *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
+    Output_sccd_pinpoint_flex *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
     int *num_fc_pinpoint,
     double gate_tcg,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records_flex *coefs_records,
+    int nbands,
+    int tmask_b1,
+    int tmask_b2)
 {
     int i_b;
     int status;
@@ -2499,7 +2344,8 @@ int sccd_standard(
     float **rec_v_dif;
     int bl_train = 0; // indicate both ccd and kalman filter initialization
     float unadjusted_rmse;
-    unsigned int sum_square_vt[TOTAL_IMAGE_BANDS_SCCD] = {0, 0, 0, 0, 0, 0};
+    // unsigned int sum_square_vt[TOTAL_IMAGE_BANDS_SCCD] = {0, 0, 0, 0, 0, 0};
+    unsigned int *sum_square_vt;
     int num_obs_processed = 0; // num of clear observation already being processed for the current segment
     int i_start = 0;
     int i_dense = 0;
@@ -2512,24 +2358,17 @@ int sccd_standard(
     float *CM_outputs;
     bool change_detected = FALSE; // change_detected is only used to mark change to be detected for online mode
 
-    cov_p = (gsl_matrix **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, 1, sizeof(gsl_matrix));
+    cov_p = (gsl_matrix **)allocate_2d_array(nbands, 1, sizeof(gsl_matrix));
     if (cov_p == NULL)
     {
         RETURN_ERROR("Allocating cov_p memory", FUNC_NAME, FAILURE);
     }
 
     /* alloc memory for ssm matrix */
-    instance = malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(ssmodel_constants));
-    if (instance == NULL)
-    {
-        RETURN_ERROR("Allocating instance memory", FUNC_NAME, FAILURE);
-    }
+    instance = malloc(nbands * sizeof(ssmodel_constants));
 
     CM_outputs = (float *)malloc(n_cm * sizeof(float));
-    if (CM_outputs == NULL)
-    {
-        RETURN_ERROR("Allocating n_cm memory", FUNC_NAME, FAILURE);
-    }
+    sum_square_vt = (unsigned int *)calloc(nbands, sizeof(unsigned int)); // calloc() gives you a zero-initialized buffer
 
     for (k = 0; k < n_cm; k++)
     {
@@ -2537,7 +2376,7 @@ int sccd_standard(
     }
 
     /* alloc memory for ssm instance */
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
     {
         instance[i_b].Z = gsl_vector_alloc(DEFAULT_N_STATE);
         if (instance[i_b].Z == NULL)
@@ -2561,19 +2400,19 @@ int sccd_standard(
         }
     }
 
-    fit_cft = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, SCCD_NUM_C, sizeof(float));
+    fit_cft = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
     if (fit_cft == NULL)
     {
         RETURN_ERROR("Allocating fit_cft memory", FUNC_NAME, FAILURE);
     }
 
-    rmse_ini = (float *)malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(float));
+    rmse_ini = (float *)malloc(nbands * sizeof(float));
     if (rmse_ini == NULL)
     {
         RETURN_ERROR("Allocating rmse_ini memory", FUNC_NAME, FAILURE);
     }
 
-    rec_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, *n_clr,
+    rec_v_dif = (float **)allocate_2d_array(nbands, *n_clr,
                                             sizeof(float));
     if (rec_v_dif == NULL)
     {
@@ -2583,7 +2422,7 @@ int sccd_standard(
     /* if the mode is void, we need copy paramater from existing results */
     if (*nrt_mode % 10 == NRT_MONITOR_STANDARD)
     {
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
             for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
@@ -2606,7 +2445,7 @@ int sccd_standard(
         num_obs_processed = nrt_model->num_obs;
 
         /*     5. adjust rmse, sum       */
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             sum_square_vt[i_b] = nrt_model->rmse_sum[i_b];
             /*     6. initialize state-space model coefficients       */
@@ -2616,7 +2455,7 @@ int sccd_standard(
     }
     else if ((*nrt_mode % 10 == NRT_QUEUE_STANDARD) | (*nrt_mode % 10 == NRT_MONITOR2QUEUE))
     {
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
             //            for(k1 = 0; k1 < DEFAULT_N_STATE; k1++)
@@ -2639,7 +2478,7 @@ int sccd_standard(
         num_obs_processed = 0;
 
         //        /*     5. adjust rmse, sum       */
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             sum_square_vt[i_b] = 0;
             //            /*     6. initialize state-space model coefficients       */
@@ -2690,9 +2529,10 @@ int sccd_standard(
                 /* step1: initialize a ccd model.                            */
                 /*                                                            */
                 /**************************************************************/
-                status = step1_cold_initialize(conse, min_rmse, n_clr, tcg, &i_dense, num_fc, clrx,
-                                               clry, &i, &i_start, rec_cg, N_TIMES * MID_NUM_C,
-                                               &prev_i_break, rmse_ini);
+                status = step1_cold_initialize_flex(conse, min_rmse, n_clr, tcg, max_t_cg, &i_dense,
+                                                    num_fc, clrx, clry, &i, &i_start, rec_cg,
+                                                    N_TIMES * MID_NUM_C, &prev_i_break, rmse_ini, nbands,
+                                                    tmask_b1, tmask_b2);
             }
 
             if (INCOMPLETE == status)
@@ -2707,7 +2547,7 @@ int sccd_standard(
                 /*                                                            */
                 /**************************************************************/
 
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
 
                     status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, i, SCCD_NUM_C,
@@ -2727,7 +2567,7 @@ int sccd_standard(
                     }
                 }
 
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
                     unadjusted_rmse = rmse_ini[i_b] * rmse_ini[i_b];
                     base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[i_start] / SLOPE_SCALE;
@@ -2737,8 +2577,9 @@ int sccd_standard(
                     /*  initialize a and p                                        */
                     /*                                                            */
                     /**************************************************************/
-                    step1_ssm_initialize(&instance[i_b], clrx, clry[i_b], i_start, i, fit_cft, cov_p[i_b],
-                                         i_b, &sum_square_vt[i_b], *n_clr, b_coefs_records, n_coefs_records, coefs_records);
+                    step1_ssm_initialize_flex(&instance[i_b], clrx, clry[i_b], i_start, i, fit_cft,
+                                              cov_p[i_b], i_b, &sum_square_vt[i_b], *n_clr,
+                                              b_coefs_records, n_coefs_records, coefs_records, nbands);
                 }
                 num_obs_processed = i - i_start + 1;
                 t_start = clrx[i_start];
@@ -2761,11 +2602,11 @@ int sccd_standard(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection(instance, clrx, clry, i, num_fc, conse, min_rmse, tcg, n_clr,
-                                              cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
-                                              t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
-                                              &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD,
-                                              b_coefs_records, n_coefs_records, coefs_records);
+            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, num_fc, conse, min_rmse, tcg, n_clr,
+                                                   cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
+                                                   t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
+                                                   &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg,
+                                                   b_coefs_records, n_coefs_records, coefs_records, nbands);
 
             if (status == CHANGEDETECTED)
             {
@@ -2787,7 +2628,7 @@ int sccd_standard(
                 /****************************************************/
                 /*   need to save nrt records into nrt_model        */
                 /****************************************************/
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
                     /*   1. covariance matrix   */
                     for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
@@ -2814,7 +2655,7 @@ int sccd_standard(
                 {
                     if (k < conse)
                     {
-                        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                        for (i_b = 0; i_b < nbands; i_b++)
                         {
                             nrt_model->obs[i_b][k] = (short int)clry[i_b][i + k];
                         }
@@ -2822,7 +2663,7 @@ int sccd_standard(
                     }
                     else
                     {
-                        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                        for (i_b = 0; i_b < nbands; i_b++)
                         {
                             nrt_model->obs[i_b][k] = 0;
                         }
@@ -2831,7 +2672,7 @@ int sccd_standard(
                 }
 
                 /*     6. square adjust rmse, H, sum       */
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                 {
                     // nrt_model->min_rmse[i_b] = (short int)min_rmse[i_b];
                     nrt_model->H[i_b] = instance[i_b].H;
@@ -2950,10 +2791,10 @@ int sccd_standard(
     }
     *nrt_mode = new_mode;
 
-    status = step3_processing_end(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
-                                  i_start, prev_i_break, nrt_model, num_obs_queue,
-                                  obs_queue, sum_square_vt, num_obs_processed, t_start,
-                                  conse, min_rmse, gate_tcg, change_detected, predictability_tcg);
+    status = step3_processing_end_flex(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
+                                       i_start, prev_i_break, nrt_model, num_obs_queue, obs_queue,
+                                       sum_square_vt, num_obs_processed, t_start, conse, min_rmse,
+                                       gate_tcg, change_detected, predictability_tcg, nbands);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))
@@ -2964,7 +2805,7 @@ int sccd_standard(
     //            *nrt_mode =  NRT_MONITOR2QUEUE;   // the third mode
     //    }
 
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
     {
         gsl_vector_free(instance[i_b].Z);
         //(&instance[i_b])->Z = NULL;
@@ -3000,21 +2841,23 @@ int sccd_standard(
                      FUNC_NAME, FAILURE);
     }
     free(CM_outputs);
+    free(sum_square_vt);
 
     return SUCCESS;
 }
 
-int sccd_snow(
+int sccd_snow_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
     float **clry, /* I: clear pixel curve in Y direction (spectralbands)    */
     int n_clr,
-    int *nrt_status,            /* O: 1 - monitor mode; 2 - queue mode    */
-    output_nrtmodel *nrt_model, /* O: nrt records    */
-    int *num_obs_queue,         /* O: the number of multispectral observations    */
-    output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
+    int *nrt_status,                 /* O: 1 - monitor mode; 2 - queue mode    */
+    output_nrtmodel_flex *nrt_model, /* O: nrt records    */
+    int *num_obs_queue,              /* O: the number of multispectral observations    */
+    output_nrtqueue_flex *obs_queue, /* O: multispectral observations in queue    */
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records_flex *coefs_records,
+    int nbands)
 {
     int k;
     int i_start = 0;    /* the first observation for TSFit */
@@ -3025,7 +2868,7 @@ int sccd_snow(
     float *rmse;
     float **fit_cft; /* Fitted coefficients 2-D array.        */
     ssmodel_constants *instance;
-    unsigned sum_square_vt[TOTAL_IMAGE_BANDS_SCCD] = {0, 0, 0, 0, 0, 0};
+    unsigned int *sum_square_vt;
     int i;
     double vt;
     double base_value;
@@ -3033,39 +2876,41 @@ int sccd_snow(
     gsl_vector **state_a; /* a vector of a for current i,  multiple band */
     gsl_matrix **cov_p;
 
-    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, n_clr,
+    temp_v_dif = (float **)allocate_2d_array(nbands, n_clr,
                                              sizeof(float));
     if (temp_v_dif == NULL)
     {
         RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
     }
 
-    rmse = (float *)malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(float));
+    rmse = (float *)malloc(nbands * sizeof(float));
     if (rmse == NULL)
     {
         RETURN_ERROR("Allocating rmse memory", FUNC_NAME, FAILURE);
     }
 
-    state_a = (gsl_vector **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, 1, sizeof(gsl_vector));
+    state_a = (gsl_vector **)allocate_2d_array(nbands, 1, sizeof(gsl_vector));
     if (state_a == NULL)
     {
         RETURN_ERROR("Allocating state_a memory", FUNC_NAME, FAILURE);
     }
 
-    cov_p = (gsl_matrix **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, 1, sizeof(gsl_matrix));
+    cov_p = (gsl_matrix **)allocate_2d_array(nbands, 1, sizeof(gsl_matrix));
     if (cov_p == NULL)
     {
         RETURN_ERROR("Allocating cov_p memory", FUNC_NAME, FAILURE);
     }
 
     /* alloc memory for ssm matrix */
-    instance = malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(ssmodel_constants));
+    instance = malloc(nbands * sizeof(ssmodel_constants));
     if (instance == NULL)
     {
         RETURN_ERROR("Allocating instance memory", FUNC_NAME, FAILURE);
     }
 
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    sum_square_vt = (unsigned int *)calloc(nbands, sizeof(unsigned int));
+
+    for (i_b = 0; i_b < nbands; i_b++)
     {
         instance[i_b].Z = gsl_vector_alloc(DEFAULT_N_STATE);
         if (instance[i_b].Z == NULL)
@@ -3086,7 +2931,7 @@ int sccd_snow(
         cov_p[i_b] = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
     }
 
-    fit_cft = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, SCCD_NUM_C, sizeof(float));
+    fit_cft = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
     if (fit_cft == NULL)
     {
         RETURN_ERROR("Allocating fit_cft memory", FUNC_NAME, FAILURE);
@@ -3102,7 +2947,7 @@ int sccd_snow(
             for (k = 0; k < n_clr; k++)
             {
                 obs_queue[k].clrx_since1982 = clrx[k] - ORDINAL_LANDSAT4_LAUNCH;
-                for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                for (i_b = 0; i_b < nbands; i_b++)
                     obs_queue[k].clry[i_b] = clry[i_b][k];
             }
 
@@ -3116,7 +2961,7 @@ int sccd_snow(
             free(rmse);
             rmse = NULL;
 
-            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            for (i_b = 0; i_b < nbands; i_b++)
             {
                 gsl_vector_free(instance[i_b].Z);
                 //(&instance[i_b])->Z = NULL;
@@ -3157,7 +3002,7 @@ int sccd_snow(
         /*                                                        */
         /**********************************************************/
 
-        for (k = 0; k < TOTAL_IMAGE_BANDS_SCCD; k++) //
+        for (k = 0; k < nbands; k++) //
         {
 
             status = auto_ts_fit_sccd(clrx, clry, k, k, 0, n_clr - 1, MIN_NUM_C,
@@ -3173,7 +3018,7 @@ int sccd_snow(
         /* step 1 - conti: initialize ssm models .                    */
         /*                                                            */
         /**************************************************************/
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
             initialize_ssmconstants(DEFAULT_N_STATE, rmse[i_b], base_value, &instance[i_b]);
@@ -3182,9 +3027,9 @@ int sccd_snow(
             /*  initialize a and p                                        */
             /*                                                            */
             /**************************************************************/
-            step1_ssm_initialize(&instance[i_b], clrx, clry[i_b], i_start, n_clr - 1,
-                                 fit_cft, cov_p[i_b], i_b, &sum_square_vt[i_b], n_clr,
-                                 b_coefs_records, n_coefs_records, coefs_records);
+            step1_ssm_initialize_flex(&instance[i_b], clrx, clry[i_b], i_start, n_clr - 1,
+                                      fit_cft, cov_p[i_b], i_b, &sum_square_vt[i_b], n_clr,
+                                      b_coefs_records, n_coefs_records, coefs_records, nbands);
             nrt_model[0].H[i_b] = instance[i_b].H;
         }
 
@@ -3195,7 +3040,7 @@ int sccd_snow(
     }
     else // monitor mode
     {
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
             for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
@@ -3212,7 +3057,7 @@ int sccd_snow(
         }
 
         /*     5. adjust rmse, sum       */
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             sum_square_vt[i_b] = nrt_model[0].rmse_sum[i_b];
             /*     6. initialize state-space model coefficients       */
@@ -3222,7 +3067,7 @@ int sccd_snow(
 
         nrt_model[0].num_obs = nrt_model[0].num_obs + n_clr - DEFAULT_CONSE_SCCD;
 
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             for (i = 0; i < n_clr - DEFAULT_CONSE_SCCD; i++)
             {
@@ -3235,7 +3080,7 @@ int sccd_snow(
                     {
                         coefs_records[*n_coefs_records].nrt_coefs[i_b][k] = fit_cft[i_b][k];
                     }
-                    if (i_b == (TOTAL_IMAGE_BANDS_SCCD - 1))
+                    if (i_b == (nbands - 1))
                     {
                         *n_coefs_records = *n_coefs_records + 1;
                     }
@@ -3246,19 +3091,19 @@ int sccd_snow(
 
     for (k = 0; k < DEFAULT_CONSE_SCCD; k++)
     {
-        for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+        for (i_b = 0; i_b < nbands; i_b++)
         {
             nrt_model[0].obs[i_b][k] = (short int)clry[i_b][n_clr - DEFAULT_CONSE_SCCD + k];
         }
         nrt_model[0].obs_date_since1982[k] = (short int)(clrx[n_clr - DEFAULT_CONSE_SCCD + k] - ORDINAL_LANDSAT4_LAUNCH);
     }
 
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
     {
         nrt_model->rmse_sum[i_b] = sum_square_vt[i_b];
     }
 
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
     {
         for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
         {
@@ -3288,7 +3133,7 @@ int sccd_snow(
     free(rmse);
     rmse = NULL;
 
-    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+    for (i_b = 0; i_b < nbands; i_b++)
     {
         gsl_vector_free(instance[i_b].Z);
         //(&instance[i_b])->Z = NULL;
@@ -3313,6 +3158,8 @@ int sccd_snow(
 
     free(instance);
     instance = NULL;
+
+    free(sum_square_vt);
 
     status = free_2d_array((void **)fit_cft);
     if (status != SUCCESS)

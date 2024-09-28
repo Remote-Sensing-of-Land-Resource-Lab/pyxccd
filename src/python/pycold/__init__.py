@@ -10,5 +10,5 @@ from . import monkey  # NOQA
 #     obcold_reconstruct, sccd_detect, sccd_update)
 
 from . import colds
-# from . import _colds_cython
-from .colds import cold_detect, obcold_reconstruct, sccd_detect, cold_detect_flex, sccd_update, sccd_identify, calculate_sccd_cm
+# from . import _colds_cythons
+from .colds import cold_detect, obcold_reconstruct, sccd_detect, cold_detect_flex, sccd_update, sccd_identify, calculate_sccd_cm, sccd_detect_flex

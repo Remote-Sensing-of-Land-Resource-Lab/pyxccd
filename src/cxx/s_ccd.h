@@ -1,7 +1,6 @@
 #ifndef CCD_STOCHASTIC_H
 #define CCD_STOCHASTIC_H
 
-#endif // CCD_STOCHASTIC_H
 #include <stdint.h>
 #include "KFAS.h"
 #include "output.h"
@@ -33,10 +32,10 @@ int sccd(
     double gate_tcg,
     double predictability_tcg,
     bool b_output_state, /* I: indicate whether to output state  */
-    int state_intervaldays,
+    double state_intervaldays,
     int *n_state,
     int64_t *state_days,
-    double *states_ensemble  /* O: states records for blue band */
+    double *states_ensemble /* O: states records for blue band */
 );
 
 int step1_cold_initialize(
@@ -98,36 +97,6 @@ int step2_KF_ChangeDetection(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records);
-
-int KF_ts_predict_conse(
-    ssmodel_constants *instance, /* i: the inputted ssm instance   */
-    int *clrx,                   /* i: the inputted dates   */
-    gsl_matrix *P_ini,           /* i: a m x m matrix of the covariance matrix for pred_start */
-    float **fit_cft,             /* i: a m vector of a for pred_start */
-    int pred_start,              /* i: close, included for prediction */
-    int pred_end,                /* i: close, included for prediction */
-    int i_b,
-    int cur_i,
-    float *pred_y,   /* O: the predicted obs values */
-    float *pred_y_f, /*O: the predicted f (RMSE) values */
-    bool b_foutput);
-
-int KF_ts_filter_falsechange(
-    ssmodel_constants *instance, /* i: the inputted ssm instance   */
-    int *clrx,                   /* i: the inputted dates   */
-    gsl_matrix *cov_p,           /* i/O: a m x m matrix of the covariance matrix for pred_start */
-    int cur_i);
-
-int KF_ts_filter_regular(
-    ssmodel_constants *instance, /* i: the inputted ssm instance   */
-    int *clrx,                   /* i: the inputted dates   */
-    float *clry,                 /* i: the inputted observations   */
-    gsl_matrix *cov_p,           /* i/O: m x m matrix of the covariance matrix for pred_start */
-    float **fit_cft,             /* i/O: m vector of a for pred_start */
-    int cur_i,                   /* i: the current i */
-    int i_b,                     /* i: the band number */
-    double *vt,                  /* I/O: predicted residuals */
-    bool steady);
 
 /************************************************************************
 FUNCTION: step3_processingend
@@ -195,11 +164,4 @@ int sccd_standard(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records);
-
-int getcategorycurve_old(
-    Output_sccd *t,
-    int num_curve);
-
-int getcategorycurve(
-    Output_sccd *t,
-    int num_curve);
+#endif // CCD_STOCHASTIC_H
