@@ -133,6 +133,17 @@ int KF_ts_filter_regular(
     int i_b,                     /* i: the band number */
     double *vt,                  /* I/O: predicted residuals */
     bool steady);
+
+int KF_ts_filter_regular_fast(
+    ssmodel_constants *instance, /* i: the inputted ssm instance   */
+    int *clrx,                   /* i: the inputted dates   */
+    float *clry,                 /* i: the inputted observations   */
+    gsl_matrix *cov_p,           /* i/O: m x m matrix of the covariance matrix for pred_start */
+    gsl_vector *state_a,
+    int cur_i,  /* i: the current i */
+    int i_b,    /* i: the band number */
+    double *vt, /* I/O: predicted residuals */
+    bool steady);
 // typedef double optimfn(int n, double *par, void *ex);
 // typedef void optimgr(int n, double *par, double *gr, void *ex);
 

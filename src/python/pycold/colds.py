@@ -218,7 +218,7 @@ def cold_detect(
     starting_date=0,
     n_cm=0,
     cm_output_interval=0,
-    b_c2=False,
+    b_c2=True,
     gap_days=365.25
 ):
     """
@@ -311,7 +311,7 @@ def obcold_reconstruct(
     break_dates,
     pos=1,
     conse=6,
-    b_c2=False,
+    b_c2=True,
 ):
     """
     re-contructructing change records using break dates.
@@ -372,7 +372,7 @@ def sccd_detect(
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_c2=False,
+    b_c2=True,
     b_pinpoint=False,
     gate_pcg=0.90,
     state_intervaldays=0.0
@@ -472,7 +472,7 @@ def sccd_update(
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_c2=False,
+    b_c2=True,
     gate_pcg=0.90,
     predictability_pcg=0.90,
 ):
@@ -721,7 +721,7 @@ def sccd_detect_flex(
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_c2=False,
+    b_c2=True,
     b_pinpoint=False,
     gate_pcg=0.90,
     state_intervaldays=0.0,
@@ -788,10 +788,8 @@ def sccd_detect_flex(
     # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
     #                                 pos, conse, b_c2, b_pinpoint, gate_tcg, b_monitor_init))
     # return tmp
-    if state_intervaldays == 0:
-        b_output_state = False
-    else:
-        b_output_state = True
+    b_output_state = False if state_intervaldays == 0 else True
+
     return _sccd_detect_flex(
             dates,
             ts_stack.flatten(),
@@ -821,7 +819,7 @@ def sccd_update_flex(
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_c2=False,
+    b_c2=True,
     gate_pcg=0.90,
     predictability_pcg=0.90,
     tmask_b1=1,

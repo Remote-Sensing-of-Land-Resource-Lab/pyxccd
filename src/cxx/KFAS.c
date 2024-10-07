@@ -541,7 +541,8 @@ int initialize_ssmconstants(
     }
 
     /*   initialize Q     */
-    double ini_q00 = pow(base_value, 2) / 10000.0 / AVE_DAYS_IN_A_YEAR;
+    // double ini_q00 = pow(base_value, 2) / 10000.0 / AVE_DAYS_IN_A_YEAR;
+    double ini_q00 = INI_Q00;
     for (i = 0; i < instance->m; i++)
         if (i == 1)
             gsl_matrix_set(instance->Q, i, i, ini_q00 / SLOPE_SS_SCALE);
@@ -724,44 +725,169 @@ int KF_ts_filter_regular(
     att = gsl_vector_alloc(instance->m);
     state_a = gsl_vector_alloc(instance->m);
     /* this loop predicts every missing values between two observation dates */
-    for (j = 0; j < clrx[cur_i + 1] - clrx[cur_i]; j++) /* predict ith observation */
-    {
-        if (0 == j)
-        {
-            /* first get at from fit_cft*/
-            fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
-            //            if(i_b == 3)
-            //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], gsl_vector_get(state_a, 0), gsl_vector_get(state_a, 1),
-            //                       gsl_vector_get(state_a, 2), gsl_vector_get(state_a, 3));
-            //            if(i_b == 3)
-            //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], fit_cft[i_b][0], fit_cft[i_b][1],
-            //                       fit_cft[i_b][2], fit_cft[i_b][3]);
-            /* predicts valid obs values between two observation dates */
-            filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
-                                 state_a, cov_p, vt, &ft, kt, instance->m, att);
-            /* update fit_cft using new at*/
-            vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
-            //            if(i_b == 3)
-            //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i],fit_cft[i_b][0], fit_cft[i_b][1],
-            //                        fit_cft[i_b][2], fit_cft[i_b][3]);
-            // printf("rmse for %d time point for band %d: %f\n", cur_i, i_band, rmse[i_b][cur_i]);
-        }
-        else
-        {
-            if (FALSE == steady)
-            {
-                filter1step_missingobs(instance->Z, instance->H, instance->T, instance->Q,
-                                       &ft, cov_p, kt, instance->m);
-            }
-        }
-        // printf("ft for %d is %f: \n", clrx[cur_i] + j, ft);
-    }
+    // for (j = 0; j < clrx[cur_i + 1] - clrx[cur_i]; j++) /* predict ith observation */
+    // {
+    //     if (0 == j)
+    //     {
+    //         /* first get at from fit_cft*/
+    //         fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
+    //         //            if(i_b == 3)
+    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], gsl_vector_get(state_a, 0), gsl_vector_get(state_a, 1),
+    //         //                       gsl_vector_get(state_a, 2), gsl_vector_get(state_a, 3));
+    //         //            if(i_b == 3)
+    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], fit_cft[i_b][0], fit_cft[i_b][1],
+    //         //                       fit_cft[i_b][2], fit_cft[i_b][3]);
+    //         /* predicts valid obs values between two observation dates */
+    //         filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
+    //                              state_a, cov_p, vt, &ft, kt, instance->m, att);
+    //         /* update fit_cft using new at*/
+    //         vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
+    //         //            if(i_b == 3)
+    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i],fit_cft[i_b][0], fit_cft[i_b][1],
+    //         //                        fit_cft[i_b][2], fit_cft[i_b][3]);
+    //         // printf("rmse for %d time point for band %d: %f\n", cur_i, i_band, rmse[i_b][cur_i]);
+    //     }
+    //     else
+    //     {
+    //         if (FALSE == steady)
+    //         {
+    //             filter1step_missingobs(instance->Z, instance->H, instance->T, instance->Q,
+    //                                    &ft, cov_p, kt, instance->m);
+    //         }
+    //     }
+    //     // printf("ft for %d is %f: \n", clrx[cur_i] + j, ft);
+    // }
+    fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
+    /* predicts valid obs values between two observation dates */
+    filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
+                         state_a, cov_p, vt, &ft, kt, instance->m, att);
+    /* update fit_cft using new at*/
+    vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
+
+    filter1step_missingobs_fast(instance->Z, instance->H, instance->Q, &ft, cov_p, kt, instance->m, (double)(clrx[cur_i + 1] - clrx[cur_i] - 1));
 
     gsl_vector_free(kt);
     gsl_vector_free(att);
     gsl_vector_free(state_a);
 
     return SUCCESS;
+}
+
+void filter1step_missingobs_fast(
+    gsl_vector *zt,  /*I */
+    double ht,       /*I */
+    gsl_matrix *rqr, /*I */
+    double *ft,      /*O*/
+    gsl_matrix *pt,  /*I/O*/
+    gsl_vector *kt,  /*I/O*/
+    int m,           /*I*/
+    double gap_days)
+{
+    gsl_matrix *mm;
+    gsl_matrix *tt; /*I */
+    gsl_matrix *mrqr;
+    int i, j;
+    tt = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+    mrqr = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+    mm = gsl_matrix_alloc(m, m);
+    // memcpy(zt_sub, &zt[1], 2*sizeof(*a));
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < m; j++)
+        {
+            if ((i == 0) && (j == 0))
+            {
+                gsl_matrix_set(tt, i, j, 1.0);
+                continue;
+            }
+
+            if ((i == 0) && (j == 1))
+            {
+                gsl_matrix_set(tt, i, j, 1.0 * gap_days);
+                continue;
+            }
+
+            if ((i == 1) && (j == 1))
+            {
+                gsl_matrix_set(tt, i, j, 1.0);
+                continue;
+            }
+
+            if ((i == 2) && (j == 2))
+            {
+                gsl_matrix_set(tt, i, j, cos((double)TWO_PI * gap_days / (double)NUM_YEARS));
+                continue;
+            }
+
+            if ((i == 2) && (j == 3))
+            {
+                gsl_matrix_set(tt, i, j, sin((double)TWO_PI * gap_days / (double)NUM_YEARS));
+                continue;
+            }
+
+            if ((i == 3) && (j == 3))
+            {
+                gsl_matrix_set(tt, i, j, cos((double)TWO_PI * gap_days / (double)NUM_YEARS));
+                continue;
+            }
+
+            if ((i == 3) && (j == 2))
+            {
+                gsl_matrix_set(tt, i, j, -sin((double)TWO_PI * gap_days / (double)NUM_YEARS));
+                continue;
+            }
+
+            if ((i == 4) && (j == 4))
+            {
+                gsl_matrix_set(tt, i, j, cos((double)TWO_PI * gap_days / (double)NUM_YEARS * 2.0));
+                continue;
+            }
+
+            if ((i == 5) && (j == 5))
+            {
+                gsl_matrix_set(tt, i, j, cos((double)TWO_PI * gap_days / (double)NUM_YEARS * 2.0));
+                continue;
+            }
+
+            if ((i == 4) && (j == 5))
+            {
+                gsl_matrix_set(tt, i, j, sin((double)TWO_PI * gap_days / (double)NUM_YEARS * 2.0));
+                continue;
+            }
+
+            if ((i == 5) && (j == 4))
+            {
+                gsl_matrix_set(tt, i, j, -sin((double)TWO_PI * gap_days / (double)NUM_YEARS * 2.0));
+                continue;
+            }
+        }
+    }
+
+    // gsl_blas_dscal(gap_days, mrqr);
+    for (i = 0; i < m; i++)
+        gsl_matrix_set(mrqr, i, i, gsl_matrix_get(rqr, i, i) * gap_days);
+
+    // gsl_blas_daxpy(gap_days, rqr, mrqr);
+    /* mm = tt*pt*/
+    gsl_blas_dsymm(CblasRight, CblasUpper, 1.0, pt, tt, 0.0, mm);
+
+    /* pt = mm * tt^T */
+    gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, mm, tt, 0.0, pt);
+    gsl_matrix_add(pt, mrqr);
+
+    gsl_matrix_free(mm);
+    gsl_matrix_free(tt);
+    gsl_matrix_free(mrqr);
+
+    /* force negative to be zero */
+    //    for(k1 = 0; k1 < m; k1++){
+    //        for(k2 = 0; k2 < m; k2++){
+    //            if (gsl_matrix_get(pt, k1, k2) < 0){
+    //                gsl_matrix_set(pt, k1, k2, 0.0);
+    //            }
+    //        }
+    //    }
+    return;
 }
 
 int KF_ts_filter_falsechange(
@@ -777,12 +903,12 @@ int KF_ts_filter_falsechange(
     kt = gsl_vector_alloc(instance->m);
 
     /* this loop predicts every missing values between two observation dates */
-    for (j = 0; j < clrx[cur_i + 1] - clrx[cur_i]; j++) /* predict ith observation */
-    {
-        filter1step_missingobs(instance->Z, instance->H, instance->T, instance->Q,
-                               &ft, cov_p, kt, instance->m);
-    }
-
+    // for (j = 0; j < clrx[cur_i + 1] - clrx[cur_i]; j++) /* predict ith observation */
+    // {
+    //     filter1step_missingobs(instance->Z, instance->H, instance->T, instance->Q,
+    //                            &ft, cov_p, kt, instance->m);
+    // }
+    filter1step_missingobs_fast(instance->Z, instance->H, instance->Q, &ft, cov_p, kt, instance->m, (double)(clrx[cur_i + 1] - clrx[cur_i]));
     gsl_vector_free(kt);
 
     return SUCCESS;

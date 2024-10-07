@@ -108,7 +108,7 @@
                           /* and Selection Operator LASSO regressions */
 #define DEFAULT_COLD_TCG 15.0863
 
-#define INI_Q00 0.1 /* MATLAB default */
+#define INI_Q00 1 /* MATLAB default */
 #define INI_P 1000000
 
 /* from ccd.c detection method*/

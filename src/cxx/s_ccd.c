@@ -512,7 +512,7 @@ int step1_ssm_initialize(
     /*  initialize p */
     // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
     // ini_p = INI_P;
-    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
+    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs - 1] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
 
     for (k = 0; k < instance->m; k++)
     {
