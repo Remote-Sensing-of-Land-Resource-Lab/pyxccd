@@ -160,7 +160,7 @@ This repo provides dockerfiles that illustrate a reproduceable method for
 compling and installing PYCOLD. See `dockerfiles/README.rst
 <dockerfiles/README.rst>`__ for details.
 
-3. Using pycold for pixel-based processing (more see `jupyter examples <tool/notebook/pycold_example.ipynb>`_)
+3. Using pycold for pixel-based processing (more see `jupyter examples <tool/notebook/pycold_example.ipynb>`)
 ------------------------------------------
 
 COLD:

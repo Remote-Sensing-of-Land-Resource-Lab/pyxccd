@@ -582,7 +582,7 @@ float caculate_ini_p(
     for (k = 0; k < m; k++)
         z_sum = z_sum + gsl_vector_get(z, k);
 
-    return pow((float)a_intensity * 0.05, 2) / z_sum;
+    return pow((float)a_intensity, 2) / z_sum;
 }
 
 double compute_f(
@@ -703,76 +703,6 @@ int KF_ts_predict_conse(
     return SUCCESS;
 }
 
-int KF_ts_filter_regular(
-    ssmodel_constants *instance, /* i: the inputted ssm instance   */
-    int *clrx,                   /* i: the inputted dates   */
-    float *clry,                 /* i: the inputted observations   */
-    gsl_matrix *cov_p,           /* i/O: m x m matrix of the covariance matrix for pred_start */
-    float **fit_cft,             /* i/O: m vector of a for pred_start */
-    int cur_i,                   /* i: the current i */
-    int i_b,                     /* i: the band number */
-    double *vt,                  /* I/O: predicted residuals */
-    bool steady)
-{
-    int j;
-    gsl_vector *kt;
-    gsl_vector *att;
-    gsl_vector *state_a; // filtered states
-    // double vt;
-    double ft;
-
-    kt = gsl_vector_alloc(instance->m);
-    att = gsl_vector_alloc(instance->m);
-    state_a = gsl_vector_alloc(instance->m);
-    /* this loop predicts every missing values between two observation dates */
-    // for (j = 0; j < clrx[cur_i + 1] - clrx[cur_i]; j++) /* predict ith observation */
-    // {
-    //     if (0 == j)
-    //     {
-    //         /* first get at from fit_cft*/
-    //         fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
-    //         //            if(i_b == 3)
-    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], gsl_vector_get(state_a, 0), gsl_vector_get(state_a, 1),
-    //         //                       gsl_vector_get(state_a, 2), gsl_vector_get(state_a, 3));
-    //         //            if(i_b == 3)
-    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], fit_cft[i_b][0], fit_cft[i_b][1],
-    //         //                       fit_cft[i_b][2], fit_cft[i_b][3]);
-    //         /* predicts valid obs values between two observation dates */
-    //         filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
-    //                              state_a, cov_p, vt, &ft, kt, instance->m, att);
-    //         /* update fit_cft using new at*/
-    //         vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
-    //         //            if(i_b == 3)
-    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i],fit_cft[i_b][0], fit_cft[i_b][1],
-    //         //                        fit_cft[i_b][2], fit_cft[i_b][3]);
-    //         // printf("rmse for %d time point for band %d: %f\n", cur_i, i_band, rmse[i_b][cur_i]);
-    //     }
-    //     else
-    //     {
-    //         if (FALSE == steady)
-    //         {
-    //             filter1step_missingobs(instance->Z, instance->H, instance->T, instance->Q,
-    //                                    &ft, cov_p, kt, instance->m);
-    //         }
-    //     }
-    //     // printf("ft for %d is %f: \n", clrx[cur_i] + j, ft);
-    // }
-    fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
-    /* predicts valid obs values between two observation dates */
-    filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
-                         state_a, cov_p, vt, &ft, kt, instance->m, att);
-    /* update fit_cft using new at*/
-    vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
-
-    filter1step_missingobs_fast(instance->Z, instance->H, instance->Q, &ft, cov_p, kt, instance->m, (double)(clrx[cur_i + 1] - clrx[cur_i] - 1));
-
-    gsl_vector_free(kt);
-    gsl_vector_free(att);
-    gsl_vector_free(state_a);
-
-    return SUCCESS;
-}
-
 void filter1step_missingobs_fast(
     gsl_vector *zt,  /*I */
     double ht,       /*I */
@@ -888,6 +818,76 @@ void filter1step_missingobs_fast(
     //        }
     //    }
     return;
+}
+
+int KF_ts_filter_regular(
+    ssmodel_constants *instance, /* i: the inputted ssm instance   */
+    int *clrx,                   /* i: the inputted dates   */
+    float *clry,                 /* i: the inputted observations   */
+    gsl_matrix *cov_p,           /* i/O: m x m matrix of the covariance matrix for pred_start */
+    float **fit_cft,             /* i/O: m vector of a for pred_start */
+    int cur_i,                   /* i: the current i */
+    int i_b,                     /* i: the band number */
+    double *vt,                  /* I/O: predicted residuals */
+    bool steady)
+{
+    int j;
+    gsl_vector *kt;
+    gsl_vector *att;
+    gsl_vector *state_a; // filtered states
+    // double vt;
+    double ft;
+
+    kt = gsl_vector_alloc(instance->m);
+    att = gsl_vector_alloc(instance->m);
+    state_a = gsl_vector_alloc(instance->m);
+    /* this loop predicts every missing values between two observation dates */
+    // for (j = 0; j < clrx[cur_i + 1] - clrx[cur_i]; j++) /* predict ith observation */
+    // {
+    //     if (0 == j)
+    //     {
+    //         /* first get at from fit_cft*/
+    //         fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
+    //         //            if(i_b == 3)
+    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], gsl_vector_get(state_a, 0), gsl_vector_get(state_a, 1),
+    //         //                       gsl_vector_get(state_a, 2), gsl_vector_get(state_a, 3));
+    //         //            if(i_b == 3)
+    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i], fit_cft[i_b][0], fit_cft[i_b][1],
+    //         //                       fit_cft[i_b][2], fit_cft[i_b][3]);
+    //         /* predicts valid obs values between two observation dates */
+    //         filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
+    //                              state_a, cov_p, vt, &ft, kt, instance->m, att);
+    //         /* update fit_cft using new at*/
+    //         vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
+    //         //            if(i_b == 3)
+    //         //                printf("i = %d: %f, %f, %f, %f\n", clrx[cur_i],fit_cft[i_b][0], fit_cft[i_b][1],
+    //         //                        fit_cft[i_b][2], fit_cft[i_b][3]);
+    //         // printf("rmse for %d time point for band %d: %f\n", cur_i, i_band, rmse[i_b][cur_i]);
+    //     }
+    //     else
+    //     {
+    //         if (FALSE == steady)
+    //         {
+    //             filter1step_missingobs(instance->Z, instance->H, instance->T, instance->Q,
+    //                                    &ft, cov_p, kt, instance->m);
+    //         }
+    //     }
+    //     // printf("ft for %d is %f: \n", clrx[cur_i] + j, ft);
+    // }
+    fit_cft2vec_a(fit_cft[i_b], state_a, clrx[cur_i], instance->m, instance->structure);
+    /* predicts valid obs values between two observation dates */
+    filter1step_validobs(clry[cur_i], instance->Z, &instance->H, instance->T, instance->Q,
+                         state_a, cov_p, vt, &ft, kt, instance->m, att);
+    /* update fit_cft using new at*/
+    vec_a2fit_cft(state_a, fit_cft[i_b], clrx[cur_i] + 1, instance->m, instance->structure);
+
+    filter1step_missingobs_fast(instance->Z, instance->H, instance->Q, &ft, cov_p, kt, instance->m, (double)(clrx[cur_i + 1] - clrx[cur_i] - 1));
+
+    gsl_vector_free(kt);
+    gsl_vector_free(att);
+    gsl_vector_free(state_a);
+
+    return SUCCESS;
 }
 
 int KF_ts_filter_falsechange(

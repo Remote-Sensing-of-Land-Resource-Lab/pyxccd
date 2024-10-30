@@ -34,7 +34,6 @@
 
 /* threshold (degree) of mean included angle                          */
 #define NSIGN 45
-#define NSIGN_sccd 30
 
 /* from 2darray.c */
 /* Define a unique (i.e. random) value that can be used to verify a pointer
@@ -108,7 +107,7 @@
                           /* and Selection Operator LASSO regressions */
 #define DEFAULT_COLD_TCG 15.0863
 
-#define INI_Q00 1 /* MATLAB default */
+#define INI_Q00 0.25 /* MATLAB default */
 #define INI_P 1000000
 
 /* from ccd.c detection method*/

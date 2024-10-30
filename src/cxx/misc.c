@@ -1892,9 +1892,9 @@ int auto_ts_fit(
 }
 
 /******************************************************************************
-MODULE:  auto_ts_fit
+MODULE:  auto_ts_fit_sccd
 
-PURPOSE:  Lasso regression fitting with full outputs
+PURPOSE:  Lasso regression fitting with full outputs for sccd
 
 RETURN VALUE:
 Type = int

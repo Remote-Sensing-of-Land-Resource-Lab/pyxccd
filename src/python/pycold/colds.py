@@ -375,7 +375,8 @@ def sccd_detect(
     b_c2=True,
     b_pinpoint=False,
     gate_pcg=0.90,
-    state_intervaldays=0.0
+    state_intervaldays=0.0,
+    b_fitting_coefs=False
 ):
     """
     pixel-based offline SCCD algorithm.
@@ -394,7 +395,7 @@ def sccd_detect(
     ts_s2: 1d array of shape(observation numbers), time series of swir2 band
     ts_t: 1d array of shape(observation numbers), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
+    p_cg: probability threshold of change magnitude, 0.99
     pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
     conse: consecutive observation number
     b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
@@ -405,7 +406,7 @@ def sccd_detect(
     gate_pcg: the gate change probability threshold for defining anomaly
     b_output_state: indicate whether to output state variables
     state_intervaldays: the day interval for output states (only b_output_state is True)
-    Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
+    b_fitting_coefs: True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients 
     Returns
     ----------
     SccdOutput: the SCCD outputs that characterizes each temporal segment if b_pinpoint==False
@@ -455,6 +456,7 @@ def sccd_detect(
         9.236,
         b_output_state,
         state_intervaldays,
+        b_fitting_coefs
     )
 
 
@@ -726,7 +728,8 @@ def sccd_detect_flex(
     gate_pcg=0.90,
     state_intervaldays=0.0,
     tmask_b1=1,
-    tmask_b2=1
+    tmask_b2=1,
+    b_fitting_coefs=False
 ):
     """
     pixel-based offline SCCD algorithm.
@@ -752,6 +755,7 @@ def sccd_detect_flex(
     state_intervaldays: the day interval for output states (only b_output_state is True)
     tmask_b1: the first band id for tmask
     tmask_b2: the second band id for tmask
+    b_fitting_coefs: True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients
     Returns
     ----------
     SccdOutput: the SCCD outputs that characterizes each temporal segment if b_pinpoint==False
@@ -807,7 +811,8 @@ def sccd_detect_flex(
             b_output_state,
             state_intervaldays,
             tmask_b1,
-            tmask_b2
+            tmask_b2,
+            b_fitting_coefs
         )
     
 

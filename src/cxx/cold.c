@@ -4781,7 +4781,7 @@ int inefficientobs_procedure(
     float **clry;       /* clear pixel curve in Y direction (spectralbands)    */
     float **fit_cft;    /* Fitted coefficients 2-D array.        */
     float *rmse;        /* Root Mean Squared Error array.        */
-    float **temp_v_dif; /* for the thermal band.......           */
+    float **temp_v_dif; /* temperory residual for per-pixel      */
     char FUNC_NAME[] = "inefficientobs_procedure";
     int n_clr = 0;
     int i_b;

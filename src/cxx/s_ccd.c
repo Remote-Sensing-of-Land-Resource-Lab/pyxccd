@@ -61,8 +61,8 @@ int sccd(
     double state_intervaldays,
     int *n_state,
     int64_t *state_days,
-    double *states_ensemble /* O: states records for blue band */
-)
+    double *states_ensemble, /* O: states records for blue band */
+    bool b_fitting_coefs)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -260,7 +260,8 @@ int sccd(
 
             result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue,
                                    obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint,
-                                   gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records);
+                                   gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records,
+                                   b_fitting_coefs);
         }
     }
     else
@@ -503,17 +504,17 @@ int step1_ssm_initialize(
         RETURN_ERROR("Allocating state_sum memory", FUNC_NAME, FAILURE);
     }
 
-    /********************************************************************************************/
+    /************************************************************************************************/
     /* first step: update a and p between prev_i_break - 1(included) and stable_start(not included) */
-    /********************************************************************************************/
+    /************************************************************************************************/
 
     /* initialize a1 */
     // fit_cft2vec_a(fit_cft[i_b], state_a, clrx[stable_start], instance->m, instance->structure);
     /*  initialize p */
     // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
     // ini_p = INI_P;
-    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs - 1] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
-
+    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
+    // ini_p = pow(clry_extend[0], 2) * INITIAL_P_RATIO;
     for (k = 0; k < instance->m; k++)
     {
         if (k == 1)
@@ -1348,7 +1349,7 @@ int step1_cold_initialize(
                 }
                 break;
             }
-            else if ((vec_magg[0] > T_MAX_CG) && (i_ini >= *prev_i_break)) /* false change */
+            else if ((vec_magg[0] > T_MAX_CG_SCCD) && (i_ini >= *prev_i_break)) /* false change */
             {
                 for (k = i_ini; k < *n_clr - 1; k++)
                 {
@@ -1564,6 +1565,7 @@ int step2_KF_ChangeDetection(
     int *clrx,                   /* I: dates   */
     float **clry,                /* I: observations   */
     int cur_i,                   /* I: the ith of observation to be processed   */
+    int i_start,                 /* I: the ith of observation that the segment starts   */
     int *num_curve,              /* I: the number of curves   */
     int conse,                   /* I: the consecutive number of observations   */
     short int *min_rmse,         /* I: adjusted RMSE   */
@@ -1585,7 +1587,8 @@ int step2_KF_ChangeDetection(
     float t_max_cg_sccd,
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records *coefs_records,
+    bool b_fitting_coefs)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1615,6 +1618,8 @@ int step2_KF_ChangeDetection(
     float **v_dif_mag_tmp;
     int current_CM_n;
     int current_pinpoint;
+    float tmp_rmse;
+    float **temp_v_dif; /* temperory residual for per-pixel      */
 
     v_dif = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse, sizeof(float));
     if (v_dif == NULL)
@@ -1645,6 +1650,13 @@ int step2_KF_ChangeDetection(
     if (medium_v_dif == NULL)
     {
         RETURN_ERROR("Allocating medium_v_dif memory", FUNC_NAME, FAILURE);
+    }
+
+    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, cur_i - i_start + 1,
+                                             sizeof(float));
+    if (temp_v_dif == NULL)
+    {
+        RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
     }
 
     for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
@@ -1873,6 +1885,21 @@ int step2_KF_ChangeDetection(
         rec_cg[*num_curve].num_obs = *num_obs_processed;
         rec_cg[*num_curve].t_start = t_start;
 
+        if (b_fitting_coefs == TRUE)
+        {
+            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+            {
+                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_MAX_NUM_C,
+                                          fit_cft, &tmp_rmse, temp_v_dif);
+                if (status != SUCCESS)
+                {
+                    RETURN_ERROR("Calling auto_ts_fit_float for clear persistent pixels\n",
+                                 FUNC_NAME, FAILURE);
+                }
+                rec_cg[*num_curve].rmse[i_b] = tmp_rmse;
+            }
+        }
+
         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
         {
             quick_sort_float(v_dif_mag[i_b], 0, conse - 1);
@@ -1982,6 +2009,13 @@ int step2_KF_ChangeDetection(
     {
         RETURN_ERROR("Freeing memory: v_dif_mag\n", FUNC_NAME,
                      FAILURE);
+    }
+
+    status = free_2d_array((void **)temp_v_dif);
+    if (status != SUCCESS)
+    {
+        RETURN_ERROR("Freeing memory: temp_v_dif\n",
+                     FUNC_NAME, FAILURE);
     }
 
     free(v_dif_mag_norm);
@@ -2474,7 +2508,8 @@ int sccd_standard(
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records *coefs_records,
+    bool b_fitting_coefs)
 {
     int i_b;
     int status;
@@ -2712,14 +2747,6 @@ int sccd_standard(
 
                     status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, i, SCCD_NUM_C,
                                               fit_cft, &rmse_ini[i_b], rec_v_dif);
-                    //                    if (i_b == 3){
-                    //                        printf("fit_cft[0][0]: %f\n", fit_cft[i_b][0]);
-                    //                        printf("fit_cft[0][1]: %f\n", fit_cft[i_b][1]);
-                    //                        printf("fit_cft[0][2]: %f\n", fit_cft[i_b][2]);
-                    //                        printf("fit_cft[0][3]: %f\n", fit_cft[i_b][3]);
-                    //                        printf("fit_cft[0][4]: %f\n", fit_cft[i_b][4]);
-                    //                        printf("fit_cft[0][5]: %f\n", fit_cft[i_b][5]);
-                    //                    }
                     if (status != SUCCESS)
                     {
                         RETURN_ERROR("Calling auto_ts_fit_sccd during continuous monitoring\n",
@@ -2761,11 +2788,11 @@ int sccd_standard(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection(instance, clrx, clry, i, num_fc, conse, min_rmse, tcg, n_clr,
+            status = step2_KF_ChangeDetection(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr,
                                               cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
                                               t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
                                               &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD,
-                                              b_coefs_records, n_coefs_records, coefs_records);
+                                              b_coefs_records, n_coefs_records, coefs_records, b_fitting_coefs);
 
             if (status == CHANGEDETECTED)
             {

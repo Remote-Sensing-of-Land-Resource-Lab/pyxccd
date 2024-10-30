@@ -33,8 +33,8 @@ int sccd_flex(
     double state_intervaldays,
     int *n_state,
     int64_t *state_days,
-    double *states_ensemble /* O: states records for blue band */
-);
+    double *states_ensemble, /* O: states records for blue band */
+    bool b_fitting_coefs);
 
 int step1_ssm_initialize_flex(
     ssmodel_constants *instance, /* I/O: the outputted initial SSM model, we will assign H     */
@@ -77,6 +77,7 @@ int step2_KF_ChangeDetection_flex(
     int *clrx,                   /* I: dates   */
     float **clry,                /* I: observations   */
     int cur_i,                   /* I: the ith of observation to be processed   */
+    int i_start,
     int *num_curve,              /* I: the number of curves   */
     int conse,                   /* I: the consecutive number of observations   */
     short int *min_rmse,         /* I: adjusted RMSE   */
@@ -99,7 +100,8 @@ int step2_KF_ChangeDetection_flex(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
-    int nbands);
+    int nbands,
+    bool b_fitting_coefs);
 
 /************************************************************************
 FUNCTION: step3_processingend
@@ -172,5 +174,6 @@ int sccd_standard_flex(
     nrt_coefs_records_flex *coefs_records,
     int nbands,
     int tmask_b1,
-    int tmask_b2);
+    int tmask_b2,
+    bool b_fitting_coefs);
 #endif // CCD_STOCHASTIC_F

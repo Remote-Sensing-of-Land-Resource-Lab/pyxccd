@@ -167,7 +167,7 @@ cdef extern from "../../cxx/s_ccd.h":
                   Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue,
                   short int *min_rmse, int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint *rec_cg_pinpoint, 
                   int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg,  bool b_output_state, 
-                  double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble);
+                  double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool b_fitting_coefs);
 
 
 cdef extern from "../../cxx/s_ccd_flex.h":
@@ -177,7 +177,8 @@ cdef extern from "../../cxx/s_ccd_flex.h":
                            int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
                            int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint_flex *rec_cg_pinpoint,
                            int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg, bool b_output_state,
-                           double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble);
+                           double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,
+                           bool b_fitting_coefs);
 
 
 cdef Output_sccd t
@@ -373,7 +374,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
                    bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
                    double predictability_tcg=9.236, bint b_output_state=False, 
-                   double state_intervaldays=1):
+                   double state_intervaldays=1, bint b_fitting_coefs=False):
     """
     S-CCD processing. It is required to be done before near real time monitoring
 
@@ -395,6 +396,9 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
        b_pinpoint: bool, output pinpoint break
        gate_tcg: the gate change magnitude threshold for defining anomaly
        predictability_tcg: threshold for predicability test
+       b_output_state: bool, if output intermediate state variables
+       state_intervaldays: bool, what is the interval for outputting state
+       b_fitting_coefs: if using fitting curve to output harmonic coefficients
        Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
        Returns
        ----------
@@ -468,7 +472,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                   &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                   &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, b_pinpoint,
                   &rec_cg_pinpoint_view[0], &num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
-                  &states_days_view[0], &states_ensemble_view[0])
+                  &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs)
 
     # reshape state_ensemble
     
@@ -629,7 +633,7 @@ cpdef _sccd_update(sccd_pack,
                   &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                   &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False,
                   rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, predictability_tcg, False, 1, &n_state, 
-                  &states_days_view[0], &states_ensemble_view[0])
+                  &states_days_view[0], &states_ensemble_view[0], False)
 
     PyMem_Free(rec_cg_pinpoint)
     if result != 0:
@@ -735,7 +739,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1,
                         bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
                         double predictability_tcg=9.236, bint b_output_state=False, 
-                        double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1):
+                        double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1, bint b_fitting_coefs=False):
     """
     Helper function to do COLD algorithm.
 
@@ -815,7 +819,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
                         conse, b_c2, b_pinpoint, &rec_cg_pinpoint_view[0], &num_fc_pinpoint, 
                         gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
-                        &states_days_view[0], &states_ensemble_view[0])
+                        &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs)
 
     # reshape state_ensemble
     if result != 0:
@@ -960,9 +964,9 @@ cpdef _sccd_update_flex(sccd_pack,
     result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
                     valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                     &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                    conse, b_c2, False, rec_cg_pinpoint, &num_fc_pinpoint, 
-                    gate_tcg, predictability_tcg, False, 1, &n_state, 
-                    &states_days_view[0], &states_ensemble_view[0])
+                    conse, b_c2, False, rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, 
+                    predictability_tcg, False, 1, &n_state, &states_days_view[0], 
+                    &states_ensemble_view[0], False)
 
     PyMem_Free(rec_cg_pinpoint)
     if result != 0:

@@ -57,8 +57,8 @@ int sccd_flex(
     double state_intervaldays,
     int *n_state,
     int64_t *state_days,
-    double *states_ensemble /* O: states records for blue band */
-)
+    double *states_ensemble, /* O: states records for blue band */
+    bool b_fitting_coefs)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -69,7 +69,7 @@ int sccd_flex(
     int status;
     int *id_range;
     int i, k, i_b;
-    char FUNC_NAME[] = "sccd";
+    char FUNC_NAME[] = "sccd_flex";
     int result = SUCCESS;
     int n_clr = 0;
     int *clrx;                 /* I: clear pixel curve in X direction (date)             */
@@ -244,7 +244,7 @@ int sccd_flex(
             result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue,
                                         obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint,
                                         gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands,
-                                        tmask_b1, tmask_b2);
+                                        tmask_b1, tmask_b2, b_fitting_coefs);
         }
     }
     else
@@ -338,7 +338,7 @@ int step1_ssm_initialize_flex(
     nrt_coefs_records_flex *coefs_records,
     int nbands)
 {
-    char FUNC_NAME[] = "step1_ssm_initialize";
+    char FUNC_NAME[] = "step1_ssm_initialize_flex";
     float *state_sum;
     float ini_p;
     int k, i;
@@ -408,7 +408,7 @@ int step1_ssm_initialize_flex(
     /*  initialize p */
     // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
     // ini_p = INI_P;
-    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs - 1] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
+    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
 
     for (k = 0; k < instance->m; k++)
     {
@@ -1439,6 +1439,7 @@ int step2_KF_ChangeDetection_flex(
     int *clrx,                   /* I: dates   */
     float **clry,                /* I: observations   */
     int cur_i,                   /* I: the ith of observation to be processed   */
+    int i_start,
     int *num_curve,              /* I: the number of curves   */
     int conse,                   /* I: the consecutive number of observations   */
     short int *min_rmse,         /* I: adjusted RMSE   */
@@ -1461,7 +1462,8 @@ int step2_KF_ChangeDetection_flex(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
-    int nbands)
+    int nbands,
+    bool b_fitting_coefs)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1491,6 +1493,8 @@ int step2_KF_ChangeDetection_flex(
     float **v_dif_mag_tmp;
     int current_CM_n;
     int current_pinpoint;
+    float tmp_rmse;
+    float **temp_v_dif; /* temperory residual for per-pixel      */
 
     v_dif = (float **)allocate_2d_array(nbands, conse, sizeof(float));
     if (v_dif == NULL)
@@ -1511,6 +1515,12 @@ int step2_KF_ChangeDetection_flex(
     max_rmse = (float *)calloc(nbands, sizeof(float));
     rmse_band = (float *)calloc(nbands, sizeof(float));
     medium_v_dif = (float *)malloc(nbands * sizeof(float));
+    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, cur_i - i_start + 1,
+                                             sizeof(float));
+    if (temp_v_dif == NULL)
+    {
+        RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
+    }
 
     for (i_b = 0; i_b < nbands; i_b++)
         rmse_band[i_b] = (float)sum_square_vt[i_b] / (*num_obs_processed - SCCD_NUM_C);
@@ -1725,6 +1735,20 @@ int step2_KF_ChangeDetection_flex(
 
         rec_cg[*num_curve].num_obs = *num_obs_processed;
         rec_cg[*num_curve].t_start = t_start;
+        if (b_fitting_coefs == TRUE)
+        {
+            for (i_b = 0; i_b < nbands; i_b++)
+            {
+                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_MAX_NUM_C,
+                                          fit_cft, &tmp_rmse, temp_v_dif);
+                if (status != SUCCESS)
+                {
+                    RETURN_ERROR("Calling auto_ts_fit_float for clear persistent pixels\n",
+                                 FUNC_NAME, FAILURE);
+                }
+                rec_cg[*num_curve].rmse[i_b] = tmp_rmse;
+            }
+        }
 
         for (i_b = 0; i_b < nbands; i_b++)
         {
@@ -1835,6 +1859,12 @@ int step2_KF_ChangeDetection_flex(
     {
         RETURN_ERROR("Freeing memory: v_dif_mag\n", FUNC_NAME,
                      FAILURE);
+    }
+    status = free_2d_array((void **)temp_v_dif);
+    if (status != SUCCESS)
+    {
+        RETURN_ERROR("Freeing memory: temp_v_dif\n",
+                     FUNC_NAME, FAILURE);
     }
 
     free(v_dif_mag_norm);
@@ -2319,7 +2349,8 @@ int sccd_standard_flex(
     nrt_coefs_records_flex *coefs_records,
     int nbands,
     int tmask_b1,
-    int tmask_b2)
+    int tmask_b2,
+    bool b_fitting_coefs)
 {
     int i_b;
     int status;
@@ -2602,11 +2633,11 @@ int sccd_standard_flex(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, num_fc, conse, min_rmse, tcg, n_clr,
+            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr,
                                                    cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
                                                    t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
                                                    &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg,
-                                                   b_coefs_records, n_coefs_records, coefs_records, nbands);
+                                                   b_coefs_records, n_coefs_records, coefs_records, nbands, b_fitting_coefs);
 
             if (status == CHANGEDETECTED)
             {
