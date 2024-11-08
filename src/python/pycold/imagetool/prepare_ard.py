@@ -12,7 +12,6 @@
 # For a 42-year Landsat ARD C1 tile (~3000 images), this script averagely produces ~350 G intermediate disk
 # files, and takes ~12 mins to finish if 200 EPYC 7452 cores are used.
 import os
-import sys
 import shutil
 import tarfile
 import logging
@@ -220,7 +219,9 @@ def single_image_stacking_hls(
     :return:
     """
     try:
-        QA_band = gdal_array.LoadFile(join(join(source_dir, folder), "{}.Fmask.tif".format(folder)))
+        QA_band = gdal_array.LoadFile(
+            join(join(source_dir, folder), "{}.Fmask.tif".format(folder))
+        )
     except ValueError as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
         logger.error("Cannot open QA band for {}: {}".format(folder, e))
@@ -236,15 +237,21 @@ def single_image_stacking_hls(
         clear_ratio = 1
 
     if clear_ratio > clear_threshold:
-        [collection, sensor, tile_id, imagetime, version1, version2] = folder.rsplit(".")
+        [collection, sensor, tile_id, imagetime, version1, version2] = folder.rsplit(
+            "."
+        )
         year = imagetime[0:4]
         doy = imagetime[4:7]
         file_name = sensor + tile_id + year + doy + collection + version1
         if low_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(low_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(
+                low_date_bound
+            ):
                 return True
         if upp_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(upp_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(
+                upp_date_bound
+            ):
                 return True
 
         if sensor == "L30":
@@ -470,7 +477,9 @@ def single_image_stacking_hls(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(np.int16),
+                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                    np.int16
+                ),
             )
         # scene_list.append(folder_name)
     else:
@@ -522,18 +531,22 @@ def single_image_stacking_hls14(
         clear_ratio = 1
 
     if clear_ratio > clear_threshold:
-        [collection, sensor, tile_id, imagetime, version1, version2, ext] = folder.split("/")[
-            -1
-        ].rsplit(".")
+        [collection, sensor, tile_id, imagetime, version1, version2, ext] = (
+            folder.split("/")[-1].rsplit(".")
+        )
         year = imagetime[0:4]
         doy = imagetime[4:7]
         file_name = sensor + tile_id + year + doy + collection + version1
         if low_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(low_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(
+                low_date_bound
+            ):
                 return True
 
         if upp_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(upp_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(
+                upp_date_bound
+            ):
                 return True
 
         if sensor == "L30":
@@ -735,7 +748,9 @@ def single_image_stacking_hls14(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(np.int16),
+                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                    np.int16
+                ),
             )
         # scene_list.append(folder_name)
     else:
@@ -796,7 +811,9 @@ def single_image_stacking(
 
     # unzip BT
     try:
-        with tarfile.open(join(source_dir, folder.replace("SR", "BT") + ".tar")) as tar_ref:
+        with tarfile.open(
+            join(source_dir, folder.replace("SR", "BT") + ".tar")
+        ) as tar_ref:
             try:
                 tar_ref.extractall(join(tmp_path, folder.replace("SR", "BT")))
             except Exception:
@@ -814,11 +831,17 @@ def single_image_stacking(
     try:
         if b_c2 is False:
             QA_band = gdal_array.LoadFile(
-                join(join(tmp_path, folder), "{}_PIXELQA.tif".format(folder[0 : len(folder) - 3]))
+                join(
+                    join(tmp_path, folder),
+                    "{}_PIXELQA.tif".format(folder[0 : len(folder) - 3]),
+                )
             )
         else:
             QA_band = gdal_array.LoadFile(
-                join(join(tmp_path, folder), "{}_QA_PIXEL.TIF".format(folder[0 : len(folder) - 3]))
+                join(
+                    join(tmp_path, folder),
+                    "{}_QA_PIXEL.TIF".format(folder[0 : len(folder) - 3]),
+                )
             )
     except ValueError as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
@@ -849,7 +872,9 @@ def single_image_stacking(
         elif folder[3] == "9":
             sensor = "LC9"
         else:
-            logger.error("Sensor is not correctly formatted for the scene {}".format(folder))
+            logger.error(
+                "Sensor is not correctly formatted for the scene {}".format(folder)
+            )
 
         col = folder[8:11]
         row = folder[11:14]
@@ -862,10 +887,14 @@ def single_image_stacking(
             version = folder[34:35]
         file_name = sensor + col + row + year + doy + collection + version
         if low_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(low_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(
+                low_date_bound
+            ):
                 return
         if upp_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(upp_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(
+                upp_date_bound
+            ):
                 return
         if b_c2 is False:
             if sensor == "LT5" or sensor == "LE7" or sensor == "LT4":
@@ -896,7 +925,9 @@ def single_image_stacking(
                     )
                 except ValueError as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
-                    logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
+                    logger.error(
+                        "Cannot open Landsat bands for {}: {}".format(folder, e)
+                    )
                     return
             elif sensor == "LC8" or "LC9":
                 try:
@@ -926,7 +957,9 @@ def single_image_stacking(
                     )
                 except ValueError as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
-                    logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
+                    logger.error(
+                        "Cannot open Landsat bands for {}: {}".format(folder, e)
+                    )
                     return
         else:
             if sensor == "LT5" or sensor == "LE7" or sensor == "LT4":
@@ -957,7 +990,9 @@ def single_image_stacking(
                     )
                 except ValueError as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
-                    logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
+                    logger.error(
+                        "Cannot open Landsat bands for {}: {}".format(folder, e)
+                    )
                     return
             elif sensor == "LC8" or "LC9":
                 try:
@@ -988,7 +1023,9 @@ def single_image_stacking(
                     )
                 except ValueError as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
-                    logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
+                    logger.error(
+                        "Cannot open Landsat bands for {}: {}".format(folder, e)
+                    )
                     return
 
         if (
@@ -1014,7 +1051,9 @@ def single_image_stacking(
 
         # if path_array is not None, we will eliminate those observation that has different path with its assigned path
         if path_array is not None:  # meaning that single-path processing
-            if not os.path.exists(join(join(tmp_path, folder), folder.replace("_SR", ".xml"))):
+            if not os.path.exists(
+                join(join(tmp_path, folder), folder.replace("_SR", ".xml"))
+            ):
                 logger.error(
                     "Cannot find xml file for {}".format(
                         join(join(tmp_path, folder), folder.replace("_SR", ".xml"))
@@ -1206,12 +1245,16 @@ def single_image_stacking(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(np.int16),
+                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                    np.int16
+                ),
             )
         # scene_list.append(folder_name)
     else:
         # logger.info('Not enough clear observations for {}'.format(folder[0:len(folder) - 3]))
-        logger.warn("Not enough clear observations for {}".format(folder[0 : len(folder) - 3]))
+        logger.warn(
+            "Not enough clear observations for {}".format(folder[0 : len(folder) - 3])
+        )
 
     # delete unzip folder
     shutil.rmtree(join(tmp_path, folder), ignore_errors=True)
@@ -1299,7 +1342,9 @@ def single_image_stacking_collection2(
         elif folder[3] == "4":
             sensor = "LT4"
         else:
-            logger.error("Sensor is not correctly formatted for the scene {}".format(folder))
+            logger.error(
+                "Sensor is not correctly formatted for the scene {}".format(folder)
+            )
 
         path = folder[10:13]
         row = folder[13:16]
@@ -1309,11 +1354,15 @@ def single_image_stacking_collection2(
         version = folder[len(folder) - 2 : len(folder)]
         file_name = sensor + path + row + year + doy + collection + version
         if low_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(low_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) < parse(
+                low_date_bound
+            ):
                 return True
 
         if upp_date_bound is not None:
-            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(upp_date_bound):
+            if (dt.datetime(int(year), 1, 1) + dt.timedelta(int(doy) - 1)) > parse(
+                upp_date_bound
+            ):
                 return True
 
         if sensor == "LT5" or sensor == "LE7" or sensor == "LT4":
@@ -1322,7 +1371,9 @@ def single_image_stacking_collection2(
                 #                               "{}_SR_B1.TIF".format(folder)))
                 B1 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B1.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B1.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1332,7 +1383,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B2 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B2.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B2.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1342,7 +1395,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B3 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B3.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B3.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1352,7 +1407,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B4 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B4.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B4.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1362,7 +1419,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B5 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B5.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B5.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1373,7 +1432,9 @@ def single_image_stacking_collection2(
 
                 B6 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B7.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B7.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1383,7 +1444,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B7 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_ST_B6.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_ST_B6.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1399,7 +1462,9 @@ def single_image_stacking_collection2(
             try:
                 B1 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B2.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B2.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1409,7 +1474,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B2 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B3.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B3.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1419,7 +1486,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B3 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B4.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B4.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1429,7 +1498,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B4 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B5.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B5.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1439,7 +1510,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B5 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B6.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B6.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1449,7 +1522,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B6 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_SR_B7.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_SR_B7.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1459,7 +1534,9 @@ def single_image_stacking_collection2(
                 ).ReadAsArray()
                 B7 = gdal.Warp(
                     os.path.join(tmp_path, "_tmp_img"),
-                    gdal.Open(join(join(tmp_path, folder), "{}_ST_B10.TIF".format(folder))),
+                    gdal.Open(
+                        join(join(tmp_path, folder), "{}_ST_B10.TIF".format(folder))
+                    ),
                     outputBounds=[bounds[0], bounds[1], bounds[2], bounds[3]],
                     xRes=res,
                     yRes=res,
@@ -1654,12 +1731,16 @@ def single_image_stacking_collection2(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(np.int16),
+                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                    np.int16
+                ),
             )
         # scene_list.append(folder_name)
     else:
         # logger.info('Not enough clear observations for {}'.format(folder[0:len(folder) - 3]))
-        logger.warn("Not enough clear observations for {}".format(folder[0 : len(folder) - 3]))
+        logger.warn(
+            "Not enough clear observations for {}".format(folder[0 : len(folder) - 3])
+        )
 
     # delete unzip folder
     shutil.rmtree(join(tmp_path, folder), ignore_errors=True)
@@ -1765,18 +1846,30 @@ def bbox(f):
     default=None,
     help="the folder directory of Landsat tar files " "downloaded from USGS website",
 )
-@click.option("--out_dir", type=str, default=None, help="the folder directory for storing stacks")
 @click.option(
-    "--clear_threshold", type=float, default=0, help="user-defined clear pixel proportion"
+    "--out_dir", type=str, default=None, help="the folder directory for storing stacks"
 )
 @click.option(
-    "--single_path", type=bool, default=True, help="indicate if using single_path or sidelap"
+    "--clear_threshold",
+    type=float,
+    default=0,
+    help="user-defined clear pixel proportion",
+)
+@click.option(
+    "--single_path",
+    type=bool,
+    default=True,
+    help="indicate if using single_path or sidelap",
 )
 @click.option("--rank", type=int, default=1, help="the rank id")
 @click.option("--n_cores", type=int, default=1, help="the total cores assigned")
-@click.option("--is_partition/--continuous", default=True, help="partition the output to blocks")
+@click.option(
+    "--is_partition/--continuous", default=True, help="partition the output to blocks"
+)
 @click.option("--yaml_path", type=str, help="yaml file path")
-@click.option("--hpc/--dhtc", default=True, help="if it is set for HPC or DHTC environment")
+@click.option(
+    "--hpc/--dhtc", default=True, help="if it is set for HPC or DHTC environment"
+)
 @click.option(
     "--low_date_bound",
     type=str,
@@ -1841,7 +1934,9 @@ def main(
     elif collection == "HLS":
         folder_list = [f for f in listdir(source_dir) if f.startswith("HLS")]
     elif collection == "HLS14":
-        folder_list = [y for x in os.walk(source_dir) for y in glob(os.path.join(x[0], "*.hdf"))]
+        folder_list = [
+            y for x in os.walk(source_dir) for y in glob(os.path.join(x[0], "*.hdf"))
+        ]
 
     tmp_path = join(out_dir, "tmp{}".format(rank))
 
@@ -1856,12 +1951,16 @@ def main(
     if rank == 1:
         # mode = w enables the log file to be overwritten
         logging.basicConfig(
-            filename=join(os.getcwd(), "prepare_ard.log"), filemode="w", level=logging.INFO
+            filename=join(os.getcwd(), "prepare_ard.log"),
+            filemode="w",
+            level=logging.INFO,
         )
         logger = logging.getLogger(__name__)
 
         logger.info(
-            "AutoPrepareDataARD starts: {}".format(datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S"))
+            "AutoPrepareDataARD starts: {}".format(
+                datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+            )
         )
 
         if not os.path.exists(out_dir):
@@ -1895,11 +1994,15 @@ def main(
                         logger.error("Unzip fails for {}".format(folder_list[0]))
                 if collection == "ARD":
                     ref_image = gdal.Open(
-                        join(tmp_path, folder_list[0], "{}B1.tif".format(folder_list[0]))
+                        join(
+                            tmp_path, folder_list[0], "{}B1.tif".format(folder_list[0])
+                        )
                     )
                 else:
                     ref_image = gdal.Open(
-                        join(tmp_path, folder_list[0], "{}_B1.TIF".format(folder_list[0]))
+                        join(
+                            tmp_path, folder_list[0], "{}_B1.TIF".format(folder_list[0])
+                        )
                     )
                 trans = ref_image.GetGeoTransform()
                 proj = ref_image.GetProjection()
@@ -1924,14 +2027,18 @@ def main(
         if collection == "ARD" or collection == "ARD-C2":
             ordinal_dates = [
                 pd.Timestamp.toordinal(
-                    dt.datetime(int(folder[15:19]), int(folder[19:21]), int(folder[21:23]))
+                    dt.datetime(
+                        int(folder[15:19]), int(folder[19:21]), int(folder[21:23])
+                    )
                 )
                 for folder in folder_list
             ]
         elif collection == "C2":
             ordinal_dates = [
                 pd.Timestamp.toordinal(
-                    dt.datetime(int(folder[17:21]), int(folder[21:23]), int(folder[23:25]))
+                    dt.datetime(
+                        int(folder[17:21]), int(folder[21:23]), int(folder[23:25])
+                    )
                 )
                 for folder in folder_list
             ]
@@ -1944,13 +2051,17 @@ def main(
             ]
         elif collection == "HLS14":
             ordinal_dates = [
-                pd.Timestamp.toordinal(dt.datetime(int(folder.split("/")[-1][15:19]), 1, 1))
+                pd.Timestamp.toordinal(
+                    dt.datetime(int(folder.split("/")[-1][15:19]), 1, 1)
+                )
                 + int(folder.split("/")[-1][19:22])
                 - 1
                 for folder in folder_list
             ]
         ordinal_dates.sort()
-        file = open(join(out_dir, "starting_last_dates.txt"), "w+")  # need to save out starting and
+        file = open(
+            join(out_dir, "starting_last_dates.txt"), "w+"
+        )  # need to save out starting and
         # lasting date for this tile
         if low_date_bound is not None:
             tmp = pd.Timestamp.toordinal(parse(low_date_bound))
@@ -1966,7 +2077,9 @@ def main(
     else:
         # mode = w enables the log file to be overwritten
         logging.basicConfig(
-            filename=join(os.getcwd(), "prepare_ard.log"), filemode="a", level=logging.INFO
+            filename=join(os.getcwd(), "prepare_ard.log"),
+            filemode="a",
+            level=logging.INFO,
         )
         logger = logging.getLogger(__name__)
 
@@ -1981,11 +2094,21 @@ def main(
             # parse tile h and v from folder name
             folder_name = os.path.basename(source_dir)
             if hpc is True:
-                path_array = gdal_array.LoadFile(join(out_dir, "singlepath_landsat_tile.tif"))
+                path_array = gdal_array.LoadFile(
+                    join(out_dir, "singlepath_landsat_tile.tif")
+                )
             else:
                 try:
-                    tile_h = int(folder_name[folder_name.find("h") + 1 : folder_name.find("h") + 4])
-                    tile_v = int(folder_name[folder_name.find("v") + 1 : folder_name.find("v") + 4])
+                    tile_h = int(
+                        folder_name[
+                            folder_name.find("h") + 1 : folder_name.find("h") + 4
+                        ]
+                    )
+                    tile_v = int(
+                        folder_name[
+                            folder_name.find("v") + 1 : folder_name.find("v") + 4
+                        ]
+                    )
                     path_array = gdal_array.LoadFile(
                         join(
                             Path(os.path.realpath(__file__)).parent,
@@ -2116,7 +2239,9 @@ def main(
     if rank == 1:
         # remove tmp folder
         logger.info(
-            "Stacking procedure finished: {}".format(datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S"))
+            "Stacking procedure finished: {}".format(
+                datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+            )
         )
 
 

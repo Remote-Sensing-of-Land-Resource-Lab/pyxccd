@@ -145,7 +145,6 @@ python -m pip install -r requirements/build.txt
 python -m pip install -r requirements/runtime.txt
 python -m pip install -r requirements/optional.txt
 python -m pip install -r requirements/tests.txt
-python -m pip install -r requirements/gdal.txt
 
 
 # Hack for setuptools while scikit-build sorts things out

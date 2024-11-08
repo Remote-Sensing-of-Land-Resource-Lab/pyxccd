@@ -11,7 +11,6 @@ from .common import SccdOutput
 from ._param_validation import (
     validate_parameter_constraints,
     Interval,
-    Integral,
     Real,
     check_consistent_length,
     check_1d,
@@ -396,15 +395,14 @@ def sccd_detect(
     ts_t: 1d array of shape(observation numbers), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: probability threshold of change magnitude, 0.99
-    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
     conse: consecutive observation number
+    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
     b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
                 test due to its current low quality
     b_pinpoint: bool, output pinpoint break where pinpoint is an overdetection of break using conse =3
                         and threshold = gate_tcg, which are used to simulate the situation of NRT scenario and
                         for training a machine-learning model
     gate_pcg: the gate change probability threshold for defining anomaly
-    b_output_state: indicate whether to output state variables
     state_intervaldays: the day interval for output states (only b_output_state is True)
     b_fitting_coefs: True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients 
     Returns
@@ -654,8 +652,6 @@ def cold_detect_flex(
                     should have the same date, only for b_output_cm is True. Only b_output_cm == 'True'
     n_cm: the length of outputted change magnitude. Only b_output_cm == 'True'
     cm_output_interval: the temporal interval of outputting change magnitudes. Only b_output_cm == 'True'
-    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
-          test due to the current low quality
     gap_days: define the day number of the gap year for determining i_dense. Setting a large value (e.g., 1500)
                 if the gap year in the middle of the time range
     tmask_b1: the first band id for tmask
@@ -742,16 +738,15 @@ def sccd_detect_flex(
     dates: 1d array of shape(observation numbers), list of ordinal dates
     ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
-    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
+    p_cg: probaility threshold of change magnitude, default is 0.99
     conse: consecutive observation number
+    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
     b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
                 test due to its current low quality
     b_pinpoint: bool, output pinpoint break where pinpoint is an overdetection of break using conse =3
                         and threshold = gate_tcg, which are used to simulate the situation of NRT scenario and
                         for training a machine-learning model
     gate_pcg: the gate change probability threshold for defining anomaly
-    b_output_state: indicate whether to output state variables
     state_intervaldays: the day interval for output states (only b_output_state is True)
     tmask_b1: the first band id for tmask
     tmask_b2: the second band id for tmask

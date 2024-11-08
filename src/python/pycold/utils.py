@@ -5,9 +5,21 @@ from os.path import join
 from dataclasses import fields
 import os
 import datetime as dt
-from osgeo import gdal
+
+# from osgeo import gdal
+import rasterio
+from rasterio.plot import reshape_as_image
 from .app import defaults
 from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
+
+
+def rio_loaddata(path: str) -> np.ndarray:
+    with rasterio.open(path, "r") as ds:
+        arr = ds.read()
+        if arr.shape[0] == 1:
+            return arr[0, :, :]
+        else:
+            return reshape_as_image(arr)
 
 
 def get_block_y(block_id, n_block_x):
@@ -127,7 +139,10 @@ def assemble_cmmaps(
         current_block_x = iblock % dataset_info.n_block_y + 1
         try:
             cm_block = np.load(
-                join(result_path, "{}_x{}_y{}.npy".format(prefix, current_block_x, current_block_y))
+                join(
+                    result_path,
+                    "{}_x{}_y{}.npy".format(prefix, current_block_x, current_block_y),
+                )
             ).astype(output_type)
         except OSError as e:
             print("Reading CM files fails: {}".format(e))
@@ -136,7 +151,7 @@ def assemble_cmmaps(
         # if prefix == "CM_date":
         #    cm_block_copy = cm_block.copy()
         #    cm_block = cm_block + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"]
-            # we assign an extremely large value to original NA value (255)
+        # we assign an extremely large value to original NA value (255)
         #    cm_block[cm_block_copy == -9999] = -9999
 
         cm_block_reshape = np.reshape(
@@ -151,7 +166,9 @@ def assemble_cmmaps(
                 (current_block_x - 1)
                 * dataset_info.block_width : current_block_x
                 * dataset_info.block_width,
-            ] = hori_profile[count].reshape(dataset_info.block_height, dataset_info.block_width)
+            ] = hori_profile[count].reshape(
+                dataset_info.block_height, dataset_info.block_width
+            )
 
     # output cm images
     for count, cm_map in enumerate(cm_map_list):
@@ -168,7 +185,9 @@ def assemble_cmmaps(
         np.save(outfile, cm_map)
 
     if clean is True:
-        tmp_filenames = [file for file in os.listdir(result_path) if file.startswith(prefix + "_x")]
+        tmp_filenames = [
+            file for file in os.listdir(result_path) if file.startswith(prefix + "_x")
+        ]
         for file in tmp_filenames:
             os.remove(join(result_path, file))
 
@@ -295,7 +314,9 @@ def get_anchor_days(starting_day, n_cm_maps, interval):
     -------
 
     """
-    return np.arange(start=starting_day, stop=starting_day + n_cm_maps * interval, step=interval)
+    return np.arange(
+        start=starting_day, stop=starting_day + n_cm_maps * interval, step=interval
+    )
 
 
 def assemble_array(array_list, n_block_x):
@@ -323,7 +344,8 @@ def read_blockdata(block_folder, total_pixels, total_bands):
     # sort image files by dates
     img_dates = [
         pd.Timestamp.toordinal(
-            dt.datetime(int(folder_name[9:13]), 1, 1) + dt.timedelta(int(folder_name[13:16]) - 1)
+            dt.datetime(int(folder_name[9:13]), 1, 1)
+            + dt.timedelta(int(folder_name[13:16]) - 1)
         )
         for folder_name in img_files
     ]
@@ -331,7 +353,8 @@ def read_blockdata(block_folder, total_pixels, total_bands):
     img_files_sorted = [x[1] for x in files_date_zip]
     img_dates_sorted = np.asarray([x[0] for x in files_date_zip])
     img_stack = [
-        np.load(join(block_folder, f)).reshape(total_pixels, total_bands) for f in img_files_sorted
+        np.load(join(block_folder, f)).reshape(total_pixels, total_bands)
+        for f in img_files_sorted
     ]
     img_stack = np.dstack(img_stack)
     return img_stack, img_dates_sorted
@@ -346,7 +369,7 @@ def read_data(path):
     Returns:
         A 2D numpy array.
     """
-    return np.genfromtxt(path, delimiter=",", dtype=np.int64,encoding="utf-8").T
+    return np.genfromtxt(path, delimiter=",", dtype=np.int64, encoding="utf-8").T
 
 
 def date2matordinal(year, month, day):
@@ -375,10 +398,18 @@ def save_nrtfiles(out_folder, outfile_prefix, sccd_pack, data_ext):
     np.asarray(sccd_pack.nrt_mode).tofile(
         join(out_folder, "sccd_pack{}_nrt_mode").format(outfile_prefix)
     )
-    sccd_pack.rec_cg.tofile(join(out_folder, "sccd_pack{}_rec_cg").format(outfile_prefix))
-    sccd_pack.nrt_model.tofile(join(out_folder, "sccd_pack{}_nrt_model").format(outfile_prefix))
-    sccd_pack.nrt_queue.tofile(join(out_folder, "sccd_pack{}_nrt_queue").format(outfile_prefix))
-    sccd_pack.min_rmse.tofile(join(out_folder, "sccd_pack{}_min_rmse").format(outfile_prefix))
+    sccd_pack.rec_cg.tofile(
+        join(out_folder, "sccd_pack{}_rec_cg").format(outfile_prefix)
+    )
+    sccd_pack.nrt_model.tofile(
+        join(out_folder, "sccd_pack{}_nrt_model").format(outfile_prefix)
+    )
+    sccd_pack.nrt_queue.tofile(
+        join(out_folder, "sccd_pack{}_nrt_queue").format(outfile_prefix)
+    )
+    sccd_pack.min_rmse.tofile(
+        join(out_folder, "sccd_pack{}_min_rmse").format(outfile_prefix)
+    )
 
 
 def save_obs2csv(out_path, data):
@@ -391,13 +422,19 @@ def unindex_sccdpack(sccd_pack_single):
     sccd_pack_single: a namedtuple SccdOutput
     :return: a nested list
     """
-    sccd_pack_single = sccd_pack_single._replace(rec_cg=sccd_pack_single.rec_cg.tolist())
+    sccd_pack_single = sccd_pack_single._replace(
+        rec_cg=sccd_pack_single.rec_cg.tolist()
+    )
 
     if len(sccd_pack_single.nrt_model) > 0:
-        sccd_pack_single = sccd_pack_single._replace(nrt_model=sccd_pack_single.nrt_model.tolist())
+        sccd_pack_single = sccd_pack_single._replace(
+            nrt_model=sccd_pack_single.nrt_model.tolist()
+        )
 
     if len(sccd_pack_single.nrt_queue) > 0:
-        sccd_pack_single = sccd_pack_single._replace(nrt_queue=sccd_pack_single.nrt_queue.tolist())
+        sccd_pack_single = sccd_pack_single._replace(
+            nrt_queue=sccd_pack_single.nrt_queue.tolist()
+        )
 
     return list(sccd_pack_single)
 
@@ -438,28 +475,30 @@ def index_sccdpack(sccd_pack_single):
     return sccd_pack_single
 
 
-def save_1band_fromrefimage(array, out_path, ref_image_path=None, gtype=gdal.GDT_Int16):
-    cols = array.shape[1]
-    rows = array.shape[0]
-
+def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=None):
+    """_summary_
+    Args:
+        array (np.ndarray): input array
+        out_path (str): the path for saving output
+        ref_image_path (_type_, optional): _description_. Defaults to None.
+        gtype (_type_, optional): _description_. Defaults to rasterio.int16.
+    """
     if ref_image_path is None:
-        outdriver1 = gdal.GetDriverByName("GTiff")
-        outdata = outdriver1.Create(out_path, cols, rows, 1, gtype)
-        outdata.GetRasterBand(1).WriteArray(array)
-        outdata.FlushCache()
+        profile = {
+            "driver": "GTiff",
+            "height": array.shape[0],
+            "width": array.shape[1],
+            "count": 1,
+            "dtype": array.dtype,
+            "compress": "lzw",
+        }
     else:
-        ref_image = gdal.Open(ref_image_path, gdal.GA_ReadOnly)
-        trans = ref_image.GetGeoTransform()
-        proj = ref_image.GetProjection()
-        outdriver1 = gdal.GetDriverByName("GTiff")
-        outdata = outdriver1.Create(out_path, cols, rows, 1, gtype)
-        outdata.GetRasterBand(1).WriteArray(array)
-        outdata.FlushCache()
-        outdata.SetGeoTransform(trans)
-        outdata.FlushCache()
-        outdata.SetProjection(proj)
-        outdata.FlushCache()
-        del ref_image
+        with rasterio.open(ref_image_path, "r") as ds:
+            profile = ds.profile
+            profile.update(dtype=array.dtype, count=1, compress="lzw")
+
+    with rasterio.open(out_path, "w", **profile) as dst:
+        dst.write(array, 1)
 
 
 def coefficient_matrix(dates, num_coefficients):
@@ -558,14 +597,18 @@ def calculate_sccd_cm(sccd_pack):
         ]
     )
     cm = (
-        sccd_pack.nrt_model[0]["obs"][:, start_index : defaults["SCCD"]["DEFAULT_CONSE"]] - pred_ref
+        sccd_pack.nrt_model[0]["obs"][
+            :, start_index : defaults["SCCD"]["DEFAULT_CONSE"]
+        ]
+        - pred_ref
     )
     return np.median(cm, axis=1)
 
 
 # from typing import Callable, Any
 # data_class_type = DataclassInstance | type[DataclassInstance]
-#Callable[..., Any],
+# Callable[..., Any],
+
 
 def class_from_dict(data_class, dict_var: dict):
     """convert dictionary to dataclas
