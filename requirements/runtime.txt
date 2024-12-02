@@ -28,10 +28,5 @@ astropy>=5.1       ; python_version < '3.11' and python_version >= '3.10'    # P
 astropy>=5.1       ; python_version < '3.10' and python_version >= '3.9'     # Python 3.9
 astropy>=5.1       ; python_version < '3.9'  and python_version >= '3.8'     # Python 3.8
 
-
-# rasterio>=1.3
-
-# Note: 
-# gdal is also required, but needs to be installed separately 
-# due to depending on an external package index.
-# see gdal.txt
+rasterio>=1.4  ; python_version >= '3.9'
+rasterio>=1.3  ; python_version < '3.9'  and python_version >= '3.8'

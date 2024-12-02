@@ -10,6 +10,7 @@ import numpy as np
 from .common import SccdOutput
 from ._param_validation import (
     validate_parameter_constraints,
+    Integral,
     Interval,
     Real,
     check_consistent_length,
@@ -402,8 +403,8 @@ def sccd_detect(
     b_pinpoint: bool, output pinpoint break where pinpoint is an overdetection of break using conse =3
                         and threshold = gate_tcg, which are used to simulate the situation of NRT scenario and
                         for training a machine-learning model
-    gate_pcg: the gate change probability threshold for defining anomaly
-    state_intervaldays: the day interval for output states (only b_output_state is True)
+    gate_pcg: the gate change probability threshold for defining spectral anomaly (for the follow-up supervised approach)
+    state_intervaldays: the day interval for output states
     b_fitting_coefs: True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients 
     Returns
     ----------

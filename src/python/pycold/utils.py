@@ -623,3 +623,15 @@ def class_from_dict(data_class, dict_var: dict):
     fieldSet = {f.name for f in fields(data_class) if f.init}
     filteredArgDict = {k: v for k, v in dict_var.items() if k in fieldSet}
     return data_class(**filteredArgDict)
+
+
+def rio_warp(input: str, output: str, template: str):
+    """warp image using rasterio cmd
+    Args:
+        input (str): the directory of input file
+        output (str): the directory of output file
+        template (str): the directory of template file that define the output georeference informations
+    """
+    cmd = f"rio warp {input} {output} --like {template} --overwrite"
+    os.system(cmd)
+
