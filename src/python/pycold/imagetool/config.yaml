@@ -1,0 +1,10 @@
+DATASETINFO:
+  n_rows: 5000
+  n_cols: 5000
+  n_block_x: 20
+  n_block_y: 20
+
+ALGORITHMINFO:
+  probability_threshold: 0.99
+  conse: 6
+  CM_OUTPUT_INTERVAL: 60
