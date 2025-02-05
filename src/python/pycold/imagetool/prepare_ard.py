@@ -35,7 +35,6 @@ from multiprocessing import Pool
 import functools
 
 import pandas as pd
-import numpy as geek
 import numpy as np
 from glob import glob
 from dateutil.parser import parse
@@ -90,11 +89,11 @@ def qabitval_array_HLS(packedint_array: np.ndarray):
         offset value to use
     """
     unpacked = np.full(packedint_array.shape, 0)
-    QA_CLOUD_unpacked = geek.bitwise_and(packedint_array, 1 << 1)
-    QA_CLOUD_ADJ = geek.bitwise_and(packedint_array, 1 << 2)
-    QA_SHADOW_unpacked = geek.bitwise_and(packedint_array, 1 << 3)
-    QA_SNOW_unpacked = geek.bitwise_and(packedint_array, 1 << 4)
-    QA_WATER_unpacked = geek.bitwise_and(packedint_array, 1 << 5)
+    QA_CLOUD_unpacked = np.bitwise_and(packedint_array, 1 << 1)
+    QA_CLOUD_ADJ = np.bitwise_and(packedint_array, 1 << 2)
+    QA_SHADOW_unpacked = np.bitwise_and(packedint_array, 1 << 3)
+    QA_SNOW_unpacked = np.bitwise_and(packedint_array, 1 << 4)
+    QA_WATER_unpacked = np.bitwise_and(packedint_array, 1 << 5)
 
     unpacked[QA_WATER_unpacked > 0] = QA_WATER
     unpacked[QA_SNOW_unpacked > 0] = QA_SNOW
@@ -117,11 +116,11 @@ def qabitval_array(packedint_array: np.ndarray):
         offset value to use
     """
     unpacked = np.full(packedint_array.shape, QA_FILL)
-    QA_CLOUD_unpacked = geek.bitwise_and(packedint_array, 1 << (QA_CLOUD + 1))
-    QA_SHADOW_unpacked = geek.bitwise_and(packedint_array, 1 << (QA_SHADOW + 1))
-    QA_SNOW_unpacked = geek.bitwise_and(packedint_array, 1 << (QA_SNOW + 1))
-    QA_WATER_unpacked = geek.bitwise_and(packedint_array, 1 << (QA_WATER + 1))
-    QA_CLEAR_unpacked = geek.bitwise_and(packedint_array, 1 << (QA_CLEAR + 1))
+    QA_CLOUD_unpacked = np.bitwise_and(packedint_array, 1 << (QA_CLOUD + 1))
+    QA_SHADOW_unpacked = np.bitwise_and(packedint_array, 1 << (QA_SHADOW + 1))
+    QA_SNOW_unpacked = np.bitwise_and(packedint_array, 1 << (QA_SNOW + 1))
+    QA_WATER_unpacked = np.bitwise_and(packedint_array, 1 << (QA_WATER + 1))
+    QA_CLEAR_unpacked = np.bitwise_and(packedint_array, 1 << (QA_CLEAR + 1))
 
     unpacked[QA_CLEAR_unpacked > 0] = QA_CLEAR
     unpacked[QA_WATER_unpacked > 0] = QA_WATER
@@ -144,12 +143,12 @@ def qabitval_array_c2(packedint_array: np.ndarray):
         offset value to use
     """
     unpacked = np.full(packedint_array.shape, QA_FILL)
-    QA_CLEAR_unpacked = geek.bitwise_and(packedint_array, 1 << 6)
-    QA_SHADOW_unpacked = geek.bitwise_and(packedint_array, 1 << 4)
-    QA_CLOUD_unpacked = geek.bitwise_and(packedint_array, 1 << 3)
-    QA_DILATED_unpacked = geek.bitwise_and(packedint_array, 1 << 1)
-    QA_SNOW_unpacked = geek.bitwise_and(packedint_array, 1 << 5)
-    QA_WATER_unpacked = geek.bitwise_and(packedint_array, 1 << 7)
+    QA_CLEAR_unpacked = np.bitwise_and(packedint_array, 1 << 6)
+    QA_SHADOW_unpacked = np.bitwise_and(packedint_array, 1 << 4)
+    QA_CLOUD_unpacked = np.bitwise_and(packedint_array, 1 << 3)
+    QA_DILATED_unpacked = np.bitwise_and(packedint_array, 1 << 1)
+    QA_SNOW_unpacked = np.bitwise_and(packedint_array, 1 << 5)
+    QA_WATER_unpacked = np.bitwise_and(packedint_array, 1 << 7)
 
     unpacked[QA_CLEAR_unpacked > 0] = QA_CLEAR
     unpacked[QA_WATER_unpacked > 0] = QA_WATER
@@ -161,38 +160,35 @@ def qabitval_array_c2(packedint_array: np.ndarray):
     return unpacked
 
 
-
 def single_image_stacking_hls(
     source_dir: str,
     out_dir: str,
     logger: Logger,
     dataset_info: DatasetInfo,
-    is_partition: bool = True,
-    clear_threshold: float = 0.0,
-    low_date_bound: Optional[str] = None,
-    upp_date_bound: Optional[str] = None,
-    folder: Optional[str] = None
+    is_partition: bool,
+    clear_threshold: float,
+    low_date_bound: str,
+    upp_date_bound: str,
+    folder: str
 ):
     """
     unzip single image, convert bit-pack qa to byte value, and save as numpy
     :param source_dir: the parent folder to save image 'folder'
     :param out_dir: the folder to save result
-    :param folder: the folder name of image
     :param logger: the handler of logger file
     :param data_info: data info data class
     :param is_partition: True, partition each image into blocks; False, save original size of image
     :param clear_threshold: threshold of clear pixel percentage, if lower than threshold, won't be processed
     :param low_date_bound: the lower date of user interested date range
     :param upp_date_bound: the upper date of user interested date range
+    :param folder: the folder name of image
     :return:
     """
     try:
-        QA_band = rio_loaddata(
-            join(join(source_dir, folder), "{}.Fmask.tif".format(folder))
-        )
+        QA_band = rio_loaddata(join(source_dir, folder, f"{folder}.Fmask.tif"))
     except ValueError as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
-        logger.error("Cannot open QA band for {}: {}".format(folder, e))
+        logger.error(f"Cannot open QA band for {folder}: {e}")
         return False
 
     # convertQA = np.vectorize(qabitval)
@@ -224,50 +220,26 @@ def single_image_stacking_hls(
 
         if sensor == "L30":
             try:
-                B1 = rio_loaddata(
-                    join(source_dir, folder, "{}.B02.tif".format(folder))
-                )
-                B2 = rio_loaddata(
-                    join(source_dir, folder, "{}.B03.tif".format(folder))
-                )
-                B3 = rio_loaddata(
-                    join(source_dir, folder, "{}.B04.tif".format(folder))
-                )
-                B4 = rio_loaddata(
-                    join(source_dir, folder, "{}.B05.tif".format(folder))
-                )
-                B5 = rio_loaddata(
-                    join(source_dir, folder, "{}.B06.tif".format(folder))
-                )
-                B6 = rio_loaddata(
-                    join(source_dir, folder, "{}.B07.tif".format(folder))
-                )
+                B1 = rio_loaddata(join(source_dir, folder, "{}.B02.tif".format(folder)))
+                B2 = rio_loaddata(join(source_dir, folder, "{}.B03.tif".format(folder)))
+                B3 = rio_loaddata(join(source_dir, folder, "{}.B04.tif".format(folder)))
+                B4 = rio_loaddata(join(source_dir, folder, "{}.B05.tif".format(folder)))
+                B5 = rio_loaddata(join(source_dir, folder, "{}.B06.tif".format(folder)))
+                B6 = rio_loaddata(join(source_dir, folder, "{}.B07.tif".format(folder)))
                 B7 = np.full(B6.shape, 0)  # assign zero
 
             except Exception as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                 logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
                 return False
-        elif sensor == "S30":
+        else:
             try:
-                B1 = rio_loaddata(
-                    join(source_dir, folder, "{}.B02.tif".format(folder))
-                )
-                B2 = rio_loaddata(
-                    join(source_dir, folder, "{}.B03.tif".format(folder))
-                )
-                B3 = rio_loaddata(
-                    join(source_dir, folder, "{}.B04.tif".format(folder))
-                )
-                B4 = rio_loaddata(
-                    join(source_dir, folder, "{}.B8A.tif".format(folder))
-                )
-                B5 = rio_loaddata(
-                    join(source_dir, folder, "{}.B11.tif".format(folder))
-                )
-                B6 = rio_loaddata(
-                    join(source_dir, folder, "{}.B12.tif".format(folder))
-                )
+                B1 = rio_loaddata(join(source_dir, folder, "{}.B02.tif".format(folder)))
+                B2 = rio_loaddata(join(source_dir, folder, "{}.B03.tif".format(folder)))
+                B3 = rio_loaddata(join(source_dir, folder, "{}.B04.tif".format(folder)))
+                B4 = rio_loaddata(join(source_dir, folder, "{}.B8A.tif".format(folder)))
+                B5 = rio_loaddata(join(source_dir, folder, "{}.B11.tif".format(folder)))
+                B6 = rio_loaddata(join(source_dir, folder, "{}.B12.tif".format(folder)))
                 B7 = np.full(B6.shape, 0)
 
             except Exception as e:
@@ -457,7 +429,6 @@ def single_image_stacking_hls(
     return True
 
 
-
 def single_image_stacking(
     tmp_path: str,
     source_dir: str,
@@ -466,18 +437,17 @@ def single_image_stacking(
     path_array: np.ndarray,
     logger: Logger,
     dataset_info: DatasetInfo,
-    is_partition: bool = True,
-    low_date_bound: Optional[str] = None,
-    upp_date_bound: Optional[str] = None,
-    b_c2: bool = False,
-    folder: Optional[str] = None,
+    is_partition: bool,
+    low_date_bound: str,
+    upp_date_bound: str,
+    b_c2: bool,
+    folder: str,
 ):
     """
     unzip single image, convert bit-pack qa to byte value, and save as numpy
     :param tmp_path: tmp folder to save unzip image
     :param source_dir: image folder save source zipped files
     :param out_dir: the folder to save result
-    :param folder: the folder name of image
     :param clear_threshold: threshold of clear pixel percentage, if lower than threshold, won't be processed
     :param path_array: path array has the same dimension of inputted image, and the pixel value indicates
                       the path which the pixel belongs to; if path_array == none, we will use all path
@@ -487,6 +457,7 @@ def single_image_stacking(
     :param low_date_bound: the lower bound of user interested year range
     :param upp_date_bound: the upper bound of user interested year range
     :param b_c2: False
+    :param folder: the folder name of image
     :return:
     """
     # unzip SR
@@ -967,10 +938,10 @@ def single_image_stacking_collection2(
     logger: Logger,
     dataset_info: DatasetInfo,
     reference_path: str,
-    is_partition: bool = True,
-    low_date_bound: Optional[str] = None,
-    upp_date_bound: Optional[str] = None,
-    folder: Optional[str] = None
+    is_partition: bool,
+    low_date_bound: str,
+    upp_date_bound: str,
+    folder: str,
 ):
     """
     for collection 2
@@ -1004,8 +975,11 @@ def single_image_stacking_collection2(
         # return
 
     try:
-        rio_warp(join(tmp_path, folder, f"{folder}_QA_PIXEL.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+        rio_warp(
+            join(tmp_path, folder, f"{folder}_QA_PIXEL.TIF"),
+            join(tmp_path, folder, "_tmp_img.tif"),
+            reference_path,
+        )
         QA_band = rio_loaddata(join(tmp_path, folder, f"{folder}_QA_PIXEL.TIF"))
     except ValueError as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
@@ -1060,27 +1034,48 @@ def single_image_stacking_collection2(
             try:
                 # B1 = rio_loaddata(join(join(tmp_path, folder),
                 #                               "{}_SR_B1.TIF".format(folder)))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B1.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B1.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B1 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B2.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B2.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B2 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B3.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B3.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B3 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B4.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B4.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B4 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B5.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B5.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B5 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B7.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B7.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B6 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                
-                rio_warp(join(tmp_path, folder, f"{folder}_ST_B6.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_ST_B6.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
             except ValueError as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
@@ -1088,27 +1083,48 @@ def single_image_stacking_collection2(
                 return
         elif sensor == "LC8" or "LC9":
             try:
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B2.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B2.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B1 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B3.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B3.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B2 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B4.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B4.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B3 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B5.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B5.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B4 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B6.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B6.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B5 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                rio_warp(join(tmp_path, folder, f"{folder}_SR_B7.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_SR_B7.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B6 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-                
-                rio_warp(join(tmp_path, folder, f"{folder}_ST_B10.TIF"), join(tmp_path, folder, "_tmp_img.tif"),
-                      reference_path)
+
+                rio_warp(
+                    join(tmp_path, folder, f"{folder}_ST_B10.TIF"),
+                    join(tmp_path, folder, "_tmp_img.tif"),
+                    reference_path,
+                )
                 B7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
             except ValueError as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
@@ -1136,22 +1152,22 @@ def single_image_stacking_collection2(
         B5_t = (10000 * (B5 * 2.75e-05 - 0.2)).astype(np.int16)
         B7_t = (10000 * (B7 * 2.75e-05 - 0.2)).astype(np.int16)
         B6_t = (10 * (B6 * 0.00341802 + 149)).astype(np.int16)
-        
+
         # padding zeros
         B1 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B1[0:B1_t.shape[0], 0:B1_t.shape[1]] = B1_t
+        B1[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B1_t
         B2 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B2[0:B1_t.shape[0], 0:B1_t.shape[1]] = B2_t
+        B2[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B2_t
         B3 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B3[0:B1_t.shape[0], 0:B1_t.shape[1]] = B3_t
+        B3[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B3_t
         B4 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B4[0:B1_t.shape[0], 0:B1_t.shape[1]] = B4_t
+        B4[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B4_t
         B5 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B5[0:B1_t.shape[0], 0:B1_t.shape[1]] = B5_t
+        B5[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B5_t
         B6 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B6[0:B1_t.shape[0], 0:B1_t.shape[1]] = B6_t
+        B6[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B6_t
         B7 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B7[0:B1_t.shape[0], 0:B1_t.shape[1]] = B7_t
+        B7[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B7_t
 
         if is_partition is True:
             # width of a block
@@ -1482,7 +1498,7 @@ def main(
     hpc,
     low_date_bound,
     upp_date_bound,
-    collection
+    collection,
 ):
     if not os.path.exists(source_dir):
         print("Source directory not exists!")
@@ -1518,9 +1534,9 @@ def main(
         config_general = yaml.safe_load(yaml_obj)
 
     dataset_info = class_from_dict(DatasetInfo, config_general["DATASETINFO"])
-    
+
     logger = None
-    
+
     # adjust row and columns if they are not divisible by block height and width
     if collection == "C2":
         if os.path.exists(join(tmp_path, folder_list[0])):
@@ -1531,14 +1547,18 @@ def main(
         ref_path = join(tmp_path, "ref_folder", f"{folder_list[0]}_SR_B1.TIF")
         ref_image = rio_loaddata(ref_path)
         if ref_image.shape[0] % dataset_info.block_height > 0:
-            dataset_info.n_block_y = int(ref_image.shape[0] / dataset_info.block_height) + 1
+            dataset_info.n_block_y = (
+                int(ref_image.shape[0] / dataset_info.block_height) + 1
+            )
             dataset_info.n_rows = dataset_info.block_height * dataset_info.n_block_y
-            
+
         if ref_image.shape[1] % dataset_info.block_width > 0:
-            dataset_info.n_block_x = int(ref_image.shape[1] / dataset_info.block_width) + 1
+            dataset_info.n_block_x = (
+                int(ref_image.shape[1] / dataset_info.block_width) + 1
+            )
             dataset_info.n_cols = dataset_info.block_width * dataset_info.n_block_x
         ref_image = None
-        
+
     # create needed folders
     if rank == 1:
         # mode = w enables the log file to be overwritten
@@ -1558,24 +1578,29 @@ def main(
         # create folder
         Path(out_dir).mkdir(parents=True, exist_ok=True)
         Path(tmp_path).mkdir(parents=True, exist_ok=True)
-        
-        
+
         # if the nrows are divisible by block_height, need to adjust dataset info
         if collection == "C2":
             ref_image = rio_loaddata(ref_path)
             if ref_image.shape[0] % dataset_info.block_height > 0:
-                dataset_info.n_block_y = int(ref_image.shape[0] / dataset_info.block_height) + 1
+                dataset_info.n_block_y = (
+                    int(ref_image.shape[0] / dataset_info.block_height) + 1
+                )
                 dataset_info.n_rows = dataset_info.block_height * dataset_info.n_block_y
-                
+
             if ref_image.shape[1] % dataset_info.block_width > 0:
-                dataset_info.n_block_x = int(ref_image.shape[1] / dataset_info.block_width) + 1
+                dataset_info.n_block_x = (
+                    int(ref_image.shape[1] / dataset_info.block_width) + 1
+                )
                 dataset_info.n_cols = dataset_info.block_width * dataset_info.n_block_x
             ref_image = None
-        
+
         if is_partition is True:
             for i in range(dataset_info.n_block_y):
                 for j in range(dataset_info.n_block_x):
-                    Path(join(out_dir, f"block_x{j + 1}_y{i + 1}")).mkdir(parents=True, exist_ok=True)
+                    Path(join(out_dir, f"block_x{j + 1}_y{i + 1}")).mkdir(
+                        parents=True, exist_ok=True
+                    )
 
         if collection == "ARD" or collection == "ARD-C2":
             if hpc is True:
@@ -1587,17 +1612,24 @@ def main(
                     except Exception:
                         logger.error("Unzip fails for {}".format(folder_list[0]))
                 if collection == "ARD":
-                    ref_path = join(tmp_path, folder_list[0], "{}B1.tif".format(folder_list[0]))
+                    ref_path = join(
+                        tmp_path, folder_list[0], "{}B1.tif".format(folder_list[0])
+                    )
                 else:
-                    ref_path = join(tmp_path, folder_list[0], "{}_B1.TIF".format(folder_list[0]))
+                    ref_path = join(
+                        tmp_path, folder_list[0], "{}_B1.TIF".format(folder_list[0])
+                    )
 
-                    
                 # warp a tile-based single path tif
                 with importlib_resources.path(
                     "pycold.imagetool", "singlepath_landsat_conus.tif"
                 ) as conus_image_fpath:
                     # conus_image_fpath = (Path(__file__).parent / 'singlepath_landsat_conus.tif').resolve()
-                    rio_warp(conus_image_fpath, join(out_dir, "singlepath_landsat_tile.tif"), ref_path)
+                    rio_warp(
+                        conus_image_fpath,
+                        join(out_dir, "singlepath_landsat_tile.tif"),
+                        ref_path,
+                    )
                 shutil.rmtree(join(tmp_path, folder_list[0]), ignore_errors=True)
                 ordinal_dates = [
                     pd.Timestamp.toordinal(
@@ -1668,9 +1700,7 @@ def main(
             # parse tile h and v from folder name
             folder_name = os.path.basename(source_dir)
             if hpc is True:
-                path_array = rio_loaddata(
-                    join(out_dir, "singlepath_landsat_tile.tif")
-                )
+                path_array = rio_loaddata(join(out_dir, "singlepath_landsat_tile.tif"))
             else:
                 try:
                     tile_h = int(
@@ -1700,13 +1730,22 @@ def main(
 
     if collection == "C2":
         # gpd_tile = gpd.read_file(shapefile_path)
-        
+
         pool = Pool(n_cores)
         single_image_stacking_collection2_partial = functools.partial(
-            single_image_stacking_collection2, tmp_path, source_dir, out_dir, clear_threshold, 
-            logger, dataset_info, ref_path, is_partition, low_date_bound, upp_date_bound
+            single_image_stacking_collection2,
+            tmp_path,
+            source_dir,
+            out_dir,
+            clear_threshold,
+            logger,
+            dataset_info,
+            ref_path,
+            is_partition,
+            low_date_bound,
+            upp_date_bound,
         )
-        pool.map(single_image_stacking_collection2_partial,  folder_list)
+        pool.map(single_image_stacking_collection2_partial, folder_list)
 
         # for i in range(int(np.ceil(len(folder_list) / n_cores))):
         #     new_rank = rank - 1 + i * n_cores
@@ -1730,11 +1769,20 @@ def main(
     elif collection == "ARD" or collection == "ARD-C2":
         pool = Pool(n_cores)
         single_image_stacking_partial = functools.partial(
-            single_image_stacking, tmp_path, source_dir, out_dir, clear_threshold, path_array, 
-            logger, dataset_info, is_partition, low_date_bound, upp_date_bound
+            single_image_stacking,
+            tmp_path,
+            source_dir,
+            out_dir,
+            clear_threshold,
+            path_array,
+            logger,
+            dataset_info,
+            is_partition,
+            low_date_bound,
+            upp_date_bound,
         )
-        pool.map(single_image_stacking_partial,  folder_list)
-        
+        pool.map(single_image_stacking_partial, folder_list)
+
         # assign files to each core
         # for i in range(int(np.ceil(len(folder_list) / n_cores))):
         #     new_rank = rank - 1 + i * n_cores
@@ -1758,10 +1806,17 @@ def main(
     elif collection == "HLS":
         pool = Pool(n_cores)
         single_image_stacking_hls_partial = functools.partial(
-            single_image_stacking_hls, source_dir, out_dir, logger, dataset_info, clear_threshold, is_partition,
-                low_date_bound, upp_date_bound,
+            single_image_stacking_hls,
+            source_dir,
+            out_dir,
+            logger,
+            dataset_info,
+            clear_threshold,
+            is_partition,
+            low_date_bound,
+            upp_date_bound
         )
-        pool.map(single_image_stacking_hls_partial,  folder_list)
+        pool.map(single_image_stacking_hls_partial, folder_list)
         # assign files to each core
         # for i in range(int(np.ceil(len(folder_list) / n_cores))):
         #     new_rank = rank - 1 + i * n_cores
@@ -1792,23 +1847,23 @@ def main(
     #             upp_date_bound
     #     )
     #     pool.map(single_image_stacking_hls14_partial,  folder_list)
-        # assign files to each core
-        # for i in range(int(np.ceil(len(folder_list) / n_cores))):
-        #     new_rank = rank - 1 + i * n_cores
-        #     # means that all folder has been processed
-        #     if new_rank > (len(folder_list) - 1):
-        #         break
-        #     folder = folder_list[new_rank]
-        #     single_image_stacking_hls14(
-        #         out_dir,
-        #         logger,
-        #         dataset_info,
-        #         folder,
-        #         clear_threshold=clear_threshold,
-        #         is_partition=is_partition,
-        #         low_date_bound=low_date_bound,
-        #         upp_date_bound=upp_date_bound,
-        #     )
+    # assign files to each core
+    # for i in range(int(np.ceil(len(folder_list) / n_cores))):
+    #     new_rank = rank - 1 + i * n_cores
+    #     # means that all folder has been processed
+    #     if new_rank > (len(folder_list) - 1):
+    #         break
+    #     folder = folder_list[new_rank]
+    #     single_image_stacking_hls14(
+    #         out_dir,
+    #         logger,
+    #         dataset_info,
+    #         folder,
+    #         clear_threshold=clear_threshold,
+    #         is_partition=is_partition,
+    #         low_date_bound=low_date_bound,
+    #         upp_date_bound=upp_date_bound,
+    #     )
     # create an empty file for signaling the core that has been finished
     with open(os.path.join(out_dir, "rank{}_finished.txt".format(rank)), "w"):
         pass
@@ -1821,9 +1876,7 @@ def main(
     if rank == 1:
         # remove tmp folder
         logger.info(
-            "Stacking procedure finished: {}".format(
-                datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-            )
+            f"Stacking procedure finished: {datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")}"  
         )
 
 
