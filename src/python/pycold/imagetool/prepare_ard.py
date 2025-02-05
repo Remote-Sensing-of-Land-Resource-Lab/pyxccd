@@ -169,7 +169,7 @@ def single_image_stacking_hls(
     clear_threshold: float,
     low_date_bound: str,
     upp_date_bound: str,
-    folder: str
+    folder: str,
 ):
     """
     unzip single image, convert bit-pack qa to byte value, and save as numpy
@@ -1814,7 +1814,7 @@ def main(
             clear_threshold,
             is_partition,
             low_date_bound,
-            upp_date_bound
+            upp_date_bound,
         )
         pool.map(single_image_stacking_hls_partial, folder_list)
         # assign files to each core
@@ -1876,7 +1876,9 @@ def main(
     if rank == 1:
         # remove tmp folder
         logger.info(
-            f"Stacking procedure finished: {datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")}"  
+            "Stacking procedure finished: {}".format(
+                datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+            )
         )
 
 
