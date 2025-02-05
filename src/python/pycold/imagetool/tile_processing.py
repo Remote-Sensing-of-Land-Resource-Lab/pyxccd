@@ -31,10 +31,10 @@ from pycold.utils import (
     class_from_dict,
 )
 import functools
-import multiprocessing 
+import multiprocessing
 from multiprocessing import Pool
+
 # from pycold.ob_analyst import ObjectAnalystHPC
-from pycold.pyclassifier import PyClassifierHPC
 from pycold.app import defaults
 from pycold.common import DatasetInfo
 
@@ -90,9 +90,15 @@ def tileprocessing_report(
     file.write("Conse: {}\n".format(conse))
     file.write("stack_path: {}\n".format(stack_path))
     file.write("The number of requested cores: {}\n".format(n_cores))
-    file.write("The program starts at {}\n".format(startpoint.strftime("%Y-%m-%d %H:%M:%S")))
-    file.write("The COLD ends at {}\n".format(cold_timepoint.strftime("%Y-%m-%d %H:%M:%S")))
-    file.write("The program ends at {}\n".format(endpoint.strftime("%Y-%m-%d %H:%M:%S")))
+    file.write(
+        "The program starts at {}\n".format(startpoint.strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    file.write(
+        "The COLD ends at {}\n".format(cold_timepoint.strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    file.write(
+        "The program ends at {}\n".format(endpoint.strftime("%Y-%m-%d %H:%M:%S"))
+    )
     file.write(
         "The program lasts for {:.2f}mins\n".format(
             (endpoint - startpoint) / dt.timedelta(minutes=1)
@@ -164,7 +170,9 @@ def is_finished_cold_blockfinished(result_path, nblocks):
         True -> all block finished
     """
     for n in range(nblocks):
-        if not os.path.exists(os.path.join(result_path, "COLD_block{}_finished.txt".format(n + 1))):
+        if not os.path.exists(
+            os.path.join(result_path, "COLD_block{}_finished.txt".format(n + 1))
+        ):
             return False
     return True
 
@@ -229,23 +237,36 @@ def get_stack_date(
         img_tstack, img_dates_sorted
         img_tstack - 3-d array (dataset_info.block_width * dataset_info.block_height, nband, nimage)
     """
-    dataset_info.block_width = int(dataset_info.n_cols / dataset_info.n_block_x)  # width of a block
+    dataset_info.block_width = int(
+        dataset_info.n_cols / dataset_info.n_block_x
+    )  # width of a block
     dataset_info.block_height = int(
         dataset_info.n_rows / dataset_info.n_block_y
     )  # height of a block
     block_folder = join(stack_path, "block_x{}_y{}".format(block_x, block_y))
-    img_files = [f for f in os.listdir(block_folder) if f.startswith("L") or f.startswith("S")]
+    img_files = [
+        f for f in os.listdir(block_folder) if f.startswith("L") or f.startswith("S")
+    ]
     if len(img_files) == 0:
         return None, None
     # sort image files by dates
     img_dates = [
         pd.Timestamp.toordinal(
-            dt.datetime(int(folder_name[9:13]), 1, 1) + dt.timedelta(int(folder_name[13:16]) - 1)
+            dt.datetime(int(folder_name[9:13]), 1, 1)
+            + dt.timedelta(int(folder_name[13:16]) - 1)
         )
         for folder_name in img_files
     ]
-    img_dates_selected = [img_dates[i] for i, date in enumerate(img_dates) if img_dates[i] >= low_datebound and img_dates[i] <= high_datebound]
-    img_files_selected = [img_files[i] for i, date in enumerate(img_dates) if img_dates[i] >= low_datebound and img_dates[i] <= high_datebound]
+    img_dates_selected = [
+        img_dates[i]
+        for i, date in enumerate(img_dates)
+        if img_dates[i] >= low_datebound and img_dates[i] <= high_datebound
+    ]
+    img_files_selected = [
+        img_files[i]
+        for i, date in enumerate(img_dates)
+        if img_dates[i] >= low_datebound and img_dates[i] <= high_datebound
+    ]
 
     files_date_zip = sorted(zip(img_dates_selected, img_files_selected))
     img_files_sorted = [x[1] for x in files_date_zip]
@@ -261,8 +282,21 @@ def get_stack_date(
     return img_tstack, img_dates_sorted
 
 
-
-def block_tile_processing(dataset_info, stack_path, result_path, method, n_cm_maps, threshold, conse, b_c2, starting_date, cm_output_interval, low_datebound, upper_datebound, block_id):
+def block_tile_processing(
+    dataset_info,
+    stack_path,
+    result_path,
+    method,
+    n_cm_maps,
+    threshold,
+    conse,
+    b_c2,
+    starting_date,
+    cm_output_interval,
+    low_datebound,
+    upper_datebound,
+    block_id,
+):
     if block_id > dataset_info.n_block_x * dataset_info.n_block_y:
         return
         # note that block_x and block_y start from 1
@@ -303,13 +337,20 @@ def block_tile_processing(dataset_info, stack_path, result_path, method, n_cm_ma
             # block_status = np.full((dataset_info.block_width, dataset_info.block_height), 0, dtype=np.int8)
             # block_last_change_date = np.full((dataset_info.block_width, dataset_info.block_height), 0, dtype=np.int32)
             f = open(
-                join(result_path, "record_change_x{}_y{}_sccd.npy".format(block_x, block_y)),
+                join(
+                    result_path,
+                    "record_change_x{}_y{}_sccd.npy".format(block_x, block_y),
+                ),
                 "wb+",
             )
             # start looping every pixel in the block
             for pos in range(dataset_info.block_width * dataset_info.block_height):
                 original_row, original_col = get_rowcol_intile(
-                    pos, dataset_info.block_width, dataset_info.block_height, block_x, block_y
+                    pos,
+                    dataset_info.block_width,
+                    dataset_info.block_height,
+                    block_x,
+                    block_y,
                 )
                 try:
                     sccd_result = sccd_detect(
@@ -354,7 +395,11 @@ def block_tile_processing(dataset_info, stack_path, result_path, method, n_cm_ma
             # for pos in [17682]:
             for pos in range(dataset_info.block_width * dataset_info.block_height):
                 original_row, original_col = get_rowcol_intile(
-                    pos, dataset_info.block_width, dataset_info.block_height, block_x, block_y
+                    pos,
+                    dataset_info.block_width,
+                    dataset_info.block_height,
+                    block_x,
+                    block_y,
                 )
                 try:
                     if method == "OBCOLD":
@@ -416,7 +461,8 @@ def block_tile_processing(dataset_info, stack_path, result_path, method, n_cm_ma
             if len(result_collect) > 0:
                 np.save(
                     join(
-                        result_path, "record_change_x{}_y{}_cold.npy".format(block_x, block_y)
+                        result_path,
+                        "record_change_x{}_y{}_cold.npy".format(block_x, block_y),
                     ),
                     np.hstack(result_collect),
                 )
@@ -439,6 +485,7 @@ def block_tile_processing(dataset_info, stack_path, result_path, method, n_cm_ma
                 block_x, block_y, datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
             )
         )
+
 
 @click.command()
 @click.option("--rank", type=int, default=1, help="the rank id")
@@ -502,7 +549,7 @@ def main(
     upper_datebound,
     b_c2,
     seedmap_year,
-    source_dir
+    source_dir,
 ):
     # def main():
     #     rank = 29
@@ -531,7 +578,7 @@ def main(
     with open(yaml_path, "r") as yaml_obj:
         config_general = yaml.safe_load(yaml_obj)
     dataset_info = class_from_dict(DatasetInfo, config_general["DATASETINFO"])
-    
+
     if b_c2 == True:
         # we need to adjust rows and cols, and make them divisible by block_height and block_width
         folder_list = [
@@ -545,15 +592,19 @@ def main(
         ref_path = join(source_dir, "ref_folder", f"{folder_list[0]}_SR_B1.TIF")
         ref_image = rio_loaddata(ref_path)
         if ref_image.shape[0] % dataset_info.block_height > 0:
-            dataset_info.n_block_y = int(ref_image.shape[0] / dataset_info.block_height) + 1
+            dataset_info.n_block_y = (
+                int(ref_image.shape[0] / dataset_info.block_height) + 1
+            )
             dataset_info.n_rows = dataset_info.block_height * dataset_info.n_block_y
-            
+
         if ref_image.shape[1] % dataset_info.block_width > 0:
-            dataset_info.n_block_x = int(ref_image.shape[1] / dataset_info.block_width) + 1
+            dataset_info.n_block_x = (
+                int(ref_image.shape[1] / dataset_info.block_width) + 1
+            )
             dataset_info.n_cols = dataset_info.block_width * dataset_info.n_block_x
         dataset_info.nblocks = dataset_info.n_block_x * dataset_info.n_block_y
         ref_image = None
-        
+
     conse = int(config_general["ALGORITHMINFO"]["conse"])
     cm_output_interval = int(config_general["ALGORITHMINFO"]["CM_OUTPUT_INTERVAL"])
     probability_threshold = config_general["ALGORITHMINFO"]["probability_threshold"]
@@ -567,16 +618,21 @@ def main(
         )
         exit()
 
-
     # we need read 'global starting date' to save CM which will be only used for ob-cold
     try:
-        starting_date, n_cm_maps = reading_start_dates_nmaps(stack_path, cm_output_interval)
+        starting_date, n_cm_maps = reading_start_dates_nmaps(
+            stack_path, cm_output_interval
+        )
         year_lowbound = pd.Timestamp.fromordinal(starting_date).year
         year_uppbound = pd.Timestamp.fromordinal(
             starting_date + (n_cm_maps - 1) * cm_output_interval
         ).year
     except IOError:
-        print("reading start dates errors: {}".format(start_time.strftime("%Y-%m-%d %H:%M:%S")))
+        print(
+            "reading start dates errors: {}".format(
+                start_time.strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
         exit()
 
     # logging and folder preparation
@@ -604,16 +660,30 @@ def main(
     #                        per-pixel COLD procedure                       #
     #########################################################################
     # threshold = chi2.ppf(probability_threshold, 5)
-    nblock_eachcore = int(np.ceil(dataset_info.n_block_x * dataset_info.n_block_y * 1.0 / n_cores))
+    nblock_eachcore = int(
+        np.ceil(dataset_info.n_block_x * dataset_info.n_block_y * 1.0 / n_cores)
+    )
     block_list = list(range(1, dataset_info.n_block_x * dataset_info.n_block_y + 1, 1))
     pool = multiprocessing.Pool(n_cores)
-    partial_func = functools.partial(block_tile_processing, dataset_info, stack_path, result_path, 
-                                     method, n_cm_maps, probability_threshold, conse, b_c2, starting_date,
-                                     cm_output_interval, low_datebound, upper_datebound)  
+    partial_func = functools.partial(
+        block_tile_processing,
+        dataset_info,
+        stack_path,
+        result_path,
+        method,
+        n_cm_maps,
+        probability_threshold,
+        conse,
+        b_c2,
+        starting_date,
+        cm_output_interval,
+        low_datebound,
+        upper_datebound,
+    )
     pool.map(partial_func, block_list)
     pool.close()
     pool.join()
-    
+
     # wait for all cores to be finished
     if method == "OBCOLD":
         while not is_finished_cold_blockfinished(

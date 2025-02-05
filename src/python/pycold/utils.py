@@ -14,6 +14,14 @@ from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
 
 def rio_loaddata(path: str) -> np.ndarray:
+    """_summary_
+
+    Args:
+        path (str): the path of the input raster
+
+    Returns:
+        np.ndarray: _description_
+    """
     with rasterio.open(path, "r") as ds:
         arr = ds.read()
         if arr.shape[0] == 1:
@@ -552,24 +560,22 @@ def generate_rowcolimage(ref_image_path, out_path):
     :return:
     """
     # ref_image_path = '/home/coloury/Dropbox/UCONN/HLS/HLS.L30.T18TYM.2022074T153249.v2.0.B10.tif'
-    ref_image = gdal.Open(ref_image_path, gdal.GA_ReadOnly)
-    trans = ref_image.GetGeoTransform()
-    proj = ref_image.GetProjection()
-    cols = ref_image.RasterXSize
-    rows = ref_image.RasterYSize
+    # ref_image = gdal.Open(ref_image_path, gdal.GA_ReadOnly)
+    # trans = ref_image.GetGeoTransform()
+    # proj = ref_image.GetProjection()
+    # cols = ref_image.RasterXSize
+    # rows = ref_image.RasterYSize
+    ref_image = rio_loaddata(ref_image_path)
 
-    i, j = np.indices(ref_image.ReadAsArray().shape[:2])
-    index = (i + 1) * 10000 + j + 1
+    i, j = np.indices(ref_image.shape[:2])
+    index = (i + 1) * 100000 + j + 1
 
-    outdriver1 = gdal.GetDriverByName("GTiff")
-    outdata = outdriver1.Create(out_path, rows, cols, 1, gdal.GDT_Int32)
-    outdata.GetRasterBand(1).WriteArray(index)
-    outdata.FlushCache()
-    outdata.SetGeoTransform(trans)
-    outdata.FlushCache()
-    outdata.SetProjection(proj)
-    outdata.FlushCache()
-    del ref_image
+    with rasterio.open(ref_image_path, "r") as ds:
+        profile = ds.profile
+        profile.update(dtype="int32", count=1, compress="lzw")
+    with rasterio.open(out_path, "w", **profile) as dst:
+        dst.write(index, 1)
+    save_1band_fromrefimage(index, out_path, ref_image_path)
 
 
 def calculate_sccd_cm(sccd_pack):
@@ -634,4 +640,3 @@ def rio_warp(input: str, output: str, template: str):
     """
     cmd = f"rio warp {input} {output} --like {template} --overwrite"
     os.system(cmd)
-

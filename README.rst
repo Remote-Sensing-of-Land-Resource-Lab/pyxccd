@@ -44,7 +44,7 @@ pycold repo:
 The steps to install this library in development mode are consolidated
 into a single script: ``run_developer_setup.sh``.  On debian-based systems,
 this will install all of the developer requirements and ensure you are setup
-with a working opencv-python-headless and gdal Python modules, as well as other
+with a working opencv-python-headless Python modules, as well as other
 requirements and then it will compile and install pycold in editable
 development mode.
 
@@ -88,15 +88,8 @@ The following instructure assume you are inside a Python virtual environment
 
     # Install required packages
     pip install -r requirements.txt
-
-Note that in all cases gdal will need to be manually installed.  The following
-step will install GDAL from a `custom pypi server
-<https://girder.github.io/large_image_wheels>`_ containing precompiled wheels. 
-
+    
 .. code:: bash
-
-    # Install GDAL (note-this must be done manually)
-    pip install -r requirements/gdal.txt
 
 Additionally, to access the ``cv2`` module, pycold will require either
 ``opencv-python`` or ``opencv-python-headless``, which are mutually exclusive.

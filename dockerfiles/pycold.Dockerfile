@@ -38,7 +38,6 @@ python -m pip install -r requirements/headless.txt
 python -m pip install -r requirements/runtime.txt
 python -m pip install -r requirements/optional.txt
 python -m pip install -r requirements/tests.txt
-python -m pip install -r requirements/gdal.txt
 python -m pip install setuptools==63.2.0  
 EOF
 

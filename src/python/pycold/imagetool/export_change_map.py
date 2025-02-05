@@ -6,12 +6,15 @@ from os.path import join, isfile, join
 import numpy as np
 import pandas as pd
 import tarfile
+
 # from osgeo import gdal
 import click
+
 # from mpi4py import MPI
-import multiprocessing 
+import multiprocessing
 from multiprocessing import Pool
 import functools
+
 # from osgeo import gdal_array
 import pickle
 import rasterio
@@ -93,9 +96,9 @@ def extract_features(
         # print(index)
         for idx, cold_curve in enumerate(cold_plot):
             if idx == len(cold_plot) - 1:
-                last_year = pd.Timestamp.fromordinal(cold_plot[idx]["t_end"]).year
-                # max_days = datetime.datetime(last_year, 12, 31, 0, 0).toordinal()
-                max_days = ORDINALDATE_20231231
+                max_days = datetime.datetime(
+                    pd.Timestamp.fromordinal(cold_plot[idx]["t_end"]).year, 12, 31, 0, 0
+                ).toordinal()
             else:
                 max_days = cold_plot[idx + 1]["t_start"]
             break_year = (
@@ -103,13 +106,11 @@ def extract_features(
                 if (cold_curve["t_break"] > 0 and cold_curve["change_prob"] == 100)
                 else -9999
             )
-            # ordinal_day_break_july1st = pd.Timestamp.toordinal(datetime.date(break_year, 7, 1))
-            # else:
-            # ordinal_day_break_july1st = 0
-            # min_day = ORDINALDATE_19850101 if idx == 0 else cold_curve["t_start"]
-            if idx == 0: 
-                min_day = ORDINALDATE_19850101
-            else: min_day = cold_curve["t_start"]
+            min_day = (
+                datetime.datetime(1985, 12, 31, 0, 0).toordinal()
+                if idx == 0
+                else cold_curve["t_start"]
+            )
 
             # if cold_curve["t_start"] <= ordinal_day < max_days:
             if min_day <= ordinal_day < max_days:
@@ -118,7 +119,7 @@ def extract_features(
                         raise Exception(
                             "the outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, cv, rmse]"
                         )
-                    if int(cold_curve['category'] / 10) == 5: # permanent snow
+                    if int(cold_curve["category"] / 10) == 5:  # permanent snow
                         features[n][index] = 0
                         continue
                     if feature == "a0":
@@ -167,14 +168,18 @@ def extract_features(
 
     # we have to separately deal with cv. dirty solution
     if "cv" in feature_outputs:
-        ordinal_day_years = [pd.Timestamp.fromordinal(day).year for day in ordinal_day_list]
+        ordinal_day_years = [
+            pd.Timestamp.fromordinal(day).year for day in ordinal_day_list
+        ]
         for index, ordinal_year in enumerate(ordinal_day_years):
             for cold_curve in cold_plot:
                 if (cold_curve["t_break"] == 0) or (cold_curve["change_prob"] != 100):
                     continue
                 break_year = pd.Timestamp.fromordinal(cold_curve["t_break"]).year
                 if break_year == ordinal_year:
-                    features[feature_outputs.index("cv")][index] = cold_curve["magnitude"][band]
+                    features[feature_outputs.index("cv")][index] = cold_curve[
+                        "magnitude"
+                    ][band]
                     break
 
     return features
@@ -187,9 +192,7 @@ def index_sccdpack(sccd_pack_single):
     :return: a namedtuple SccdOutput
     """
     if len(sccd_pack_single) != PACK_ITEM:
-        raise Exception(
-            "the element number of sccd_pack_single must be {}".format(PACK_ITEM)
-        )
+        raise Exception(f"the element number of sccd_pack_single must be {PACK_ITEM}")
 
     # convert to named tuple
     sccd_pack_single = SccdOutput(*sccd_pack_single)
@@ -290,7 +293,17 @@ def getcategory_sccd(cold_plot, i_curve):
         return 1  # land disturbance
 
 
-def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, coefs, coefs_bands, result_path, out_path, iblock):
+def export_map_processing(
+    dataset_info,
+    method,
+    year_uppbound,
+    year_lowbound,
+    coefs,
+    coefs_bands,
+    result_path,
+    out_path,
+    iblock,
+):
     if method == "SCCDOFFLINE":
         dt = np.dtype(
             [
@@ -325,14 +338,16 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
     current_block_y = int(iblock / dataset_info.n_block_x) + 1
     current_block_x = iblock % dataset_info.n_block_x + 1
     if method == "OBCOLD":
-        filename = "record_change_x{}_y{}_obcold.npy".format(current_block_x, current_block_y)
+        filename = f"record_change_x{current_block_x}_y{current_block_y}_obcold.npy"
     elif method == "COLD":
-        filename = "record_change_x{}_y{}_cold.npy".format(current_block_x, current_block_y)
-    elif method == "SCCDOFFLINE":
-        filename = "record_change_x{}_y{}_sccd.npy".format(current_block_x, current_block_y)
+        filename = f"record_change_x{current_block_x}_y{current_block_y}_cold.npy"
+    else:
+        filename = f"record_change_x{current_block_x}_y{current_block_y}_sccd.npy"
 
     results_block = [
-        np.full((dataset_info.block_height, dataset_info.block_width), -9999, dtype=np.int16)
+        np.full(
+            (dataset_info.block_height, dataset_info.block_width), -9999, dtype=np.int16
+        )
         for t in range(year_uppbound - year_lowbound + 1)
     ]
     if coefs is not None:
@@ -347,21 +362,19 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
             dtype=np.float32,
         )
 
-    print("Processing the rec_cg file {}".format(os.path.join(result_path, filename)))
-    if not os.path.exists(os.path.join(result_path, filename)):
-        print("the rec_cg file {} is missing".format(os.path.join(result_path, filename)))
+    print(f"Processing the rec_cg file {join(result_path, filename)}")
+    if not os.path.exists(join(result_path, filename)):
+        print(f"the rec_cg file {join(result_path, filename)} is missing")
         for year in range(year_lowbound, year_uppbound + 1):
-            outfile = os.path.join(out_path, "tmp_map_block{}_{}.npy".format(iblock + 1, year))
+            outfile = join(out_path, f"tmp_map_block{iblock + 1}_{year}.npy")
             np.save(outfile, results_block[year - year_lowbound])
             # save into the coef files
             if coefs is not None:
-                outfile = os.path.join(
-                    out_path, "tmp_coefmap_block{}_{}.npy".format(iblock + 1, year)
-                )
+                outfile = join(out_path, f"tmp_coefmap_block{iblock + 1}_{year}.npy")
                 np.save(outfile, results_block_coefs[:, :, :, year - year_lowbound])
         return
     if method == "SCCDOFFLINE":
-        file = open(os.path.join(result_path, filename), "rb")
+        file = open(join(result_path, filename), "rb")
         cold_block = []
         while True:
             try:
@@ -370,19 +383,20 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
                 break
         file.close()
     else:
-        cold_block = np.array(np.load(os.path.join(result_path, filename)), dtype=dt)
-    # cold_block = [np.array(element, dtype=dt) for element in cold_block]
+        cold_block = np.array(np.load(join(result_path, filename)), dtype=dt)
+        # cold_block = [np.array(element, dtype=dt) for element in cold_block]
         if len(cold_block) == 0:
-            print('the rec_cg file {} is missing'.format(dat_pth))
-            for year in range(year_lowbound, year_uppbound+1):
-                outfile = os.path.join(out_path, 'tmp_map_block{}_{}.npy'.format(iblock + 1, year))
+            print(f"the rec_cg file {join(result_path, filename)} is missing")
+            for year in range(year_lowbound, year_uppbound + 1):
+                outfile = join(out_path, f"tmp_map_block{iblock + 1}_{year}.npy")
                 np.save(outfile, results_block[year - year_lowbound])
-
 
     if method == "SCCDOFFLINE":
         for count, plot in enumerate(cold_block):
             for i_count, curve in enumerate(plot.rec_cg):
-                if curve["t_break"] == 0 or count == (len(cold_block) - 1):  # last segment
+                if curve["t_break"] == 0 or count == (
+                    len(cold_block) - 1
+                ):  # last segment
                     continue
 
                 i_col = (
@@ -395,9 +409,7 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
                 )
                 if i_col < 0:
                     print(
-                        "Processing {} failed: i_row={}; i_col={} for {}".format(
-                            filename, i_row, i_col, filename
-                        )
+                        f"Processing {filename} failed: i_row={i_row}; i_col={i_col} for {filename}"
                     )
                     # return
                 current_dist_type = getcategory_sccd(plot.rec_cg, i_count)
@@ -407,7 +419,11 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
                 results_block[break_year - year_lowbound][i_row][i_col] = (
                     current_dist_type * 1000
                     + curve["t_break"]
-                    - (pd.Timestamp.toordinal(datetime.datetime(break_year, 1, 1, 0, 0)))
+                    - (
+                        pd.Timestamp.toordinal(
+                            datetime.datetime(break_year, 1, 1, 0, 0)
+                        )
+                    )
                     + 1
                 )
     else:
@@ -416,7 +432,8 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
         current_dist_type = 0
         year_list_to_predict = list(range(year_lowbound, year_uppbound + 1))
         ordinal_day_list = [
-            pd.Timestamp.toordinal(datetime.datetime(year, 7, 1, 0, 0)) for year in year_list_to_predict
+            pd.Timestamp.toordinal(datetime.datetime(year, 7, 1, 0, 0))
+            for year in year_list_to_predict
         ]
         for count, curve in enumerate(cold_block):
             if curve["pos"] != current_processing_pos:
@@ -439,16 +456,15 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
                 - (current_block_y - 1) * dataset_info.block_height
             )
             if i_col < 0:
-                dat_pth = "?"
                 print(
-                    "Processing {} failed: i_row={}; i_col={} for {}".format(
-                        filename, i_row, i_col, dat_pth
-                    )
+                    f"Processing {filename} failed: i_row={i_row}; i_col={i_col} for {join(result_path, filename)}"
                 )
                 return
 
             if method == "OBCOLD":
-                current_dist_type = getcategory_obcold(cold_block, count, current_dist_type)
+                current_dist_type = getcategory_obcold(
+                    cold_block, count, current_dist_type
+                )
             else:
                 current_dist_type = getcategory_cold(cold_block, count)
             break_year = pd.Timestamp.fromordinal(curve["t_break"]).year
@@ -482,18 +498,16 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
                         element, band, ordinal_day_list, -9999, feature_outputs=coefs
                     )
                     for index, coef in enumerate(coefs):
-                        results_block_coefs[i_row][i_col][index + band_idx * len(coefs)][
-                            :
-                        ] = feature_row[index]
+                        results_block_coefs[i_row][i_col][
+                            index + band_idx * len(coefs)
+                        ][:] = feature_row[index]
 
         # save the temp dataset out
         for year in range(year_lowbound, year_uppbound + 1):
-            outfile = os.path.join(out_path, "tmp_map_block{}_{}.npy".format(iblock + 1, year))
+            outfile = join(out_path, f"tmp_map_block{iblock + 1}_{year}.npy")
             np.save(outfile, results_block[year - year_lowbound])
             if coefs is not None:
-                outfile = os.path.join(
-                    out_path, "tmp_coefmap_block{}_{}.npy".format(iblock + 1, year)
-                )
+                outfile = join(out_path, f"tmp_coefmap_block{iblock + 1}_{year}.npy")
                 np.save(outfile, results_block_coefs[:, :, :, year - year_lowbound])
 
 
@@ -538,7 +552,7 @@ def export_map_processing(dataset_info, method, year_uppbound, year_lowbound, co
 def main(
     source_dir,
     n_cores,
-    result_path, # record of change.npy
+    result_path,  # record of change.npy
     out_path,
     method,
     year_lowbound,
@@ -546,7 +560,7 @@ def main(
     yaml_path,
     coefs,
     coefs_bands,
-    collection
+    collection,
 ):
     # ref_path = '/Users/coloury/Dropbox/UCONN/spatial/test_results/h016v010/recentdist_mapCOLD.tif'
     # method = 'SCCDOFFLINE'
@@ -619,10 +633,10 @@ def main(
     with open(yaml_path, "r") as yaml_obj:
         config = yaml.safe_load(yaml_obj)
     dataset_info = class_from_dict(DatasetInfo, config["DATASETINFO"])
-    
+
     if not os.path.exists(out_path):
         os.makedirs(out_path)
-        
+
     if collection == "C2":
         folder_list = [
             f[0 : len(f) - 4]
@@ -637,30 +651,43 @@ def main(
         with rasterio.open(ref_path) as src_dataset:
             profile = src_dataset.profile
         if ref_image.shape[0] % dataset_info.block_height > 0:
-            dataset_info.n_block_y = int(ref_image.shape[0] / dataset_info.block_height) + 1
+            dataset_info.n_block_y = (
+                int(ref_image.shape[0] / dataset_info.block_height) + 1
+            )
             dataset_info.n_rows = dataset_info.block_height * dataset_info.n_block_y
-            
+
         if ref_image.shape[1] % dataset_info.block_width > 0:
-            dataset_info.n_block_x = int(ref_image.shape[1] / dataset_info.block_width) + 1
+            dataset_info.n_block_x = (
+                int(ref_image.shape[1] / dataset_info.block_width) + 1
+            )
             dataset_info.n_cols = dataset_info.block_width * dataset_info.n_block_x
         dataset_info.nblocks = dataset_info.n_block_x * dataset_info.n_block_y
         ref_image = None
 
-    ranks_percore = int(np.ceil(dataset_info.nblocks / n_cores))
     block_list = list(range(0, dataset_info.nblocks))
     pool = multiprocessing.Pool(n_cores)
-    partial_func = functools.partial(export_map_processing, dataset_info, method, year_uppbound, year_lowbound, coefs, coefs_bands, result_path, out_path)    #TODO
+    partial_func = functools.partial(
+        export_map_processing,
+        dataset_info,
+        method,
+        year_uppbound,
+        year_lowbound,
+        coefs,
+        coefs_bands,
+        result_path,
+        out_path,
+    )  # TODO
     pool.map(partial_func, block_list)
     pool.close()
     pool.join()
-    
+
     # for i in range(dataset_info.nblocks):
     #     export_map_processing(ranks_percore, n_cores, dataset_info, method, year_uppbound, year_lowbound, coefs, coefs_bands, result_path, out_path, i)
 
     # assemble
     for year in range(year_lowbound, year_uppbound + 1):
         tmp_map_blocks = [
-            np.load(join(out_path, "tmp_map_block{}_{}.npy".format(x + 1, year)))
+            np.load(join(out_path, f"tmp_map_block{x + 1}_{year}.npy"))
             for x in range(dataset_info.nblocks)
         ]
 
@@ -673,7 +700,7 @@ def main(
         with rasterio.open(
             join(out_path, f"{year}_break_map_{method}.tif"), "w", **profile
         ) as dst:
-            dst.write(results[0:profile['height'], 0:profile['width']], 1)
+            dst.write(results[0 : profile["height"], 0 : profile["width"]], 1)
 
     if coefs is not None:
         for year in range(year_lowbound, year_uppbound + 1):
@@ -696,14 +723,19 @@ def main(
                         "w",
                         **profile,
                     ) as dst:
-                        dst.write(results[0:profile['height'], 0:profile['width'], ninput], 1)
+                        dst.write(
+                            results[
+                                0 : profile["height"], 0 : profile["width"], ninput
+                            ],
+                            1,
+                        )
                     ninput = ninput + 1
 
             # for x in range(dataset_info.nblocks):
             #     os.remove(join(out_path, f"tmp_coefmap_block{x + 1}_{year}.npy"))
 
     # output recent disturbance year
-    recent_dist = np.full((profile['height'], profile['width']), 0, dtype=np.int16)
+    recent_dist = np.full((profile["height"], profile["width"]), 0, dtype=np.int16)
     for year in range(year_lowbound, year_uppbound + 1):
         breakmap = rio_loaddata(join(out_path, f"{year}_break_map_{method}.tif"))
         recent_dist[(breakmap / 1000).astype(np.byte) == 1] = year
@@ -719,7 +751,7 @@ def main(
     ) as dst:
         dst.write(recent_dist, 1)
 
-    first_dist = np.full((profile['height'], profile['width']), 0, dtype=np.int16)
+    first_dist = np.full((profile["height"], profile["width"]), 0, dtype=np.int16)
     for year in range(year_uppbound, year_lowbound - 1, -1):
         breakmap = rio_loaddata(join(out_path, f"{year}_break_map_{method}.tif"))
         first_dist[(breakmap / 1000).astype(np.byte) == 1] = year

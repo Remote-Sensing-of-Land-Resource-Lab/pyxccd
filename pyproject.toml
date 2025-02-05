@@ -16,7 +16,7 @@ requires = [
 
 [tool.xcookie]
 url = 'https://github.com/GERSL/pycold'
-tags = [ "github", "binpy", "cv2", "gdal"]
+tags = [ "github", "binpy", "cv2"]
 mod_name = "pycold"
 repo_name = "pycold"
 rel_mod_parent_dpath = "src/python"
@@ -48,7 +48,7 @@ skip = "*-win32 *-musllinux_* *i686 pp*"
 archs = ["x86_64"]
 #archs = ["i686"]
 build-verbosity = 1
-test-requires = ["-r requirements/tests.txt", "-r requirements/headless.txt", "-r requirements/gdal.txt"]
+test-requires = ["-r requirements/tests.txt", "-r requirements/headless.txt"]
 test-command = "python {project}/run_tests.py"
 
 # Use custom manylinux images to get precompiled build-time deps
