@@ -27,8 +27,8 @@ int cold(
     int CM_OUTPUT_INTERVAL,     /* I: the interval of days of outputting change maganitude                   */
     short int *CM_outputs,      /* I/O: (optional) maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     short int *CM_outputs_date, /* I/O: (optional) dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
-    double gap_days             /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
-);
+    double gap_days,            /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
+    double fitlam);
 
 int stand_procedure(
     int valid_num_scenes,      /* I:  number of valid scenes  */
@@ -52,7 +52,8 @@ int stand_procedure(
     short int *CM_outputs,      /* I/O: maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     short int *CM_outputs_date, /* I/O: dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     bool b_c2,
-    double gap_days);
+    double gap_days,
+    double fitlam);
 
 int inefficientobs_procedure(
     int valid_num_scenes,      /* I:  number of scenes  */
@@ -69,7 +70,8 @@ int inefficientobs_procedure(
     float sn_pct,
     Output_t *rec_cg,
     int *num_fc,
-    bool b_c2);
+    bool b_c2,
+    double fitlam);
 
 int obcold_reconstruction_procedure(
     int64_t *buf_b,            /* I:  Landsat blue spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
@@ -95,27 +97,27 @@ double angle_decaying(
     double lowbound,
     double highbound);
 
-int stand_procedure_fixeddays(
-    int valid_num_scenes,      /* I:  number of valid scenes  */
-    int64_t *valid_date_array, /* I: valid date time series  */
-    int64_t *buf_b,            /* I:  Landsat blue spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_g,            /* I:  Landsat green spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_r,            /* I:  Landsat red spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_n,            /* I:  Landsat NIR spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_s1,           /* I:  Landsat swir1 spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_s2,           /* I:  Landsat swir2 spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *buf_t,            /* I:  Landsat thermal spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
-    int64_t *fmask_buf,        /* I:  mask-based time series  */
-    int *id_range,
-    double tcg,        /* I: threshold of change threshold  */
-    int conse,         /* I: consecutive observation number   */
-    bool b_outputCM,   /* I: indicate if cold is running as the first step of object-based cold*/
-    int starting_date, /* I: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_outputCM is True */
-    Output_t *rec_cg,  /* O: outputted structure for CCDC results     */
-    int *num_fc,       /* O: number of fitting curves                       */
-    int CM_OUTPUT_INTERVAL,
-    short int *CM_outputs,      /* I/O: maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
-    short int *CM_outputs_date, /* I/O: dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
-    int min_days_conse);
+// int stand_procedure_fixeddays(
+//     int valid_num_scenes,      /* I:  number of valid scenes  */
+//     int64_t *valid_date_array, /* I: valid date time series  */
+//     int64_t *buf_b,            /* I:  Landsat blue spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *buf_g,            /* I:  Landsat green spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *buf_r,            /* I:  Landsat red spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *buf_n,            /* I:  Landsat NIR spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *buf_s1,           /* I:  Landsat swir1 spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *buf_s2,           /* I:  Landsat swir2 spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *buf_t,            /* I:  Landsat thermal spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
+//     int64_t *fmask_buf,        /* I:  mask-based time series  */
+//     int *id_range,
+//     double tcg,        /* I: threshold of change threshold  */
+//     int conse,         /* I: consecutive observation number   */
+//     bool b_outputCM,   /* I: indicate if cold is running as the first step of object-based cold*/
+//     int starting_date, /* I: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_outputCM is True */
+//     Output_t *rec_cg,  /* O: outputted structure for CCDC results     */
+//     int *num_fc,       /* O: number of fitting curves                       */
+//     int CM_OUTPUT_INTERVAL,
+//     short int *CM_outputs,      /* I/O: maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
+//     short int *CM_outputs_date, /* I/O: dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
+//     int min_days_conse);
 
 #endif // CCD_H

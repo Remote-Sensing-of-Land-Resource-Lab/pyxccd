@@ -1653,7 +1653,8 @@ int auto_ts_fit(
     int df,
     double **coefs,
     double *rmse,
-    double **v_dif)
+    double **v_dif,
+    float lam)
 {
     char FUNC_NAME[] = "auto_ts_fit";
     char errmsg[MAX_STR_LEN];
@@ -1674,10 +1675,11 @@ int auto_ts_fit(
 
     w = TWO_PI / 365.25;
 
-    float ulam[1] = {
-        20,
-    }; // SY lambda = 20
-
+    // float ulam[1] = {
+    //     20,
+    // }; // SY lambda = 20
+    float ulam[1];
+    ulam[0] = lam; // SY lambda = 20
     /* Allocate memory */
     if (df == 2 || df == 4 || df == 5 || df == 6 || df == 8)
     {
@@ -1947,9 +1949,8 @@ int auto_ts_fit_sccd(
 
     w = TWO_PI / 365.25;
 
-    float ulam[1] = {
-        20,
-    }; // SY lambda = 20
+    float ulam[1];
+    ulam[0] = DEFAULT_FITLAM; // SY lambda = 20
 
     /* Allocate memory */
     if (df == 2 || df == 4 || df == 5 || df == 6 || df == 8)
@@ -2153,7 +2154,8 @@ int auto_ts_fit_float(
     int df,
     float **coefs,
     float *rmse,
-    float **v_dif)
+    float **v_dif,
+    float lam)
 {
     char FUNC_NAME[] = "auto_ts_fit_float";
     char errmsg[MAX_STR_LEN];
@@ -2174,9 +2176,8 @@ int auto_ts_fit_float(
 
     w = TWO_PI / 365.25;
 
-    float ulam[1] = {
-        20,
-    }; // SY lambda = 20
+    float ulam[1];
+    ulam[0] = lam; // SY lambda = 20
 
     /* Allocate memory */
     if (df == 2 || df == 4 || df == 5 || df == 6 || df == 8)

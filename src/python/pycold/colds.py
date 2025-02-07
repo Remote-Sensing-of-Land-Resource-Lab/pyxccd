@@ -38,6 +38,7 @@ _parameter_constraints: dict = {
     "t_angle": [Interval(Integral, 0, 180, closed="neither")],
     "transform_mode": ["boolean"],
     "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
+    "fitlam": [Interval(Real, 0.0, 100, closed="left")]
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
@@ -219,7 +220,8 @@ def cold_detect(
     n_cm=0,
     cm_output_interval=0,
     b_c2=True,
-    gap_days=365.25
+    gap_days=365.25,
+    fitlam=20
 ):
     """
     pixel-based COLD algorithm.
@@ -249,6 +251,7 @@ def cold_detect(
           test due to the current low quality
     gap_days: define the day number of the gap year for determining i_dense. Setting a large value (e.g., 1500)
                 if the gap year in the middle of the time range
+    fitlam: the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
     Returns
     ----------
@@ -268,6 +271,7 @@ def cold_detect(
         cm_output_interval=cm_output_interval,
         b_c2=b_c2,
         gap_days=gap_days,
+        fitlam=fitlam
     )
 
     # make sure it is c contiguous array and 64 bit
@@ -295,6 +299,7 @@ def cold_detect(
         cm_output_interval,
         b_c2,
         gap_days,
+        fitlam
     )
 
 
@@ -633,7 +638,8 @@ def cold_detect_flex(
     cm_output_interval=0,
     gap_days=365.25,
     tmask_b1=1,
-    tmask_b2=1
+    tmask_b2=1,
+    fitlam=20
 ):
     """
     pixel-based COLD algorithm.
@@ -657,6 +663,7 @@ def cold_detect_flex(
                 if the gap year in the middle of the time range
     tmask_b1: the first band id for tmask
     tmask_b2: the second band id for tmask
+    fitlam: the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
     Returns
     ----------
     change records: the COLD outputs that characterizes each temporal segment if b_output_cm==False
@@ -674,6 +681,7 @@ def cold_detect_flex(
         n_cm=n_cm,
         cm_output_interval=cm_output_interval,
         gap_days=gap_days,
+        fitlam=fitlam
     )
 
     # make sure it is c contiguous array and 64 bit
@@ -707,6 +715,7 @@ def cold_detect_flex(
         gap_days,
         tmask_b1,
         tmask_b2,
+        fitlam
     )
     # dt = np.dtype([('t_start', np.int32), ('t_end', np.int32), ('t_break', np.int32), ('pos', np.int32),
     #                ('nm_obs', np.int32), ('category', np.int16), ('change_prob', np.int16), ('change_prob', np.int16)])

@@ -143,7 +143,7 @@ cdef extern from "../../cxx/cold.h":
                   int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, int32_t pos, 
                   double tcg, int32_t conse, bool b_output_cm, int32_t starting_date, bool b_c2, Output_t *rec_cg,
                   int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs,
-                  short int *cm_outputs_date, double gap_days);
+                  short int *cm_outputs_date, double gap_days, double fitlam);
 
 cdef extern from "../../cxx/cold_flex.h":
     cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, 
@@ -151,7 +151,7 @@ cdef extern from "../../cxx/cold_flex.h":
                            double tcg, double max_tcg, int32_t conse, bool b_output_cm, 
                            int32_t starting_date, Output_t_flex *rec_cg, int32_t *num_fc, 
                            int32_t cm_output_interval, short int *cm_outputs, 
-                           short int *cm_outputs_date, double gap_days);
+                           short int *cm_outputs_date, double gap_days, double fitlam);
 
 
 cdef extern from "../../cxx/cold.h":
@@ -215,7 +215,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_s2, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas, double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
                    bint b_output_cm=False, int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, bint b_c2=True,
-                   double gap_days=365.25):
+                   double gap_days=365.25, double fitlam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -283,7 +283,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
     result = cold(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0],
                  &qas_view[0], &dates_view[0], valid_num_scenes, pos, t_cg, conse, b_output_cm,
                  starting_date, b_c2, &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], &cm_outputs_date_view[0],
-                 gap_days)
+                 gap_days, fitlam)
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:
@@ -662,7 +662,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands,
                         double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_output_cm=False, 
                         int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, 
-                        double gap_days=365.25, int32_t tmask_b1=1, int32_t tmask_b2=1):
+                        double gap_days=365.25, int32_t tmask_b1=1, int32_t tmask_b2=1, double fitlam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -719,7 +719,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
                         valid_num_scenes, pos, t_cg, max_t_cg, conse, b_output_cm, starting_date, 
                         &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], 
-                        &cm_outputs_date_view[0], gap_days)
+                        &cm_outputs_date_view[0], gap_days, fitlam)
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:

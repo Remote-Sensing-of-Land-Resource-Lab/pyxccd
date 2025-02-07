@@ -24,8 +24,8 @@ int cold_flex(
     int CM_OUTPUT_INTERVAL,     /* I: (optional) change magnitude output interval  */
     short int *CM_outputs,      /* I/O: (optional) maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     short int *CM_outputs_date, /* I/O: (optional) dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
-    double gap_days             /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
-);
+    double gap_days,            /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
+    double fitlam);
 
 int stand_procedure_flex(
     int valid_num_scenes,      /* I:  number of valid scenes  */
@@ -46,8 +46,8 @@ int stand_procedure_flex(
     short int *CM_outputs_date, /* I/O: dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     double gap_days,
     int tmask_b1, /* I: the band id used for tmask */
-    int tmask_b2  /* I: the band id used for tmask */
-);
+    int tmask_b2, /* I: the band id used for tmask */
+    double fitlam);
 
 int inefficientobs_procedure_flex(
     int valid_num_scenes,      /* I:  number of scenes  */
@@ -58,6 +58,7 @@ int inefficientobs_procedure_flex(
     int *id_range,
     float sn_pct,
     Output_t_flex *rec_cg,
-    int *num_fc);
+    int *num_fc,
+    double fitlam);
 
 #endif // COLDF_H

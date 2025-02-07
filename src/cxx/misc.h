@@ -46,7 +46,8 @@ int auto_ts_fit(
     int df,
     double **coefs,
     double *rmse,
-    double **v_dif);
+    double **v_dif,
+    float lam);
 
 int auto_ts_predict(
     int *clrx,
@@ -459,7 +460,8 @@ int auto_ts_fit_float(
     int df,
     float **coefs,
     float *rmse,
-    float **v_dif);
+    float **v_dif,
+    float lam);
 
 int auto_ts_fit_sccd(
     int *clrx,
