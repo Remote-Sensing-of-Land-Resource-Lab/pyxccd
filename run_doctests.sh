@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-xdoctest src/python/pycold --style=google all "$@"
+xdoctest src/python/pyxccd --style=google all "$@"

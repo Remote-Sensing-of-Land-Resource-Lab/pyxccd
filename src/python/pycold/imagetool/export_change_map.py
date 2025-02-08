@@ -1,6 +1,6 @@
 # Author: Su Ye
 # generating yearly, recent and first-disturbance maps from change records
-# python export_change_map.py --source_dir=/data/landsat_c2/204_22 --result_path=/data/results/204_22_ccdc --yaml_path=/home/colory666/pycold_imagetool/config.yaml --n_cores=20 --out_path=/data/results/204_22_ccdc
+# python export_change_map.py --source_dir=/data/landsat_c2/204_22 --result_path=/data/results/204_22_ccdc --yaml_path=/home/colory666/pyxccd_imagetool/config.yaml --n_cores=20 --out_path=/data/results/204_22_ccdc
 import os
 from os.path import join, isfile, join
 import numpy as np
@@ -21,8 +21,8 @@ import rasterio
 import yaml
 from collections import namedtuple
 import datetime as datetime
-from pycold.utils import class_from_dict, rio_loaddata
-from pycold.common import DatasetInfo
+from pyxccd.utils import class_from_dict, rio_loaddata
+from pyxccd.common import DatasetInfo
 
 
 PACK_ITEM = 6
@@ -65,7 +65,7 @@ band_names = [0, 1, 2, 3, 4, 5, 6]
 SLOPE_SCALE = 10000
 
 
-# copy from /pycold/src/python/pycold/pyclassifier.py because MPI has conflicts with the pycold package in UCONN HPC.
+# copy from /pyxccd/src/python/pyxccd/pyclassifier.py because MPI has conflicts with the pyxccd package in UCONN HPC.
 # Dirty approach!
 def extract_features(
     cold_plot, band, ordinal_day_list, nan_val, feature_outputs=["a0", "a1", "b1"]

@@ -20,5 +20,5 @@ fi
 
 
 #pip wheel -w wheelhouse .
-# python -m build --wheel -o wheelhouse  #  pycold: +COMMENT_IF(binpy)
-cibuildwheel --config-file pyproject.toml --platform linux --arch x86_64  #  pycold: +UNCOMMENT_IF(binpy)
+# python -m build --wheel -o wheelhouse  #  pyxccd: +COMMENT_IF(binpy)
+cibuildwheel --config-file pyproject.toml --platform linux --arch x86_64  #  pyxccd: +UNCOMMENT_IF(binpy)

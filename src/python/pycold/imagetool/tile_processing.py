@@ -4,7 +4,7 @@
 # Two types of logging files are used: 1) print() to save block-based  processing info into individual slurm file;
 # 2) tile_processing_report.log records config for each tile
 # 2) is only called when rank == 1
-# python tile_processing.py --stack_path=/data/results/204_22_stack --result_path=/data/results/204_22_ccdc --yaml_path=/home/colory666/pycold_imagetool/config.yaml --n_cores=30 "--source_dir=/data/landsat_c2/204_22"
+# python tile_processing.py --stack_path=/data/results/204_22_stack --result_path=/data/results/204_22_ccdc --yaml_path=/home/colory666/pyxccd_imagetool/config.yaml --n_cores=30 "--source_dir=/data/landsat_c2/204_22"
 import yaml
 import os
 from os.path import join
@@ -12,7 +12,7 @@ import pandas as pd
 import datetime as dt
 import numpy as np
 import tarfile
-import pycold
+import pyxccd
 from datetime import datetime
 from pytz import timezone
 import click
@@ -20,10 +20,10 @@ import time
 from scipy.stats import chi2
 import pickle
 from dateutil.parser import parse
-from pycold import cold_detect, sccd_detect
-from pycold.utils import rio_loaddata
+from pyxccd import cold_detect, sccd_detect
+from pyxccd.utils import rio_loaddata
 
-from pycold.utils import (
+from pyxccd.utils import (
     assemble_cmmaps,
     get_rowcol_intile,
     get_doy,
@@ -34,9 +34,9 @@ import functools
 import multiprocessing
 from multiprocessing import Pool
 
-# from pycold.ob_analyst import ObjectAnalystHPC
-from pycold.app import defaults
-from pycold.common import DatasetInfo
+# from pyxccd.ob_analyst import ObjectAnalystHPC
+from pyxccd.app import defaults
+from pyxccd.common import DatasetInfo
 
 TZ = timezone("Asia/Shanghai")
 
@@ -82,7 +82,7 @@ def tileprocessing_report(
     """
     endpoint = datetime.now(TZ)
     file = open(result_log_path, "w")
-    file.write("PYCOLD V{} \n".format(version))
+    file.write("pyxccd V{} \n".format(version))
     file.write("Author: Su Ye(remoteseningsuy@gmail.com)\n")
     file.write("Algorithm: {} \n".format(algorithm))
     file.write("Starting_time: {}\n".format(startpoint.strftime("%Y-%m-%d %H:%M:%S")))
@@ -381,7 +381,7 @@ def block_tile_processing(
                     pickle.dump(unindex_sccdpack(sccd_result), f)
             f.close()
 
-            # from pycold.utils import save_obs2csv
+            # from pyxccd.utils import save_obs2csv
             # save_obs2csv('/home/coloury/Dropbox/UCONN/NRT/test_src/sccd_packid{}.csv'.format(pos),
             #              pd.DataFrame(np.vstack((img_dates_sorted, img_tstack[pos, :, :])).T))
 
@@ -529,7 +529,7 @@ def block_tile_processing(
     type=int,
     show_default=True,
     default=None,
-    help="the year of coefficients to generate classification model. If none, it will use the default from pycold/src/python/pycold/ob_parameters.yaml",
+    help="the year of coefficients to generate classification model. If none, it will use the default from pyxccd/src/python/pyxccd/ob_parameters.yaml",
 )
 @click.option(
     "--source_dir",
@@ -556,7 +556,7 @@ def main(
     #     n_cores = 200
     #     stack_path = '/gpfs/sharedfs1/zhulab/Jiwon/HLS/Stack/10SEG/10SEG_stack_0.2'
     #     result_path = '/scratch/suy20004/suy20004/test'
-    #     yaml_path = '/home/suy20004/Document/pycold-uconnhpc/config_hls.yaml'
+    #     yaml_path = '/home/suy20004/Document/pyxccd-uconnhpc/config_hls.yaml'
     #     method = 'COLD'
     #     seedmap_path = None
     #     low_datebound = None
@@ -698,7 +698,7 @@ def main(
         tileprocessing_report(
             join(result_path, "tile_processing_report.log"),
             stack_path,
-            pycold.__version__,
+            pyxccd.__version__,
             method,
             dataset_info,
             start_time,

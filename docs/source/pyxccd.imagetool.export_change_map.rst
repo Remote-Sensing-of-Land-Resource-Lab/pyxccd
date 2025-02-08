@@ -1,7 +1,7 @@
-pycold.imagetool.export\_change\_map module
+pyxccd.imagetool.export\_change\_map module
 ===========================================
 
-.. automodule:: pycold.imagetool.export_change_map
+.. automodule:: pyxccd.imagetool.export_change_map
    :members:
    :undoc-members:
    :show-inheritance:

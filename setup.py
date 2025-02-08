@@ -221,8 +221,8 @@ def parse_requirements(fname="requirements.txt", versions=False):
 #     return requirements
 
 
-NAME = "pycold"
-INIT_PATH = "src/python/pycold/__init__.py"
+NAME = "pyxccd"
+INIT_PATH = "src/python/pyxccd/__init__.py"
 VERSION = parse_version(INIT_PATH)
 
 if __name__ == "__main__":
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     setupkw["version"] = VERSION
     setupkw["author"] = "Su Ye"
     setupkw["author_email"] = "remotesensingsuy@gmail.com"
-    setupkw["url"] = "https://github.com/GERSL/pycold"
+    setupkw["url"] = "https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd"
     setupkw[
         "description"
     ] = "python implementation of COntinuous monitoring of Land disturbances algorithm"
@@ -285,11 +285,11 @@ if __name__ == "__main__":
     ### <special non-xcookie generated code>
     setupkw['include_package_data'] = True
     setupkw['package_data'] = {
-        'pycold': [
+        'pyxccd': [
             'ob_parameters.yaml',
             'constants.yaml',
         ],
-        'pycold.imagetool': [
+        'pyxccd.imagetool': [
             'config.yaml',
             'singlepath_landsat_conus.tif',
         ],

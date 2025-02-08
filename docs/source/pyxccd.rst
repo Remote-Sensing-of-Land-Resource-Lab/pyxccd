@@ -1,4 +1,4 @@
-pycold package
+pyxccd package
 ==============
 
 Subpackages
@@ -7,7 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   pycold.imagetool
+   pyxccd.imagetool
 
 Submodules
 ----------
@@ -15,16 +15,16 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   pycold.app
-   pycold.monkey
-   pycold.ob_analyst
-   pycold.pyclassifier
-   pycold.utils
+   pyxccd.app
+   pyxccd.monkey
+   pyxccd.ob_analyst
+   pyxccd.pyclassifier
+   pyxccd.utils
 
 Module contents
 ---------------
 
-.. automodule:: pycold
+.. automodule:: pyxccd
    :members:
    :undoc-members:
    :show-inheritance:

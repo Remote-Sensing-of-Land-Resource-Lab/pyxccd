@@ -12,15 +12,15 @@ from scipy import stats
 from scipy.stats import chi2
 from os.path import join, exists
 from logging import Logger
-from pycold.utils import get_block_x, get_block_y, read_blockdata, get_rowcol_intile
-from pycold.app import defaults
-from pycold import obcold_reconstruct
+from pyxccd.utils import get_block_x, get_block_y, read_blockdata, get_rowcol_intile
+from pyxccd.app import defaults
+from pyxccd import obcold_reconstruct
 from skimage.segmentation import slic
 from skimage.measure import label as sklabel
 from skimage.segmentation import watershed
 import logging
 import sys
-from pycold.common import DatasetInfo
+from pyxccd.common import DatasetInfo
 
 
 NAN_VAL = -9999

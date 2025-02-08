@@ -12,8 +12,8 @@ from sklearn.ensemble import RandomForestClassifier
 
 # from osgeo import gdal_array
 from typing import Optional
-from pycold.app import defaults
-from pycold.utils import (
+from pyxccd.app import defaults
+from pyxccd.utils import (
     get_block_y,
     get_block_x,
     get_col_index,
@@ -21,7 +21,7 @@ from pycold.utils import (
     assemble_array,
     rio_loaddata,
 )
-from pycold.common import DatasetInfo
+from pyxccd.common import DatasetInfo
 
 
 def extract_features(

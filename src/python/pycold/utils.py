@@ -105,7 +105,7 @@ def assemble_cmmaps(
     Parameters
     ----------
     config: dictionary
-        pycold config dictionary
+        pyxccd config dictionary
     result_path: string
         the path where block-based CM intermediate files are
     cmmap_path: string

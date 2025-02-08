@@ -13,7 +13,7 @@
 # files, and takes ~12 mins to finish if 200 EPYC 7452 cores are used.
 # running example:
 # source /home/colory666/env_collect/py310_geo/bin/activate
-# python prepare_ard.py --source_dir=/data/landsat_c2/204_22 --out_dir=/data/results/204_22_stack --yaml_path=/home/colory666/pycold/src/python/pycold/imagetool/config.yaml  --n_cores=10
+# python prepare_ard.py --source_dir=/data/landsat_c2/204_22 --out_dir=/data/results/204_22_stack --yaml_path=/home/colory666/pyxccd/src/python/pyxccd/imagetool/config.yaml  --n_cores=10
 import os
 import shutil
 import tarfile
@@ -38,8 +38,8 @@ import pandas as pd
 import numpy as np
 from glob import glob
 from dateutil.parser import parse
-from pycold.common import DatasetInfo
-from pycold.utils import class_from_dict, rio_loaddata, rio_warp
+from pyxccd.common import DatasetInfo
+from pyxccd.utils import class_from_dict, rio_loaddata, rio_warp
 
 
 # define constant here
@@ -1622,7 +1622,7 @@ def main(
 
                 # warp a tile-based single path tif
                 with importlib_resources.path(
-                    "pycold.imagetool", "singlepath_landsat_conus.tif"
+                    "pyxccd.imagetool", "singlepath_landsat_conus.tif"
                 ) as conus_image_fpath:
                     # conus_image_fpath = (Path(__file__).parent / 'singlepath_landsat_conus.tif').resolve()
                     rio_warp(

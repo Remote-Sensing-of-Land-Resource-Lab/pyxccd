@@ -1,7 +1,7 @@
-pycold.app module
+pyxccd.app module
 =================
 
-.. automodule:: pycold.app
+.. automodule:: pyxccd.app
    :members:
    :undoc-members:
    :show-inheritance:

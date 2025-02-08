@@ -15,10 +15,10 @@ requires = [
 ]
 
 [tool.xcookie]
-url = 'https://github.com/GERSL/pycold'
+url = 'https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd'
 tags = [ "github", "binpy", "cv2"]
-mod_name = "pycold"
-repo_name = "pycold"
+mod_name = "pyxccd"
+repo_name = "pyxccd"
 rel_mod_parent_dpath = "src/python"
 os = [ 
     #"osx",

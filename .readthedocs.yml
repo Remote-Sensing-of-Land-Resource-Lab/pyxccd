@@ -3,7 +3,7 @@
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
 # See Also:
-# https://readthedocs.org/dashboard/pycold/advanced/
+# https://readthedocs.org/dashboard/pyxccd/advanced/
 
 # Required
 version: 2
@@ -13,7 +13,6 @@ formats: all
 python:
   version: 3.7
   install:
-  - requirements: requirements/gdal.txt
   - requirements: requirements/headless.txt
   - requirements: requirements/docs.txt
   - method: pip

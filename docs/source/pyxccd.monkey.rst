@@ -1,7 +1,7 @@
-pycold.monkey module
+pyxccd.monkey module
 ====================
 
-.. automodule:: pycold.monkey
+.. automodule:: pyxccd.monkey
    :members:
    :undoc-members:
    :show-inheritance:

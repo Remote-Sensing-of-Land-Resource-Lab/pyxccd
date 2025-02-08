@@ -1,6 +1,6 @@
 #!/bin/bash
 __doc__="
-Script that does its best to ensure a robust installation of pycold in
+Script that does its best to ensure a robust installation of pyxccd in
 development mode.
 "
 
@@ -74,7 +74,7 @@ REPO_DPATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # Check that specific files exist to indicate we aren't in the wrong place.
 # Exit if we are.
 echo "REPO_DPATH = $REPO_DPATH"
-if [[ ! -f "$REPO_DPATH/setup.py" ]] || [[ ! -f "$REPO_DPATH/src/python/pycold/__init__.py" ]]; then
+if [[ ! -f "$REPO_DPATH/setup.py" ]] || [[ ! -f "$REPO_DPATH/src/python/pyxccd/__init__.py" ]]; then
     echo "NOT RUNNING FROM THE CORRECT DIRECTORY. CANNOT PREFORM POST-INSTALL HACKS. EXITING"
     set -e
     false
@@ -89,25 +89,25 @@ else
 fi
 
 # Also clean up any shared libraries
-rm src/python/pycold/_colds_cython.*.so
+rm src/python/pyxccd/_colds_cython.*.so
 # Clean up old egg links and such
-rm -rf src/python/pycold.egg-info
-rm -rf pycold.egg-info
+rm -rf src/python/pyxccd.egg-info
+rm -rf pyxccd.egg-info
 
 
 # There editable install seems ot have bugs. This is an attempt to fix them.
 SITE_DPATH=$(python -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib())")
-PYCOLD_EGG_LINK_FPATH="$SITE_DPATH"/pycold.egg-link
-echo "PYCOLD_EGG_LINK_FPATH = $PYCOLD_EGG_LINK_FPATH"
+pyxccd_EGG_LINK_FPATH="$SITE_DPATH"/pyxccd.egg-link
+echo "pyxccd_EGG_LINK_FPATH = $pyxccd_EGG_LINK_FPATH"
 
 
-PYCOLD_EDITABLE_PTH_FPATH="$SITE_DPATH"/__editable__.pycold-0.1.0.pth
-echo "PYCOLD_EDITABLE_PTH_FPATH = $PYCOLD_EDITABLE_PTH_FPATH"
+pyxccd_EDITABLE_PTH_FPATH="$SITE_DPATH"/__editable__.pyxccd-0.1.0.pth
+echo "pyxccd_EDITABLE_PTH_FPATH = $pyxccd_EDITABLE_PTH_FPATH"
 
 # Need to get rid of the easy install entry if it exists
 EASY_INSTALL_FPATH=$SITE_DPATH/easy-install.pth
 if cat "$EASY_INSTALL_FPATH" | grep "$REPO_DPATH" ; then
-    echo "Detected pycold in easy install path. Removing it before we reinstall."
+    echo "Detected pyxccd in easy install path. Removing it before we reinstall."
     grep -v "$REPO_DPATH" "$EASY_INSTALL_FPATH" > tmpfile && mv tmpfile "$EASY_INSTALL_FPATH"
 else
     echo "Easy install pth seems clean"
@@ -154,7 +154,7 @@ export SETUPTOOLS_ENABLE_FEATURES="legacy-editable"
 
 ###  COMPILE STEP ###
 #
-# Compile and install PyCold in development mode.
+# Compile and install pyxccd in development mode.
 # 
 # It is important to have no-build-isolation to work
 # around an issue with finding numpy headers.
@@ -167,7 +167,7 @@ pip install --no-build-isolation --verbose -e .
 # It require some dependencies so it is commented by default
 DEBUG_EDITABLE_INSTALL=0
 if [[ "$DEBUG_EDITABLE_INSTALL" == "1" ]]; then
-    python dev/setup.py mwe analyize --mod_name=pycold --repo_dpath="."
+    python dev/setup.py mwe analyize --mod_name=pyxccd --repo_dpath="."
 fi
 
 
@@ -179,28 +179,28 @@ fi
 # References:
 #     .. [EggFormatDetails] https://svn.python.org/projects/sandbox/trunk/setuptools/doc/formats.txt
 ###
-echo "PYCOLD_EGG_LINK_FPATH = $PYCOLD_EGG_LINK_FPATH"
-cat "$PYCOLD_EGG_LINK_FPATH"
+echo "pyxccd_EGG_LINK_FPATH = $pyxccd_EGG_LINK_FPATH"
+cat "$pyxccd_EGG_LINK_FPATH"
 echo "SITE_DPATH = $SITE_DPATH"
 echo "$REPO_DPATH/src/python
-../../" > "$PYCOLD_EGG_LINK_FPATH"
+../../" > "$pyxccd_EGG_LINK_FPATH"
 
 
 ###
 # HACK #2 - Move the .egg-info folder into the correct location
 ###
 # Notes about egg-link files:
-mv pycold.egg-info ./src/python/
+mv pyxccd.egg-info ./src/python/
 
 
 # Now fixup the easy-install.pth
-echo "Detected pycold in easy install path. Need to remove it"
+echo "Detected pyxccd in easy install path. Need to remove it"
 grep -v "$REPO_DPATH" "$EASY_INSTALL_FPATH" > tmpfile && mv tmpfile "$EASY_INSTALL_FPATH"
 echo "$REPO_DPATH/src/python" >> "$EASY_INSTALL_FPATH"
 
 
 ## Quick tests that the install worked
-echo "Quick pycold tests to verify the install:"
-echo "Pycold Version: $(python -c 'import pycold; print(pycold.__version__)')"
-echo "Python Package Location: $(python -c 'import pycold; print(pycold.__file__)')"
-echo "Compiled Cython Module: $(python -c 'import pycold; print(pycold._colds_cython.__file__)')"
+echo "Quick pyxccd tests to verify the install:"
+echo "pyxccd Version: $(python -c 'import pyxccd; print(pyxccd.__version__)')"
+echo "Python Package Location: $(python -c 'import pyxccd; print(pyxccd.__file__)')"
+echo "Compiled Cython Module: $(python -c 'import pyxccd; print(pyxccd._colds_cython.__file__)')"

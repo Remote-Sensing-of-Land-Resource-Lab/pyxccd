@@ -1,9 +1,9 @@
 import numpy as np
-from pycold.ob_analyst import segmentation_floodfill
-from pycold.ob_analyst import object_analysis
-from pycold.ob_analyst import ObjectAnalystHPC
-from pycold.utils import class_from_dict
-from pycold.common import DatasetInfo
+from pyxccd.ob_analyst import segmentation_floodfill
+from pyxccd.ob_analyst import object_analysis
+from pyxccd.ob_analyst import ObjectAnalystHPC
+from pyxccd.utils import class_from_dict
+from pyxccd.common import DatasetInfo
 import yaml
 import shutil
 import pathlib

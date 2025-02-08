@@ -6,15 +6,15 @@
         yaml merge-expand .gitlab-ci.yml _expandyml && cat _expandyml
          
         # GITLAB LINTER
-        https://gitlab.kitware.com/smart/pycold/-/ci/lint
+        https://gitlab.kitware.com/smart/pyxccd/-/ci/lint
 
         * Make sure you add Runners to your project 
-        https://gitlab.kitware.com/smart/pycold/-/settings/ci_cd 
+        https://gitlab.kitware.com/smart/pyxccd/-/settings/ci_cd 
         in Runners-> Shared Runners
         and Runners-> Available specific runners
 
         * Ensure that you are auto-cancel redundant pipelines.
-        Navigate to https://gitlab.kitware.com/smart/pycold/-/settings/ci_cd and ensure "Auto-cancel redundant pipelines" is checked.
+        Navigate to https://gitlab.kitware.com/smart/pyxccd/-/settings/ci_cd and ensure "Auto-cancel redundant pipelines" is checked.
 
         More details are here https://docs.gitlab.com/ee/ci/pipelines/settings.html#auto-cancel-redundant-pipelines
 
@@ -85,20 +85,20 @@ stages:
         - ls -al
         - apt-get update -y
         - apt-get install build-essential libgsl-dev gfortran zlib1g-dev -y
-        - conda create -y --prefix ".cache/conda/envs/loose-pycold-env" python=3.8 --override-channels --channel conda-forge
-        - conda activate ".cache/conda/envs/loose-pycold-env"
+        - conda create -y --prefix ".cache/conda/envs/loose-pyxccd-env" python=3.8 --override-channels --channel conda-forge
+        - conda activate ".cache/conda/envs/loose-pyxccd-env"
         # TODO cibuildwheel
         - python -m pip install -r requirements/build.txt
         - python -m pip install -r requirements/runtime.txt
         - python setup.py bdist_wheel
-        - python -m pip install dist/pycold-0.1.0-cp38-cp38-linux_x86_64.whl
+        - python -m pip install dist/pyxccd-0.1.0-cp38-cp38-linux_x86_64.whl
         # - python -m pip wheel .
         # - pip install -e .
 
     script:
-        - python -c "import pycold; print(pycold.__file__)"
-        - python -c "import pycold; print(pycold.__version__)"
-        - python tests/test_pycold.py
+        - python -c "import pyxccd; print(pyxccd.__file__)"
+        - python -c "import pyxccd; print(pyxccd.__version__)"
+        - python tests/test_pyxccd.py
           #- ./run_tests.py --network watch tests scripts
 
     #after_script:

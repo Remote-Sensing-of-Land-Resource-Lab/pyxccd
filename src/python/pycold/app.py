@@ -1,4 +1,4 @@
-""" Main bootstrap and configuration module for pycold.  Any module that
+""" Main bootstrap and configuration module for pyxccd.  Any module that
 requires configuration or services should import app and obtain the
 configuration or service from here.
 app.py enables a very basic but sufficient form of loose coupling
@@ -35,7 +35,7 @@ class Defaults(dict):
             raise AttributeError('No such attribute: ' + name)
 
 
-with importlib_resources.path('pycold', 'constants.yaml') as const_fpath:
+with importlib_resources.path('pyxccd', 'constants.yaml') as const_fpath:
     # import pathlib
     # const_fpath = pathlib.Path(__file__).parent / 'constants.yaml'
     defaults = Defaults(const_fpath)

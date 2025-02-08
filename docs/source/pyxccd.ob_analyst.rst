@@ -1,7 +1,7 @@
-pycold.ob\_analyst module
+pyxccd.ob\_analyst module
 =========================
 
-.. automodule:: pycold.ob_analyst
+.. automodule:: pyxccd.ob_analyst
    :members:
    :undoc-members:
    :show-inheritance:

@@ -144,7 +144,7 @@ def _validate_data_flex(dates, ts_data, qas):
 #     ----------
 #     sccd_plot: sccd pack
 #     threshold: the change magnitude threshold to define stable obs
-#     parameters: pycold parameters
+#     parameters: pyxccd parameters
 #     conse: the default conse
 #
 #     Returns
@@ -186,7 +186,7 @@ def _validate_data_flex(dates, ts_data, qas):
 #     ----------
 #     sccd_plot: sccd pack
 #     threshold: the change magnitude threshold to define stable obs
-#     parameters: pycold parameters
+#     parameters: pyxccd parameters
 #
 #     Returns
 #     -------

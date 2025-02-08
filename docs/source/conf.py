@@ -6,7 +6,7 @@ Notes:
 
     pip install sphinx sphinx-autobuild sphinx_rtd_theme sphinxcontrib-napoleon
 
-    cd ~/code/pycold
+    cd ~/code/pyxccd
     mkdir -p docs
     cd docs
 
@@ -14,8 +14,8 @@ Notes:
 
     # need to edit the conf.py
 
-    cd ~/code/pycold/docs
-    sphinx-apidoc -f -o ~/code/pycold/docs/source ~/code/pycold/src/python/pycold --separate
+    cd ~/code/pyxccd/docs
+    sphinx-apidoc -f -o ~/code/pyxccd/docs/source ~/code/pyxccd/src/python/pyxccd --separate
     make html
 
     Also:
@@ -23,7 +23,7 @@ Notes:
 
         https://docs.readthedocs.io/en/stable/guides/autobuild-docs-for-pull-requests.html
 
-        https://readthedocs.org/dashboard/pycold/advanced/
+        https://readthedocs.org/dashboard/pyxccd/advanced/
 
         ensure your github account is connected to readthedocs
         https://readthedocs.org/accounts/social/connections/
@@ -45,7 +45,7 @@ Notes:
         incoming webhook Then go to $REPO_URL/hooks and add the URL
 
         Will also need to activate the main branch:
-            https://readthedocs.org/projects/pycold/versions/
+            https://readthedocs.org/projects/pyxccd/versions/
 """
 #
 # Configuration file for the Sphinx documentation builder.
@@ -91,10 +91,10 @@ def parse_version(fpath):
     visitor.visit(pt)
     return visitor.version
 
-project = 'pycold'
+project = 'pyxccd'
 copyright = '2022, Jon Crall'
 author = 'Jon Crall'
-modname = 'pycold'
+modname = 'pyxccd'
 
 modpath = join(dirname(dirname(dirname(__file__))), 'src', 'python', modname, '__init__.py')
 release = parse_version(modpath)
@@ -203,8 +203,8 @@ html_theme_options = {
     'display_version': True,
     # 'logo_only': True,
 }
-# html_logo = '.static/pycold.svg'
-# html_favicon = '.static/pycold.ico'
+# html_logo = '.static/pyxccd.svg'
+# html_favicon = '.static/pyxccd.ico'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -225,7 +225,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'pycolddoc'
+htmlhelp_basename = 'pyxccddoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -252,7 +252,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'pycold.tex', 'pycold Documentation',
+    (master_doc, 'pyxccd.tex', 'pyxccd Documentation',
      'Jon Crall', 'manual'),
 ]
 
@@ -262,7 +262,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'pycold', 'pycold Documentation',
+    (master_doc, 'pyxccd', 'pyxccd Documentation',
      [author], 1)
 ]
 
@@ -273,8 +273,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'pycold', 'pycold Documentation',
-     author, 'pycold', 'One line description of project.',
+    (master_doc, 'pyxccd', 'pyxccd Documentation',
+     author, 'pyxccd', 'One line description of project.',
      'Miscellaneous'),
 ]
 

@@ -1,4 +1,4 @@
-option(BUILD_SCCD "Enable sccd c library for pycold" TRUE)
+option(BUILD_SCCD "Enable sccd c library for pyxccd" TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 # Find required external libraries
@@ -44,7 +44,7 @@ if (BUILD_SCCD)
   # (this will be an inplace build if you use `pip install -e`)
   #file(RELATIVE_PATH _install_dest "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
   # Is this right?
-  #install(TARGETS ${SCCD_MODULE_NAME} LIBRARY DESTINATION "${_install_dest}../tool/python/pycold")
+  #install(TARGETS ${SCCD_MODULE_NAME} LIBRARY DESTINATION "${_install_dest}../tool/python/pyxccd")
 
 else()  # build standalone program that accepts csv as input, mainly for testing purpose
 

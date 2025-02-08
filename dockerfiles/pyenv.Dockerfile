@@ -107,7 +107,7 @@ echo "
 # docker login
 # docker pull docker/dockerfile:1.3.0-labs
 
-cd $HOME/code/pycold
+cd $HOME/code/pyxccd
 DOCKER_BUILDKIT=1 docker build --progress=plain \
     -t "pyenv:310" \
     --build-arg PYTHON_VERSION=3.10.5 \

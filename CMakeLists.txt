@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13.0)
-project(pycold LANGUAGES C Fortran)
+project(pyxccd LANGUAGES C Fortran)
 
 
 ###
@@ -45,4 +45,4 @@ add_subdirectory("src/cxx")
 
 
 # Cython library
-add_subdirectory("src/python/pycold")
+add_subdirectory("src/python/pyxccd")

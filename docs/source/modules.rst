@@ -1,7 +1,7 @@
-pycold
+pyxccd
 ======
 
 .. toctree::
    :maxdepth: 4
 
-   pycold
+   pyxccd

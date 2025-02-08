@@ -22,7 +22,7 @@ runtime dependencies, if desired these runtime dependencies can be installed man
 ``pip install -r requirements.txt`` or via invoking
 ``pip install -r`` on a specific files in the ``requirements`` subdirectory.
 
-Once GDAL and the Pyton build dependences are installed, pycold can be compiled
+Once GDAL and the Pyton build dependences are installed, pyxccd can be compiled
 and installed in development mode via:
 
 .. code:: bash
@@ -31,8 +31,8 @@ and installed in development mode via:
     pip install --no-build-isolation --verbose -e .[headless]
 
 This will install the Python dependencies, then compile the C dependencies
-in-place, and finally install the pycold Python package in development mode.
-Note specifying "headless" tells pycold which version of opencv to use. The
+in-place, and finally install the pyxccd Python package in development mode.
+Note specifying "headless" tells pyxccd which version of opencv to use. The
 alternative is "graphics", which is not recommended for fresh builds. Note: you
 may need to remove any existing ``_skbuild`` directly if you encounter a build
 error.
@@ -46,11 +46,11 @@ the correct path. This can be corrected via:
     # Workaround for a scikit-build editable install bug
     REPO_DPATH=$(pwd)
     SITE_DPATH=$(python -c "import distutils.sysconfig; print(distutils.sysconfig.get_python_lib())")
-    PYCOLD_EGG_LINK_FPATH="$SITE_DPATH"/pycold.egg-link
+    pyxccd_EGG_LINK_FPATH="$SITE_DPATH"/pyxccd.egg-link
     EASY_INSTALL_FPATH=$SITE_DPATH/easy-install.pth
-    echo "$REPO_DPATH/src/python" > "$PYCOLD_EGG_LINK_FPATH"
-    echo "../../" >> "$PYCOLD_EGG_LINK_FPATH"
-    mv pycold.egg-info ./src/python/
+    echo "$REPO_DPATH/src/python" > "$pyxccd_EGG_LINK_FPATH"
+    echo "../../" >> "$pyxccd_EGG_LINK_FPATH"
+    mv pyxccd.egg-info ./src/python/
     echo "$REPO_DPATH/src/python" >> "$EASY_INSTALL_FPATH"
 
 Again we note that the above steps and other minor details are consolidated in

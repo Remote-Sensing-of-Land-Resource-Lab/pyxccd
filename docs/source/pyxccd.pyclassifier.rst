@@ -1,7 +1,7 @@
-pycold.pyclassifier module
+pyxccd.pyclassifier module
 ==========================
 
-.. automodule:: pycold.pyclassifier
+.. automodule:: pyxccd.pyclassifier
    :members:
    :undoc-members:
    :show-inheritance:

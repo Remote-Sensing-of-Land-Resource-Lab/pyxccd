@@ -5,9 +5,9 @@ import numpy as np
 import joblib
 import pathlib
 from osgeo import gdal_array
-from pycold.pyclassifier import PyClassifierHPC
-from pycold.utils import assemble_array, class_from_dict
-from pycold.common import DatasetInfo
+from pyxccd.pyclassifier import PyClassifierHPC
+from pyxccd.utils import assemble_array, class_from_dict
+from pyxccd.common import DatasetInfo
 
 
 # Use this file to determine where the resources are.  If for some reason we

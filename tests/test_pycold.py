@@ -1,8 +1,8 @@
 # this script show how to run COLD from a csv file that store time series information
 import numpy as np
 import pathlib
-from pycold import cold_detect, obcold_reconstruct
-from pycold.utils import read_data
+from pyxccd import cold_detect, obcold_reconstruct
+from pyxccd.utils import read_data
 
 Landsat_bandname = ['Blue', 'Green', 'Red', 'NIR', 'SWIR1', 'SWIR2', 'Thermal']
 t_c = -200  # the threshold used for get_breakcategory

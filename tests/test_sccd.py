@@ -1,5 +1,5 @@
-from pycold import sccd_detect, sccd_update
-from pycold.utils import read_data
+from pyxccd import sccd_detect, sccd_update
+from pyxccd.utils import read_data
 import pickle
 import pathlib
 from collections import namedtuple
@@ -38,7 +38,7 @@ def test_sccd_update():
     sccd_plot = SccdOutput(*pickle.load(pickle_file))
 
     # Test that the named tuple structure is the same
-    from pycold._colds_cython import SccdOutput as SccdOutputCy
+    from pyxccd._colds_cython import SccdOutput as SccdOutputCy
     assert SccdOutputCy._fields == SccdOutput._fields
     assert sccd_plot._fields == SccdOutput._fields
 
@@ -58,7 +58,7 @@ def test_sccd_update():
 
     # Check that the packed numpy dtype hasn't unexpectedly changed between
     # testdata and the current library version.
-    from pycold._colds_cython import nrtmodel_dt
+    from pyxccd._colds_cython import nrtmodel_dt
     sccd_pack = sccd_plot
     assert nrtmodel_dt.itemsize == sccd_pack.nrt_model.dtype.itemsize, (
         'The test data does not correspond to the current code')

@@ -3,13 +3,13 @@ module folder is not in the root of the repo. I.e. the case where there is a
 source directory:
 
 
-I will use the module "pycold" and its submodule "pycold.demo" as the examples
+I will use the module "pyxccd" and its submodule "pyxccd.demo" as the examples
 for this issue.
 
 ```
 $REPO/setup.py
-$REPO/src/python/pycold/__init__.py
-$REPO/src/python/pycold/demo/__init__.py
+$REPO/src/python/pyxccd/__init__.py
+$REPO/src/python/pyxccd/demo/__init__.py
 ```
 
 
@@ -25,9 +25,9 @@ Given:
 ```
     package_dir={
         '': 'src/python/',
-        'pycold': 'src/python/pycold',
-        'pycold.demo': 'src/python/pycold/demo',
-        'pycold.demo.resources': 'src/python/pycold/demo/resources',
+        'pyxccd': 'src/python/pyxccd',
+        'pyxccd.demo': 'src/python/pyxccd/demo',
+        'pyxccd.demo.resources': 'src/python/pyxccd/demo/resources',
     },
 ```
 
@@ -35,7 +35,7 @@ Given:
 When I specify 
 
 ```
-packages=['pycold'],
+packages=['pyxccd'],
 ```
 
 I get:
@@ -47,25 +47,25 @@ I get:
     !!! <--FINALIZE EGG INFO> !!!
     <setuptools-egg-info>
     self.distribution = <skbuild.setuptools_wrap.setup.<locals>.BinaryDistribution object at 0x7fe5a08860a0>
-    self.distribution.package_dir = {'pycold.demo.resources': 'src/python/pycold/demo/resources', 'pycold.demo': 'src/python/pycold/demo', 'pycold': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pycold'}
-    self.egg_info = 'pycold.egg-info'
+    self.distribution.package_dir = {'pyxccd.demo.resources': 'src/python/pyxccd/demo/resources', 'pyxccd.demo': 'src/python/pyxccd/demo', 'pyxccd': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pyxccd'}
+    self.egg_info = 'pyxccd.egg-info'
     self.egg_base = '.'
     </setuptools-egg-info>
     self.egg_base = '.'
     !!! <//FINALIZE EGG INFO> !!!
     self.egg_base = '.'
     self.install_dir = '/home/joncrall/.pyenv/versions/3.8.6/envs/pyenv3.8.6/lib/python3.8/site-packages'
-    self.egg_path = '/home/joncrall/code/pycold'
+    self.egg_path = '/home/joncrall/code/pyxccd'
     self.setup_path = '.'
     running egg_info
-    writing pycold.egg-info/PKG-INFO
+    writing pyxccd.egg-info/PKG-INFO
 ```
 
 
 But in the case where
 
 ```
-packages=['pycold', 'pycold.demo', 'pycold.demo.resources'],
+packages=['pyxccd', 'pyxccd.demo', 'pyxccd.demo.resources'],
 ```
 
 I get:
@@ -77,22 +77,22 @@ I get:
     !!! <--FINALIZE EGG INFO> !!!
     <setuptools-egg-info>
     self.distribution = <skbuild.setuptools_wrap.setup.<locals>.BinaryDistribution object at 0x7f779a094a00>
-    self.distribution.package_dir = {'pycold': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pycold'}
-    self.egg_info = 'src/python/pycold.egg-info'
+    self.distribution.package_dir = {'pyxccd': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pyxccd'}
+    self.egg_info = 'src/python/pyxccd.egg-info'
     self.egg_base = 'src/python'
     </setuptools-egg-info>
     self.egg_base = 'src/python'
     !!! <//FINALIZE EGG INFO> !!!
     self.egg_base = 'src/python'
     self.install_dir = '/home/joncrall/.pyenv/versions/3.8.6/envs/pyenv3.8.6/lib/python3.8/site-packages'
-    self.egg_path = '/home/joncrall/code/pycold/src/python'
+    self.egg_path = '/home/joncrall/code/pyxccd/src/python'
     self.setup_path = '../../'
     running egg_info
-    writing src/python/pycold.egg-info/PKG-INFO
+    writing src/python/pyxccd.egg-info/PKG-INFO
 
 
 
-This is a problem because without specifying these packages, pycold.demo does
+This is a problem because without specifying these packages, pyxccd.demo does
 not get packaged in the wheel (although it is available in development mode)
 
 
@@ -103,7 +103,7 @@ If I remove details in `package_dir`:
     package_dir={
         '': 'src/python/',
     },
-    packages=['pycold'],
+    packages=['pyxccd'],
 ```
 
 I get:
@@ -116,18 +116,18 @@ I get:
     !!! <--FINALIZE EGG INFO> !!!
     <setuptools-egg-info>
     self.distribution = <skbuild.setuptools_wrap.setup.<locals>.BinaryDistribution object at 0x7fd7c70c3eb0>
-    self.distribution.package_dir = {'pycold': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pycold'}
-    self.egg_info = 'src/python/pycold.egg-info'
+    self.distribution.package_dir = {'pyxccd': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pyxccd'}
+    self.egg_info = 'src/python/pyxccd.egg-info'
     self.egg_base = 'src/python'
     </setuptools-egg-info>
     self.egg_base = 'src/python'
     !!! <//FINALIZE EGG INFO> !!!
     self.egg_base = 'src/python'
     self.install_dir = '/home/joncrall/.pyenv/versions/3.8.6/envs/pyenv3.8.6/lib/python3.8/site-packages'
-    self.egg_path = '/home/joncrall/code/pycold/src/python'
+    self.egg_path = '/home/joncrall/code/pyxccd/src/python'
     self.setup_path = '../../'
     running egg_info
-    writing src/python/pycold.egg-info/PKG-INFO
+    writing src/python/pyxccd.egg-info/PKG-INFO
 ```
 
 And then 
@@ -136,7 +136,7 @@ And then
     package_dir={
         '': 'src/python/',
     },
-    packages=['pycold', 'pycold.demo', 'pycold.demo.resources'],
+    packages=['pyxccd', 'pyxccd.demo', 'pyxccd.demo.resources'],
 
 ```
 
@@ -148,16 +148,16 @@ And then
     !!! <--FINALIZE EGG INFO> !!!
     <setuptools-egg-info>
     self.distribution = <skbuild.setuptools_wrap.setup.<locals>.BinaryDistribution object at 0x7fdd61d7f820>
-    self.distribution.package_dir = {'pycold.demo.resources': 'src/python/pycold/demo/resources', 'pycold.demo': 'src/python/pycold/demo', 'pycold': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pycold'}
-    self.egg_info = 'pycold.egg-info'
+    self.distribution.package_dir = {'pyxccd.demo.resources': 'src/python/pyxccd/demo/resources', 'pyxccd.demo': 'src/python/pyxccd/demo', 'pyxccd': '_skbuild/linux-x86_64-3.8/cmake-install/src/python/pyxccd'}
+    self.egg_info = 'pyxccd.egg-info'
     self.egg_base = '.'
     </setuptools-egg-info>
     self.egg_base = '.'
     !!! <//FINALIZE EGG INFO> !!!
     self.egg_base = '.'
     self.install_dir = '/home/joncrall/.pyenv/versions/3.8.6/envs/pyenv3.8.6/lib/python3.8/site-packages'
-    self.egg_path = '/home/joncrall/code/pycold'
+    self.egg_path = '/home/joncrall/code/pyxccd'
     self.setup_path = '.'
     running egg_info
-    writing pycold.egg-info/PKG-INFO
+    writing pyxccd.egg-info/PKG-INFO
 ```

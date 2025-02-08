@@ -4,17 +4,17 @@
        :height: 100px
        :align: left
 
-Welcome to pycold's documentation!
+Welcome to pyxccd's documentation!
 ==================================
 
 .. The __init__ files contains the top-level documentation overview
-.. automodule:: pycold.__init__
+.. automodule:: pyxccd.__init__
    :show-inheritance:
 
 .. toctree::
    :maxdepth: 5
 
-   pycold
+   pyxccd
 
 
 Indices and tables

@@ -1,6 +1,6 @@
 """
 This is a script to build a MWE of a build issue I'm having getting
-scikit-build to properly install PyCold in development mode.
+scikit-build to properly install pyxccd in development mode.
 
 Usage:
     python setup.py mwe generate
@@ -14,7 +14,7 @@ Usage:
 
     python setup.py mwe analyize
 
-    python ~/code/pycold/dev/mwe/setup.py mwe analyize --mod_name=pycold --repo_dpath=$HOME/code/pycold
+    python ~/code/pyxccd/dev/mwe/setup.py mwe analyize --mod_name=pyxccd --repo_dpath=$HOME/code/pyxccd
 """
 import sys
 

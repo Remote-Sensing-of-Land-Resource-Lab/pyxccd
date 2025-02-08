@@ -5,7 +5,7 @@ __pycache__
 *.cpython-*-*-*.so
 dist 
 _skbuild
-src/python/pycold/_colds_cython*.so
+src/python/pyxccd/_colds_cython*.so
 dist/*.whl
 build
 .idea

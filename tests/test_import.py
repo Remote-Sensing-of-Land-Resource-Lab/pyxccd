@@ -1,2 +1,2 @@
 def test_import():
-    import pycold
+    import pyxccd

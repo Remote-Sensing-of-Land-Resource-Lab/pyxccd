@@ -1,14 +1,14 @@
-These dockerfiles help to produce a reproducible build environment for PYCOLD.
+These dockerfiles help to produce a reproducible build environment for pyxccd.
 
 The base pyenv.dockerfile sets up an Ubuntu 20.04 image with an optimized pyenv
 virtual environment that is ready for use. This is used as the base image for
-the pycold.Dockerfile, which roughly corresponds to how a user would install it
+the pyxccd.Dockerfile, which roughly corresponds to how a user would install it
 on their system given an existing virtualenv.
 
 
 This process should work end-to-end using the following commands.
 
-Starting from the root of a fresh clone of the pycold repo: 
+Starting from the root of a fresh clone of the pyxccd repo: 
 
 .. code:: bash
 
@@ -18,13 +18,13 @@ Starting from the root of a fresh clone of the pycold repo:
         --build-arg PYTHON_VERSION=3.10.5 \
         -f ./dockerfiles/pyenv.Dockerfile .
 
-    # Build the pycold image on top of pyenv
+    # Build the pyxccd image on top of pyenv
     DOCKER_BUILDKIT=1 docker build --progress=plain \
-        -t "pycold:310" \
-        -f ./dockerfiles/pycold.Dockerfile .
+        -t "pyxccd:310" \
+        -f ./dockerfiles/pyxccd.Dockerfile .
 
     # Launch a shell in the docker container 
-    docker run -w /pycold -it pycold:310 bash
+    docker run -w /pyxccd -it pyxccd:310 bash
 
 
 Note that the pyenv image uses ``nvidia/cuda:11.4.3-cudnn8-devel-ubuntu20.04``

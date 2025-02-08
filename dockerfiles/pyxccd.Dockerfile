@@ -22,14 +22,14 @@ SHELL ["/bin/bash", "--login", "-c"]
 
 RUN echo $(pwd)
 
-COPY requirements.txt /pycold/
-COPY requirements /pycold/requirements
+COPY requirements.txt /pyxccd/
+COPY requirements /pyxccd/requirements
 
 # Setup primary dependencies
 RUN <<EOF
 #!/bin/bash
 source $HOME/activate
-cd /pycold
+cd /pyxccd
 # Always use the latest Python build tools
 python -m pip install pip -U 
 python -m pip install -r requirements.txt
@@ -42,11 +42,11 @@ python -m pip install setuptools==63.2.0
 EOF
 
 
-# Copy the pycold source (only copy the .git folder so we are careful to not
+# Copy the pyxccd source (only copy the .git folder so we are careful to not
 # copy any host build artifacts)
-COPY .git /pycold/.git
+COPY .git /pyxccd/.git
 
-WORKDIR /pycold
+WORKDIR /pyxccd
 
 # Use the .git repo to setup a clean checkout
 RUN git reset --hard HEAD
@@ -67,8 +67,8 @@ RUN <<EOF
 source $HOME/activate
 tree
 echo "Start simple tests"
-python -c "import pycold; print(pycold.__file__)"
-python -c "import pycold; print(pycold.__version__)"
+python -c "import pyxccd; print(pyxccd.__file__)"
+python -c "import pyxccd; print(pyxccd.__version__)"
 EOF
 
 
@@ -82,7 +82,7 @@ RUN <<EOF
 echo "
 # docker login
 # docker pull docker/dockerfile:1.3.0-labs
-cd $HOME/code/pycold
+cd $HOME/code/pyxccd
 
 DOCKER_BUILDKIT=1 docker build --progress=plain \
     -t "pyenv:310" \
@@ -90,10 +90,10 @@ DOCKER_BUILDKIT=1 docker build --progress=plain \
     -f ./dockerfiles/pyenv.Dockerfile .
 
 DOCKER_BUILDKIT=1 docker build --progress=plain \
-    -t "pycold:310" \
-    -f ./dockerfiles/pycold.Dockerfile .
+    -t "pyxccd:310" \
+    -f ./dockerfiles/pyxccd.Dockerfile .
 
-docker run -w /pycold -it pycold:310 bash
+docker run -w /pyxccd -it pyxccd:310 bash
 # docker buildx build -t "pyenv3.10" -f ./pyenv.Dockerfile --build-arg BUILD_STRICT=1 .
 "
 

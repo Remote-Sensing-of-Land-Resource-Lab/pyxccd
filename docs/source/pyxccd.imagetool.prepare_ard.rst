@@ -1,7 +1,7 @@
-pycold.imagetool.prepare\_ard module
+pyxccd.imagetool.prepare\_ard module
 ====================================
 
-.. automodule:: pycold.imagetool.prepare_ard
+.. automodule:: pyxccd.imagetool.prepare_ard
    :members:
    :undoc-members:
    :show-inheritance:
