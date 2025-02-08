@@ -16,7 +16,7 @@ This library mainly provides the below two algorithms and their toolsets for a l
 2. COntinuous monitoring of Land Disturbance (COLD): the latest CCDC algorithm for retrospective time-series analysis 
 
  
-**Aside from CCDC tools, e.g., `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_, you may consider using pyxccd for the below situations**:
+Aside from CCDC tools, e.g., `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_, you may consider using pyxccd for the below situations:
 
 1. Near real-time monitoring: this package provides unique S-CCD algorithm to recursively update model coefficients and detect changes
 
