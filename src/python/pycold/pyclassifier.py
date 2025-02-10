@@ -130,7 +130,7 @@ def generate_sample_num(label, sample_parameters):
         counts_category[int(unique_category[x] - 1)] = unique_counts_category[x]
     percate_samples = np.array(
         [
-            round(x * sample_parameters["total_samples"] / sum(counts_category))
+            round(x / sum(counts_category) * sample_parameters["total_samples"])
             for x in counts_category
         ]
     )
