@@ -4,8 +4,8 @@ on:
   push:
   pull_request:
     branches: [ devel, main ]
-  tags: [ '*' ]
-  workflow_dispatch:
+  # tags: [ '*' ]
+  # workflow_dispatch:
 
 jobs:
   build_win_wheels:
