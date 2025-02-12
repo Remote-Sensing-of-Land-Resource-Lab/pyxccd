@@ -1,10 +1,10 @@
 # Setup basic python stuff and ensure we have skbuild
 
-option(BUILD_pyxccd "Enable _colds_cython module" TRUE)
+option(BUILD_pyxccd "Enable _ccd_cython module" TRUE)
 if (BUILD_pyxccd)
 
-  set(cython_source "_colds_cython.pyx")
-  set(pyxccd_MODULE_NAME "_colds_cython")
+  set(cython_source "_ccd_cython.pyx")
+  set(pyxccd_MODULE_NAME "_ccd_cython")
 
   # Translate Cython into C/C++
   add_cython_target(${pyxccd_MODULE_NAME} "${cython_source}" C OUTPUT_VAR sources)

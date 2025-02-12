@@ -1,4 +1,4 @@
-from ._colds_cython import (
+from ._ccd_cython import (
     _sccd_update,
     _sccd_detect,
     _obcold_reconstruct,

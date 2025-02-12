@@ -89,7 +89,7 @@ else
 fi
 
 # Also clean up any shared libraries
-rm src/python/pyxccd/_colds_cython.*.so
+rm src/python/pyxccd/_ccd_cython.*.so
 # Clean up old egg links and such
 rm -rf src/python/pyxccd.egg-info
 rm -rf pyxccd.egg-info
@@ -203,4 +203,4 @@ echo "$REPO_DPATH/src/python" >> "$EASY_INSTALL_FPATH"
 echo "Quick pyxccd tests to verify the install:"
 echo "pyxccd Version: $(python -c 'import pyxccd; print(pyxccd.__version__)')"
 echo "Python Package Location: $(python -c 'import pyxccd; print(pyxccd.__file__)')"
-echo "Compiled Cython Module: $(python -c 'import pyxccd; print(pyxccd._colds_cython.__file__)')"
+echo "Compiled Cython Module: $(python -c 'import pyxccd; print(pyxccd._ccd_cython.__file__)')"
