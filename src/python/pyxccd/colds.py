@@ -4,7 +4,7 @@ from ._colds_cython import (
     _obcold_reconstruct,
     _cold_detect,
     _cold_detect_flex,
-    _sccd_detect_flex
+    _sccd_detect_flex,
 )
 import numpy as np
 from .common import SccdOutput
@@ -38,7 +38,7 @@ _parameter_constraints: dict = {
     "t_angle": [Interval(Integral, 0, 180, closed="neither")],
     "transform_mode": ["boolean"],
     "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
-    "fitlam": [Interval(Real, 0.0, 100, closed="left")]
+    "fitlam": [Interval(Real, 0.0, 100, closed="left")],
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
@@ -74,14 +74,14 @@ def _validate_data(
     validate and forcibly change the data format
     Parameters
     ----------
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_b: 1d array of shape(observation numbers), time series of blue band.
-    ts_g: 1d array of shape(observation numbers), time series of green band
-    ts_r: 1d array of shape(observation numbers), time series of red band
-    ts_n: 1d array of shape(observation numbers), time series of nir band
-    ts_s1: 1d array of shape(observation numbers), time series of swir1 band
-    ts_s2: 1d array of shape(observation numbers), time series of swir2 band
-    ts_t: 1d array of shape(observation numbers), time series of thermal band
+    dates: 1d array of shape(n_obs,), list of ordinal dates
+    ts_b: 1d array of shape(n_obs,), time series of blue band.
+    ts_g: 1d array of shape(n_obs,), time series of green band
+    ts_r: 1d array of shape(n_obs,), time series of red band
+    ts_n: 1d array of shape(n_obs,), time series of nir band
+    ts_s1: 1d array of shape(n_obs,), time series of swir1 band
+    ts_s2: 1d array of shape(n_obs,), time series of swir2 band
+    ts_t: 1d array of shape(n_obs,), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
 
     Returns
@@ -111,8 +111,7 @@ def _validate_data(
     if break_dates is not None:
         break_dates = break_dates.astype(dtype=np.int64, order="C")
         return dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates
-    else:
-        return dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
+    return dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
 
 
 def _validate_data_flex(dates, ts_data, qas):
@@ -120,8 +119,8 @@ def _validate_data_flex(dates, ts_data, qas):
     validate and forcibly change the data format
     Parameters
     ----------
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_data: 2d array of shape(observation numbers), time series stack for inputs
+    dates: 1d array of shape(n_obs,), list of ordinal dates
+    ts_data: 2d array of shape(n_obs,), time series stack for inputs
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
 
     Returns
@@ -221,7 +220,7 @@ def cold_detect(
     cm_output_interval=0,
     b_c2=True,
     gap_days=365.25,
-    fitlam=20
+    fitlam=20,
 ):
     """
     pixel-based COLD algorithm.
@@ -230,34 +229,67 @@ def cold_detect(
     Remote Sensing of Environment, 38, 111116.
     Parameters
     ----------
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_b: 1d array of shape(observation numbers), time series of blue band.
-    ts_g: 1d array of shape(observation numbers), time series of green band
-    ts_r: 1d array of shape(observation numbers), time series of red band
-    ts_n: 1d array of shape(observation numbers), time series of nir band
-    ts_s1: 1d array of shape(observation numbers), time series of swir1 band
-    ts_s2: 1d array of shape(observation numbers), time series of swir2 band
-    ts_t: 1d array of shape(observation numbers), time series of thermal band
+    dates: 1d array of shape(n_obs,), list of ordinal dates
+    ts_b: 1d array of shape(n_obs,), time series of blue band.
+    ts_g: 1d array of shape(n_obs,), time series of green band
+    ts_r: 1d array of shape(n_obs,), time series of red band
+    ts_n: 1d array of shape(n_obs,), time series of nir band
+    ts_s1: 1d array of shape(n_obs,), time series of swir1 band
+    ts_s2: 1d array of shape(n_obs,), time series of swir2 band
+    ts_t: 1d array of shape(n_obs,), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: probability threshold of change magnitude, default is 0.99
-    pos: position id of the pixel
-    conse: consecutive observation number
-    b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
-    starting_date: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile
-                    should have the same date, only for b_output_cm is True. Only b_output_cm == 'True'
-    n_cm: the length of outputted change magnitude. Only b_output_cm == 'True'
-    cm_output_interval: the temporal interval of outputting change magnitudes. Only b_output_cm == 'True'
+    conse: consecutive observation number, default is 6
+    pos: position id of the pixel, default is 1
+    b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for
+                object-based COLD, default is False
+    starting_date: the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile.
+                    should have the same date, only for b_output_cm is True. default is 0.
+    n_cm: the length of outputted change magnitude. Only b_output_cm == 'True'. default is 0.
+    cm_output_interval: the temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. default is 0.
     b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
-          test due to the current low quality
-    gap_days: define the day number of the gap year for determining i_dense. Setting a large value (e.g., 1500)
-                if the gap year in the middle of the time range
+          test due to the current low quality. default is True
+    gap_days: define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days
+            to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year
+            is in the middle of the time range. default is 365.25.
     fitlam: the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
-    Returns
+    Returns: a 1-d array of structured type "output_rec_cg"
     ----------
     change records: the COLD outputs that characterizes each temporal segment if b_output_cm==False
     Or
     [change records, cm_outputs, cm_outputs_date] if b_output_cm==True
+
+    output_rec_cg: [{
+        t_start: int, ordinal date when series model gets started
+        t_end: int, ordinal date when series model gets ended
+        t_break: int, ordinal date when the first break (change) is detected
+        pos: int, the location of each time series model (i * n_row + j), e.g., the pos of (1000, 1) is 5000*1000+1
+        num_obs: int,  the number of clear observations used for model estimation
+        category: short, the quality of the model estimation (what model is used, what process is used)
+            The current category in output structure:
+                first digit:
+                0: normal model (no change)
+                1: change at the beginning of time series model
+                2: change at the end of time series model
+                3: disturbance change in the middle
+                4: fmask fail scenario
+                5: permanent snow scenario
+                6: outside user mask
+                second digit:
+                1: model has only constant term
+                4: model has 3 coefs + 1 const
+                6: model has 5 coefs + 1 const
+                8: model has 7 coefs + 1 const*
+        change_prob: short, the probability of a pixel that have undergone change (between 0 and 100)
+        coefs: 2-d array of shape (nbands, coefs_number), eight harmonic coefficients for each
+                spectral band (intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodel,
+                sin_trimodel). Note the slope has been multiplied by 10000.
+        rmse: 1-d array of shape (nbands,)
+        magntiude: 1-d array of shape (nbands, ), the median difference between model prediction and
+                    observations of a window of conse observations following detected breakpoint
+        }
+    ]
     """
 
     _validate_params(
@@ -271,7 +303,7 @@ def cold_detect(
         cm_output_interval=cm_output_interval,
         b_c2=b_c2,
         gap_days=gap_days,
-        fitlam=fitlam
+        fitlam=fitlam,
     )
 
     # make sure it is c contiguous array and 64 bit
@@ -299,7 +331,7 @@ def cold_detect(
         cm_output_interval,
         b_c2,
         gap_days,
-        fitlam
+        fitlam,
     )
 
 
@@ -322,14 +354,14 @@ def obcold_reconstruct(
     re-contructructing change records using break dates.
     Parameters
     ----------
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_b: 1d array of shape(observation numbers), time series of blue band.
-    ts_g: 1d array of shape(observation numbers), time series of green band
-    ts_r: 1d array of shape(observation numbers), time series of red band
-    ts_n: 1d array of shape(observation numbers), time series of nir band
-    ts_s1: 1d array of shape(observation numbers), time series of swir1 band
-    ts_s2: 1d array of shape(observation numbers), time series of swir2 band
-    ts_t: 1d array of shape(observation numbers), time series of thermal band
+    dates: 1d array of shape (n_obs,, ), list of ordinal dates
+    ts_b: 1d array of shape (n_obs,, ), time series of blue band.
+    ts_g: 1d array of shape (n_obs,, ), time series of green band
+    ts_r: 1d array of shape (n_obs,, ), time series of red band
+    ts_n: 1d array of shape (n_obs,, ), time series of nir band
+    ts_s1: 1d array of shape (n_obs,, ), time series of swir1 band
+    ts_s2: 1d array of shape (n_obs,, ), time series of swir2 band
+    ts_t: 1d array of shape (n_obs,, ), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     break_dates: 1d array, the break dates obtained from other procedures such as obia
     conse: consecutive observation number (for calculating change magnitudes)
@@ -338,7 +370,37 @@ def obcold_reconstruct(
 
     Returns
     ----------
-    change records: the COLD outputs that characterizes each temporal segment
+    a 1-d array of structured type
+    output_rec_cg:
+    {
+        t_start: int, ordinal date when series model gets started
+        t_end: int, ordinal date when series model gets ended
+        t_break: int, ordinal date when the first break (change) is detected
+        pos: int, the location of each time series model (i * (n_row-1) + j), e.g., the pos of (1000, 1) is 5000*(1000-1)+1
+        num_obs: int,  the number of clear observations used for model estimation
+        category: short, the quality of the model estimation (what model is used, what process is used)
+            The current category in output structure:
+                first digit:
+                0: normal model (no change)
+                1: change at the beginning of time series model
+                2: change at the end of time series model
+                3: disturbance change in the middle
+                4: fmask fail scenario
+                5: permanent snow scenario
+                6: outside user mask
+                second digit:
+                1: model has only constant term
+                4: model has 3 coefs + 1 const
+                6: model has 5 coefs + 1 const
+                8: model has 7 coefs + 1 const*
+        change_prob: short, the probability of a pixel that have undergone change (between 0 and 100)
+        coefs: 2-d array of shape (7, 8), each row represents the bands following the order (blue, green, red, nir, swir1, swir2, thermal)
+            which has eight harmonic coefficients, i.e., intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodel, sin_trimodel.
+            Note the slope has been multiplied by 10000.
+        rmse: 1-d array of shape (7, 8),  RMSE for each time series model for seven spectral band
+        magntiude: 1-d array of shape (7, ), the median difference between model prediction and
+                    observations of a window of conse observations following detected breakpoint
+    }
     """
     _validate_params(func_name="sccd_detect", pos=pos, conse=conse, b_c2=b_c2)
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates = (
@@ -372,7 +434,6 @@ def sccd_detect(
     ts_n,
     ts_s1,
     ts_s2,
-    ts_t,
     qas,
     p_cg=0.99,
     conse=6,
@@ -381,7 +442,7 @@ def sccd_detect(
     b_pinpoint=False,
     gate_pcg=0.90,
     state_intervaldays=0.0,
-    b_fitting_coefs=False
+    b_fitting_coefs=False,
 ):
     """
     pixel-based offline SCCD algorithm.
@@ -391,31 +452,96 @@ def sccd_detect(
 
     Parameters
     ----------
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_b: 1d array of shape(observation numbers), time series of blue band.
-    ts_g: 1d array of shape(observation numbers), time series of green band
-    ts_r: 1d array of shape(observation numbers), time series of red band
-    ts_n: 1d array of shape(observation numbers), time series of nir band
-    ts_s1: 1d array of shape(observation numbers), time series of swir1 band
-    ts_s2: 1d array of shape(observation numbers), time series of swir2 band
-    ts_t: 1d array of shape(observation numbers), time series of thermal band
+    dates: 1d array of shape(n_obs,), list of ordinal dates
+    ts_b: 1d array of shape(n_obs,), time series of blue band.
+    ts_g: 1d array of shape(n_obs,), time series of green band
+    ts_r: 1d array of shape(n_obs,), time series of red band
+    ts_n: 1d array of shape(n_obs,), time series of nir band
+    ts_s1: 1d array of shape(n_obs,), time series of swir1 band
+    ts_s2: 1d array of shape(n_obs,), time series of swir2 band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    p_cg: probability threshold of change magnitude, 0.99
-    conse: consecutive observation number
-    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
-    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
-                test due to its current low quality
+    p_cg: probability threshold of change magnitude. The default 0.99
+    conse: consecutive observation number. by default 6.
+    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1. by default 1.
+    b_c2: bool, a temporal parameter to indicate if collection 2. C2 ignores thermal band for valid pixel
+                test due to its current low quality. by default True.
     b_pinpoint: bool, output pinpoint break where pinpoint is an overdetection of break using conse =3
-                        and threshold = gate_tcg, which are used to simulate the situation of NRT scenario and
-                        for training a machine-learning model
-    gate_pcg: the gate change probability threshold for defining spectral anomaly (for the follow-up supervised approach)
-    state_intervaldays: the day interval for output states
-    b_fitting_coefs: True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients 
+                        and threshold = gate_tcg, which overdetects anomalies to simulate the situation
+                        of NRT scenario and for training a retrospective model. by default True.
+    gate_pcg: float, the gate change probability threshold for defining spectral anomalies (NRT)/pinpoints. by default 0.90.
+    state_intervaldays: float, the day interval for output states. by default 0.0.
+    b_fitting_coefs: True indicates using curve fitting to get harmonic coefficients for the segment,
+                    otherwise use the local coefficients from kalman filter. by default False.
     Returns
     ----------
-    SccdOutput: the SCCD outputs that characterizes each temporal segment if b_pinpoint==False
-    Or
-    [SccdOutput, SccdReccgPinpoint]: b_pinpoint==True
+    SccdOutput: namedtype, if b_pinpoint==False and b_output_state==False
+    [SccdOutput, state_days, state_ensemble]:[namedtype, 1-d array, 2-d array], if b_pinpoint==False and b_output_state==True
+    [SccdOutput, SccdReccgPinpoint]: [namedtype, 1-d array of structured type], if b_pinpoint==True
+    SccdOutput: namedtype[pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue]
+        pos: int, the location of each time series model (i * (n_row-1) + j), e.g., the pos of (1000, 1) is 5000*(1000-1)+1
+        output_rec_cg: a structured type,
+        {
+            t_start: int, ordinal date when series model gets started
+            t_break: int, ordinal date when the first break (change) is detected
+            num_obs: int,  the number of clear observations used for model estimation
+            coefs: 2-d array of shape (6, 6), each row represents the bands following the order
+            (blue, green, red, nir, swir1, swir2) which has six harmonic coefficients, i.e., intercept,
+            slope, cos_annual, sin_annual, cos_semi, sin_semi.
+            Note the slope has been multiplied by 10000, and S-CCD uses 6-coefs model instead of 8-coefs that COLD uses
+            rmse: 1-d array of shape (6,), RMSE for each time series model for seven spectral band
+            magntiude: 1-d array of shape (6, ) for six spectral bands, the median difference
+                        between model prediction and observations of a window of conse observations
+                        following detected breakpoint
+        }
+        min_rmse: a 1-d array of shape(6,), minimum RMSE which was obtained by temporal semivariogram.
+            This array is unchanged since it is first set
+        nrt_mode: the current sccd mode for the pixel
+            0 - void mode, not start yet
+            1 - monitoring mode.
+            11 - monitoring mode, but not passing predictability test
+            2 - queue mode. Once the break is detected, the mode is transition from monitoring to queue mode
+            3 - monitoring mode for snow
+            4 - queue mode for snow
+            5 - transition mode from monitoring to queue mode (keep nrt_model and nrt_queue both), keeping 15 days since the break is first detected
+        nrt_model: a structured type. Has valid values when nrt_mode = 1/3/5
+        {
+            t_start_since1982: short, the date number since 1982/1/1, equal to ordinal date - 723546
+            num_obs: short, the accumulated observation number for the current segment
+            obs: 2-d array of shape (6, 8). The 6 spectral bands (blue, green, red, nir, swir1, swir2) for last 8 observations
+            obs_date_since1982: 1-d array of shape (8,). The date number since 1982/1/1 for the last 8 observations
+            covariance: 2-d array of shape (6, 36). The covariance matrix for six bands (blue, green, red, nir, swir1, swir2). Each band has a 6*6 matrix (the matrix has been flatten into 1d)
+            nrt_coefs: 2-d array of shape (6, 6). The current harmonic models for six spectral bands (blue, green, red, nir, swir1, swir2). Each row has 6 coefficients for each band.
+            H:1-d array of shape (6,1). Observation noise for six bands (blue, green, red, nir, swir1, swir2)
+            rmse_sum: 1-d array of shape (6,). RMSE for six bands (blue, green, red, nir, swir1, swir2)
+            norm_cm: short, ,the current normalized change magnitude for the last conse_last spectral anomalies, multiplied by 100
+            cm_angle: short, the included angale fot the last conse_last spectral anomalies, multiplied by 100
+            conse_last: char, the current anomaly number at the tail of the time series. The anomalies were defined as the obs that are larger than gate_pcg
+        }
+        nrt_queue: a 1-d array of structured type "nrtqueue_dt". Store the observations in the queue.
+                    Has valid values when nrt_mode = 2/4/5.
+            nrtqueue_dt
+            {
+                clry: 1-d array of shape (6,), the spectral bands
+                clrx_since1982: short, the date number since 1982/1/1, equal to ordinal date - 723546
+            }
+
+
+    state_days: int, 1-d array (n_states,). The ordinal dates for the output states.
+    states_ensemble: 2-d array (n_states, 18). The column index are
+                    ['blue_trend', 'green_trend', 'red_trend', 'nir_trend', 'swir1_trend', 'swir2_trend',
+                     'blue_annual', 'green_annual', 'red_annual', 'nir_annual', 'swir1_annual', 'swir2_annual',
+                     'blue_semiannual', 'green_semiannual', 'red_semiannual', 'nir_semiannual', 'swir1_semiannual', 'swir2_semiannual']
+
+    SccdReccgPinpoint: a structured type. Overdetected the spectral anomalies as "pinpoints" using conse =3 and threshold=gate_pcg
+                        SccdReccgPinpoint is used to trained a retrospective machine learning model for NRT scenario
+    {
+        t_break: int, ordinal date when the first break (change) is detected
+        coefs: 2-d array of shape (6, 6), each row represents the bands following the order
+        obs: 2-d array of shape (6, 8). The 6 spectral bands (blue, green, red, nir, swir1, swir2) for last 8 observations tracing from the break
+        obs_date_since1982: 1-d array of shape (8,). The date number since 1982/1/1 for the last 8 observations tracing from the break.
+        norm_cm: short, normalized change magnitude for the last conse_last spectral anomalies, multiplied by 100 and rounded
+        cm_angle: short, included angale fot the last conse_last spectral anomalies, multiplied by 100 and rounded
+    }
     """
     _validate_params(
         func_name="sccd_detect",
@@ -427,6 +553,7 @@ def sccd_detect(
         gate_pcg=gate_pcg,
         state_intervaldays=state_intervaldays,
     )
+    ts_t = np.zeros(ts_b.shape)
     # make sure it is c contiguous array and 64 bit
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
@@ -460,7 +587,7 @@ def sccd_detect(
         9.236,
         b_output_state,
         state_intervaldays,
-        b_fitting_coefs
+        b_fitting_coefs,
     )
 
 
@@ -473,12 +600,10 @@ def sccd_update(
     ts_n,
     ts_s1,
     ts_s2,
-    ts_t,
     qas,
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_c2=True,
     gate_pcg=0.90,
     predictability_pcg=0.90,
 ):
@@ -491,26 +616,63 @@ def sccd_update(
     Parameters
     ----------
     sccd_pack:
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_b: 1d array of shape(observation numbers), time series of blue band.
-    ts_g: 1d array of shape(observation numbers), time series of green band
-    ts_r: 1d array of shape(observation numbers), time series of red band
-    ts_n: 1d array of shape(observation numbers), time series of nir band
-    ts_s1: 1d array of shape(observation numbers), time series of swir1 band
-    ts_s2: 1d array of shape(observation numbers), time series of swir2 band
-    ts_t: 1d array of shape(observation numbers), time series of thermal band
+    dates: 1d array of shape(n_obs,), list of ordinal dates
+    ts_b: 1d array of shape(n_obs,), time series of blue band.
+    ts_g: 1d array of shape(n_obs,), time series of green band
+    ts_r: 1d array of shape(n_obs,), time series of red band
+    ts_n: 1d array of shape(n_obs,), time series of nir band
+    ts_s1: 1d array of shape(n_obs,), time series of swir1 band
+    ts_s2: 1d array of shape(n_obs,), time series of swir2 band
+    ts_t: 1d array of shape(n_obs,), time series of thermal band
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
-    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
-    conse: consecutive observation number
-    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
-                test due to its current low quality
-    gate_pcg: the gate change magnitude threshold for defining anomaly
-    predictability_pcg: the threshold for predictability test
+    p_cg: float, probability threshold of change magnitude, default is chi2.ppf(0.99,5), by default 0.99
+    pos: int, position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1. by default 1.
+    conse: int, consecutive observation number. by default 6.
+    gate_pcg: float, the gate probability threshold for defining spectral anomalies. by default 0.90.
+    predictability_pcg: float, the probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
     Returns
     ----------
-    change records: the SCCD outputs that characterizes each temporal segment
+    SccdOutput: namedtype [pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue]
+        pos: int, the location of each time series model (i * (n_row-1) + j), e.g., the pos of (1000, 1) is 5000*(1000-1)+1
+        output_rec_cg: a structured type,
+        {
+            t_start: int, ordinal date when series model gets started
+            t_break: int, ordinal date when the first break (change) is detected
+            num_obs: int,  the number of clear observations used for model estimation
+            coefs: 2-d array of shape (6, 6), each row represents the bands following the order
+            (blue, green, red, nir, swir1, swir2) which has six harmonic coefficients, i.e., intercept,
+            slope, cos_annual, sin_annual, cos_semi, sin_semi.
+            Note the slope has been multiplied by 10000, and S-CCD uses 6-coefs model instead of 8-coefs that COLD uses
+            rmse: 1-d array of shape (6,), RMSE for each time series model for seven spectral band
+            magntiude: 1-d array of shape (6, ) for six spectral bands, the median difference
+                        between model prediction and observations of a window of conse observations
+                        following detected breakpoint
+        }
+        min_rmse: a 1-d array of shape(6,), minimum RMSE which was obtained by temporal semivariogram.
+            This array is unchanged since it is first set
+        nrt_mode: the current sccd mode for the pixel
+            0 - void mode, not start yet
+            1 - monitoring mode.
+            11 - monitoring mode, but not passing predictability test
+            2 - queue mode. Once the break is detected, the mode is transition from monitoring to queue mode
+            3 - monitoring mode for snow
+            4 - queue mode for snow
+            5 - transition mode from monitoring to queue mode (keep nrt_model and nrt_queue both), keeping 15 days since the break is first detected
+        nrt_model: a structured type. Has valid values when nrt_mode = 1/3/5
+        {
+            t_start_since1982: short, the date number since 1982/1/1, equal to ordinal date - 723546
+            num_obs: short, the accumulated observation number for the current segment
+            obs: 2-d array of shape (6, 8). The 6 spectral bands (blue, green, red, nir, swir1, swir2) for last 8 observations
+            obs_date_since1982: 1-d array of shape (8,). The date number since 1982/1/1 for the last 8 observations
+            covariance: 2-d array of shape (6, 36). The covariance matrix for six bands (blue, green, red, nir, swir1, swir2). Each band has a 6*6 matrix (the matrix has been flatten into 1d)
+            nrt_coefs: 2-d array of shape (6, 6). The current harmonic models for six spectral bands (blue, green, red, nir, swir1, swir2). Each row has 6 coefficients for each band.
+            H:1-d array of shape (6,1). Observation noise for six bands (blue, green, red, nir, swir1, swir2)
+            rmse_sum: 1-d array of shape (6,). RMSE for six bands (blue, green, red, nir, swir1, swir2)
+            norm_cm: short, ,the current normalized change magnitude for the last conse_last spectral anomalies, multiplied by 100
+            cm_angle: short, the included angale fot the last conse_last spectral anomalies, multiplied by 100
+            conse_last: char, the current anomaly number at the tail of the time series. The anomalies were defined as the obs that are larger than gate_pcg
+        }
     """
     # if not isinstance(sccd_pack, SccdOutput):
     #     raise ValueError("The type of sccd_pack has to be namedtuple 'SccdOutput'!")
@@ -520,12 +682,11 @@ def sccd_update(
         p_cg=p_cg,
         pos=pos,
         conse=conse,
-        b_c2=b_c2,
         b_pinpoint=False,
         gate_pcg=gate_pcg,
         predictability_pcg=predictability_pcg,
     )
-
+    ts_t = np.zeros(ts_b.shape)
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
     )
@@ -546,9 +707,9 @@ def sccd_update(
         t_cg,
         conse,
         pos,
-        b_c2,
+        True,
         gate_tcg,
-        predictability_tcg
+        predictability_tcg,
     )
 
 
@@ -558,23 +719,24 @@ def sccd_identify(
     p_cg=0.99,
     t_cg_singleband=-200,
     t_angle=45,
-    transform_mode=True,
+    transform_mode=False,
 ):
     """
     identify disturbance date from sccd_pack
     Parameters
     ----------
-    sccd_pack: sccd data structure
-    dist_conse: user-specify disturbance conse
-    p_cg: user-specify change magnitudes 
-    t_cg_singleband: user-specify change magnitude for each band to identify greener direction
+    sccd_pack: namedtuple
+    dist_conse: int, the observation number, by default 6
+    p_cg: float, change magnitude probability threshold, by default 0.99
+    t_cg_singleband: float, single-band change magnitude to identify greenning breaks, by default -200
       see Eq. 10 in Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., & Zhou, C. (2020).
       Continuous monitoring of land disturbance based on Landsat time series. Remote Sensing of Environment, 238, 111116.
-    t_angle_scale100: (scale by 100)
-    transform_mode: true -> transform the mode to untested predictability once the change has been detected
+    t_angle_scale100: float, threshold for included angle (scale by 100), by default 45
+    transform_mode: bool, transform the mode to untested predictability once the change has been detected, by default False
     Returns
     -------
-    0 (no disturbance) or the ordinal date of disturbance occurrence
+    int
+        0 (no disturbance) or the ordinal date of disturbance occurrence
     """
     _validate_params(
         func_name="sccd_identify",
@@ -639,7 +801,7 @@ def cold_detect_flex(
     gap_days=365.25,
     tmask_b1=1,
     tmask_b2=1,
-    fitlam=20
+    fitlam=20,
 ):
     """
     pixel-based COLD algorithm.
@@ -648,8 +810,8 @@ def cold_detect_flex(
     Remote Sensing of Environment, 38, 111116.
     Parameters
     ----------
-    dates: 1d array of shape (observation numbers), list of ordinal dates
-    ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
+    dates: 1d array of shape (n_obs,), list of ordinal dates
+    ts_stack: 2d array of shape (n_obs,), horizontally stacked multispectral time series.
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: probaility threshold of change magnitude, default is 0.99
     pos: position id of the pixel
@@ -681,7 +843,7 @@ def cold_detect_flex(
         n_cm=n_cm,
         cm_output_interval=cm_output_interval,
         gap_days=gap_days,
-        fitlam=fitlam
+        fitlam=fitlam,
     )
 
     # make sure it is c contiguous array and 64 bit
@@ -693,9 +855,7 @@ def cold_detect_flex(
             f"Can't input more than {MAX_FLEX_BAND} bands ({nbands} > {MAX_FLEX_BAND})"
         )
     if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError(
-            f"tmask_b1 or tmask_b2 is larger than the input band number"
-        )
+        raise RuntimeError(f"tmask_b1 or tmask_b2 is larger than the input band number")
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.99999, nbands)
     rec_cg = _cold_detect_flex(
@@ -715,7 +875,7 @@ def cold_detect_flex(
         gap_days,
         tmask_b1,
         tmask_b2,
-        fitlam
+        fitlam,
     )
     # dt = np.dtype([('t_start', np.int32), ('t_end', np.int32), ('t_break', np.int32), ('pos', np.int32),
     #                ('nm_obs', np.int32), ('category', np.int16), ('change_prob', np.int16), ('change_prob', np.int16)])
@@ -735,7 +895,7 @@ def sccd_detect_flex(
     state_intervaldays=0.0,
     tmask_b1=1,
     tmask_b2=1,
-    b_fitting_coefs=False
+    b_fitting_coefs=False,
 ):
     """
     pixel-based offline SCCD algorithm.
@@ -745,8 +905,8 @@ def sccd_detect_flex(
 
     Parameters
     ----------
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
+    dates: 1d array of shape(n_obs,), list of ordinal dates
+    ts_stack: 2d array of shape (n_obs, nbands), horizontally stacked multispectral time series.
     qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: probaility threshold of change magnitude, default is 0.99
     conse: consecutive observation number
@@ -763,9 +923,9 @@ def sccd_detect_flex(
     b_fitting_coefs: True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients
     Returns
     ----------
-    SccdOutput: the SCCD outputs that characterizes each temporal segment if b_pinpoint==False
+    SccdOutput: 1-d array of structured type, if b_pinpoint==False
     Or
-    [SccdOutput, SccdReccgPinpoint]: b_pinpoint==True
+    [SccdOutput, SccdReccgPinpoint], if b_pinpoint==True
     """
     _validate_params(
         func_name="sccd_detect_flex",
@@ -786,10 +946,8 @@ def sccd_detect_flex(
             f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
         )
     if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError(
-            f"tmask_b1 or tmask_b2 is larger than the input band number"
-        )
-    
+        raise RuntimeError(f"tmask_b1 or tmask_b2 is larger than the input band number")
+
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
     gate_tcg = chi2.ppf(gate_pcg, nbands)
@@ -800,26 +958,26 @@ def sccd_detect_flex(
     b_output_state = False if state_intervaldays == 0 else True
 
     return _sccd_detect_flex(
-            dates,
-            ts_stack.flatten(),
-            qas,
-            valid_num_scenes,
-            nbands,
-            t_cg,
-            max_t_cg,
-            conse,
-            pos,
-            b_c2,
-            b_pinpoint,
-            gate_tcg,
-            0,
-            b_output_state,
-            state_intervaldays,
-            tmask_b1,
-            tmask_b2,
-            b_fitting_coefs
-        )
-    
+        dates,
+        ts_stack.flatten(),
+        qas,
+        valid_num_scenes,
+        nbands,
+        t_cg,
+        max_t_cg,
+        conse,
+        pos,
+        b_c2,
+        b_pinpoint,
+        gate_tcg,
+        0,
+        b_output_state,
+        state_intervaldays,
+        tmask_b1,
+        tmask_b2,
+        b_fitting_coefs,
+    )
+
 
 def sccd_update_flex(
     sccd_pack,
@@ -833,7 +991,7 @@ def sccd_update_flex(
     gate_pcg=0.90,
     predictability_pcg=0.90,
     tmask_b1=1,
-    tmask_b2=1
+    tmask_b2=1,
 ):
     """
     SCCD online update for new observations
@@ -843,19 +1001,19 @@ def sccd_update_flex(
 
     Parameters
     ----------
-    sccd_pack:
-    dates: 1d array of shape(observation numbers), list of ordinal dates
-    ts_stack: 2d array of shape (observation numbers), horizontally stacked multispectral time series.
-    qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    p_cg: probability threshold of change magnitude
-    conse: consecutive observation number
-    pos: position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1
-    b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel
-                test due to its current low quality
-    gate_pcg: the gate change magnitude probability threshold for defining anomaly
-    predictability_pcg: the probability threshold for predictability test
-    tmask_b1: the first band id for tmask
-    tmask_b2: the second band id for tmas
+    sccd_pack: namedtuple
+    dates: 1-d array of shape(n_obs,), list of ordinal dates
+    ts_stack: 2-d array of shape (n_obs,), horizontally stacked multispectral time series.
+    qas: 1-d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    p_cg: float, probability threshold of change magnitude, by default 0.99
+    conse: int, consecutive observation number, by default 6
+    pos: int, position id of the pixel, i.e.,  (row -1) * ncols + col, row and col starts from 1, by default 1
+    b_c2: bool, indicate if the dataset is collection 2. C2 needs ignoring thermal band for valid pixel
+                test due to its current low quality, by default True
+    gate_pcg: float, the gate change magnitude probability threshold for defining anomalies, by default 0.90
+    predictability_pcg: float, the probability threshold for predictability test, by default 0.90
+    tmask_b1: int, the first band id for tmask, by default 1
+    tmask_b2: int, the second band id for tmask, by default 1
     Returns
     ----------
     change records: the SCCD outputs that characterizes each temporal segment
@@ -882,15 +1040,13 @@ def sccd_update_flex(
             f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
         )
     if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError(
-            f"tmask_b1 or tmask_b2 is larger than the input band number"
-        )
-    
+        raise RuntimeError(f"tmask_b1 or tmask_b2 is larger than the input band number")
+
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
     gate_tcg = chi2.ppf(gate_pcg, nbands)
     predictability_tcg = chi2.ppf(predictability_pcg, nbands)
-    
+
     return _sccd_detect_flex(
         sccd_pack,
         dates,
@@ -909,5 +1065,5 @@ def sccd_update_flex(
         False,
         0,
         tmask_b1,
-        tmask_b2
+        tmask_b2,
     )

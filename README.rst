@@ -9,26 +9,23 @@ PYXCCD
 A PYthon library for basic and eXtended COntinuous Change Detection algorithms
 =============================================================================================================================
 
-This library mainly provides the below two algorithms and their toolsets for a large-scale time-series processing in an local environment: 
+The Continuous Change Detection and Claasification (CCDC) algorithm has been popular for processing satellite-based time series datasets, particularly for Landsat-based datasets. As a CCDC user, you may already be familiar with the existing CCDC tools such as `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_.
 
-1. Stochastic Continuous Change Detection (S-CCD, a near real-time and short-memory implementation of COLD)
+**Wait.. so why does the pyxccd package still exist?**
 
-2. COntinuous monitoring of Land Disturbance (COLD): the latest CCDC algorithm for retrospective time-series analysis 
+We developed pyxccd mainly for the below purposes:
+   
+1. **Near real-time monitoring**: this package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes
 
- 
-Aside from CCDC tools, e.g., `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_, you may consider using pyxccd for the below situations:
+2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_.
+3. 
+4. **Large-scale time-series processing in the desktop environment**: the core of xccd was coded in C with the superior computing efficiency and small memory usage
 
-1. Near real-time monitoring: this package provides unique S-CCD algorithm to recursively update model coefficients and detect changes
+5. **Using dataset other than Landsat (such as Sentinel-2, modis)**: pyxccd supports the use of any band combination from any sensor (the flexible mode)
 
-2. Large-scale time-series processing in the desktop environment: the core of xccd was coded in C with the superior computing efficiency and small memory usage
+6. **Decomposing time-series signals to unveil inter-season/inter-annual variation (such as phenological shifts)**: S-CCD allows continuously outputting trend and seasonal signal components as "states"
 
-3. The latest version of CCDC (COLD) with the highest breakpoint detection accuracy: The basic CCDC has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_.
 
-4. Using dataset other than Landsat (such as Sentinel-2, modis): pyxccd supports the use of any band combination from any sensor (the flexible mode)
-
-5. Decomposing time-series signals to unveil inter-season/inter-annual variation (such as phenological shifts): S-CCD allows continuously outputting trend and seasonal signal components as "states"
-
-           
 
 1. Pre-work
 -----------

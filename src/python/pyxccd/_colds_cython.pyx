@@ -322,7 +322,7 @@ cpdef _obcold_reconstruct(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
         ts_t: 1d array of shape(observation numbers), time series of thermal band
         qas: 1d array, the QA cfmask bands. '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
         break_dates: 1d array, the break dates obtained from other procedures such as obia
-        conse: consecutive observation number (for calculating change magnitudes)
+        conse: int, consecutive observation number (for calculating change magnitudes)
         b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
         Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
 
