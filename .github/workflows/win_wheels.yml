@@ -2,8 +2,9 @@ name: Win-Wheels
 
 on:
   push:
-    # branches: [ devel ]
-    tags: [ '*' ]
+  pull_request:
+    branches: [ devel, main ]
+  tags: [ '*' ]
   workflow_dispatch:
 
 jobs:
