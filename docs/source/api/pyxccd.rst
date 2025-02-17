@@ -15,11 +15,10 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   pyxccd.app
-   pyxccd.monkey
-   pyxccd.ob_analyst
+   pyxccd.ccd
    pyxccd.pyclassifier
    pyxccd.utils
+   pyxccd.common
 
 Module contents
 ---------------

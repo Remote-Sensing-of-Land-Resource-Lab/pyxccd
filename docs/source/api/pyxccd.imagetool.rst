@@ -8,7 +8,6 @@ Submodules
    :maxdepth: 4
 
    pyxccd.imagetool.export_change_map
-   pyxccd.imagetool.grab_demo_landsat_data
    pyxccd.imagetool.prepare_ard
    pyxccd.imagetool.tile_processing
 

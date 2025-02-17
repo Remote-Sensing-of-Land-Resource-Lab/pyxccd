@@ -12,9 +12,12 @@ Welcome to pyxccd's documentation!
    :show-inheritance:
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 1
 
-   pyxccd
+   intro
+   installation
+   quickstart
+   Pyxccd API reference <api/pyxccd.rst>
 
 
 Indices and tables

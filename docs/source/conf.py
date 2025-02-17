@@ -72,6 +72,10 @@ from os.path import exists
 from os.path import dirname
 from os.path import join
 
+# import sys, os
+
+# sys.path.insert(0, os.path.abspath("C:/Users/dell/pyxccd"))
+
 
 def parse_version(fpath):
     """
@@ -97,8 +101,8 @@ def parse_version(fpath):
 
 
 project = "pyxccd"
-copyright = "2022, Jon Crall"
-author = "Jon Crall"
+copyright = "2025, Su Ye"
+author = "Su Ye"
 modname = "pyxccd"
 
 modpath = join(
@@ -124,6 +128,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
+    "sphinx.ext.autosectionlabel",
     # 'myst_parser',  # TODO
 ]
 
@@ -133,6 +138,8 @@ napoleon_use_param = False
 napoleon_use_ivar = True
 
 autodoc_inherit_docstrings = False
+
+autosectionlabel_prefix_document = True
 
 autodoc_member_order = "bysource"
 # autodoc_mock_imports = ['torch', 'torchvision', 'visdom']
@@ -153,6 +160,7 @@ intersphinx_mapping = {
     "xdoctest": ("https://xdoctest.readthedocs.io/en/latest/", None),
     "networkx": ("https://networkx.org/documentation/stable/", None),
     "scriptconfig": ("https://scriptconfig.readthedocs.io/en/latest/", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
 }
 __dev_note__ = """
 python -m sphinx.ext.intersphinx https://docs.python.org/3/objects.inv
@@ -255,7 +263,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "pyxccd.tex", "pyxccd Documentation", "Jon Crall", "manual"),
+    (master_doc, "pyxccd.tex", "pyxccd Documentation", "Su Ye", "manual"),
 ]
 
 
@@ -282,7 +290,6 @@ texinfo_documents = [
         "Miscellaneous",
     ),
 ]
-
 
 # -- Extension configuration -------------------------------------------------
 

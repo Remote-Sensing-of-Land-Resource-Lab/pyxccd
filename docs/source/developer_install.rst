@@ -1,14 +1,3 @@
-The first step is to install GDAL, which does not currently have a binary
-distribution on pypi. The following step will install GDAL from a 
-`custom pypi server <https://girder.github.io/large_image_wheels>`_ 
-containing precompiled wheels. 
-
-
-.. code:: bash
-
-    # Install GDAL (note-this must be done manually)
-    pip install -r requirements/gdal.txt
-
 We must also manually install the Python build dependencies. This is done via:
 
 .. code:: bash

@@ -1,6 +1,7 @@
 # from libc.stdlib cimport malloc, free
 from libc.string cimport strcpy, strlen
 import numpy as np
+import pandas as pd
 # "cimport" is used to import special compile-time information
 # about the numpy module (this is stored in a file numpy.pxd which is
 # currently part of the Cython distribution).
@@ -473,8 +474,6 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                   &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, b_pinpoint,
                   &rec_cg_pinpoint_view[0], &num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
                   &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs)
-
-    # reshape state_ensemble
     
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -498,16 +497,20 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
             else:
+                colnames = ['dates', 'blue_trend', 'green_trend', 'red_trend', 'nir_trend', 'swir1_trend', 'swir2_trend', 
+                            'blue_annual', 'green_annual', 'red_annual', 'nir_annual', 'swir1_annual',  'swir2_annual', 'blue_semiannual', 
+                            'green_semiannual', 'red_semiannual', 'nir_semiannual', 'swir1_semiannual', 'swir2_semiannual']
                 state_ensemble = state_ensemble.reshape(-1, NRT_BAND * 3)
+                state_all = pd.DataFrame(np.hstack(state_days[0:n_state], state_ensemble[0:n_state,:]), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode % 10 == 5:  # queue mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode == 0:  # void mode
                     return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
-                                    np.array([])), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                                    np.array([])), state_all]
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
         else:
@@ -821,7 +824,6 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
                         &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs)
 
-    # reshape state_ensemble
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
     else:
@@ -844,16 +846,18 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
             else:
+                colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] 
                 state_ensemble = state_ensemble.reshape(-1, nbands * 3)
+                state_all = pd.DataFrame(np.hstack(state_days[0:n_state], state_ensemble[0:n_state,:]), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode % 10 == 5:  # queue mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode == 0:  # void mode
                     return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
-                                    np.array([])), state_days[0:n_state], state_ensemble[0:n_state,:]]
+                                    np.array([])), state_days[0:n_state], state_all]
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
         else:
