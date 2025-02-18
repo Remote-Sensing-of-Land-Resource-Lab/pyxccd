@@ -2277,28 +2277,13 @@ int step3_processing_end(
         if (num_obs_processed > 0)
         {
             /**********************************************************/
+            /*                                                        */
+            /*      predictability test                               */
+            /*                                                        */
+            /**********************************************************/
             if (*nrt_mode % 10 == NRT_MONITOR_STANDARD) // for bi status, but not for the change just detected
             {
                 valid_conse_last = conse;
-                for (i = 0; i < valid_conse_last; i++)
-                {
-                    if (v_dif_mag_norm[i] < predictability_tcg)
-                    {
-                        stable_count = stable_count + 1;
-                    }
-                }
-
-                // only test predictability for nrt_mode == 1. temporal!
-
-                // if pass the predictability test, change the first digit to zero
-                if ((float)stable_count / valid_conse_last > CORRECT_RATIO_PREDICTABILITY)
-                {
-                    *nrt_mode = NRT_MONITOR_STANDARD;
-                }
-                else
-                {
-                    *nrt_mode = NRT_MONITOR_STANDARD + 10;
-                }
             }
             else
             {
@@ -2314,29 +2299,29 @@ int step3_processing_end(
             /*         test predictability                            */
             /*                                                        */
             /**********************************************************/
-            // if (*nrt_mode / 10 == 1)
-            // {
-            //     if (valid_conse_last > 1)
-            //     {
-            //         for (i = 0; i < valid_conse_last; i++)
-            //         {
-            //             if (v_dif_mag_norm[i] < predictability_tcg)
-            //             {
-            //                 stable_count = stable_count + 1;
-            //             }
-            //         }
+            if (*nrt_mode / 10 == 1)
+            {
+                if (valid_conse_last > 1)
+                {
+                    for (i = 0; i < valid_conse_last; i++)
+                    {
+                        if (v_dif_mag_norm[i] < predictability_tcg)
+                        {
+                            stable_count = stable_count + 1;
+                        }
+                    }
 
-            //         // only test predictability for nrt_mode == 1. temporal!
-            //         if (*nrt_mode % 10 == 1)
-            //         {
-            //             // if pass the predictability test, change the first digit to zero
-            //             if ((float)stable_count / valid_conse_last > CORRECT_RATIO_PREDICTABILITY)
-            //             {
-            //                 *nrt_mode = *nrt_mode - 10;
-            //             }
-            //         }
-            //     }
-            // }
+                    // won't tested predictability for nrt_mode == 2. temporal!
+                    if (*nrt_mode % 10 == 1)
+                    {
+                        // if pass the predictability test, change the first digit to zero
+                        if ((float)stable_count / valid_conse_last > CORRECT_RATIO_PREDICTABILITY)
+                        {
+                            *nrt_mode = *nrt_mode - 10;
+                        }
+                    }
+                }
+            }
 
             /**********************************************************/
             /*                                                        */
@@ -2957,18 +2942,18 @@ int sccd_standard(
         if (bl_train == 1)
             new_mode = NRT_MONITOR_STANDARD;
         else
-            new_mode = NRT_QUEUE_STANDARD;
+            new_mode = NRT_QUEUE_STANDARD + 10;
     }
     else
     {
         if (change_detected == TRUE)
         {
-            // if (*nrt_mode / 10 == 1)
-            // { // the change has been detected previously, so predictability is not been confirmed
-            //     new_mode = NRT_QUEUE_STANDARD + 10;
-            // }
-            // else
-            new_mode = NRT_MONITOR2QUEUE; // NRT_MONITOR2QUEUE always has firm predictability
+            if (*nrt_mode / 10 == 1)
+            { // the change has been detected previously, so predictability is not been confirmed
+                new_mode = NRT_QUEUE_STANDARD + 10;
+            }
+            else
+                new_mode = NRT_MONITOR2QUEUE; // NRT_MONITOR2QUEU always has firm predictability
         }
         else
         {
@@ -2985,7 +2970,7 @@ int sccd_standard(
                 }
                 else
                 {
-                    new_mode = NRT_QUEUE_STANDARD;
+                    new_mode = NRT_QUEUE_STANDARD + 10;
                 }
             }
         }
