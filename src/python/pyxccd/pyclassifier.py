@@ -25,26 +25,39 @@ from pyxccd.common import DatasetInfo
 
 
 def extract_features(
-    cold_plot, band, ordinal_day_list, nan_val, feature_outputs=["a0", "a1", "b1"]
-):
-    """
-    generate features for classification based on a plot-based rec_cg and a list of days to be predicted
+    cold_plot: np.ndarray,
+    band: int,
+    ordinal_day_list: list,
+    nan_val: int = 0,
+    feature_outputs: list = ["a0", "a1", "b1"],
+) -> list:
+    """generate features for classification based on a plot-based rec_cg and a list of days to be predicted
+
     Parameters
     ----------
-    cold_plot: nested array
-        plot-based rec_cg
-    band: integer
-        the predicted band number range from 0 to 6
-    ordinal_day_list: list
-        a list of days that this function will predict every days as a list as output
-    nan_val: integer
-        NA value assigned to the output
-    feature_outputs: a list of outputted feature name
-        it must be within [a0, c1, a1, b1,a2, b2, a3, b3, rmse]
+    cold_plot : np.ndarray
+        A structured array of :py:type:`~pyxccd.common.cold_rec_cg`
+    band : int
+        Band index, started from 0, i.e., index 0 is band 1, index 1 is band 2, etc
+    ordinal_day_list : list
+        A list of ordinal day to extract a0, a0 = intercept + slope * a1 / 10000
+    nan_val : int
+        The default values assigned to feature output, by default 0
+    feature_outputs : list, optional
+        Indicate which features to be outputted.  They must be within [a0, c1, a1, b1,a2, b2, a3, b3, rmse],
+        by default ["a0", "a1", "b1"]
+
     Returns
     -------
-        feature: a list (length = n_feature) of 1-array [len(ordinal_day_list)]
+    A list
+        a list of 1-d array. The length of list is len(feature_outputs); the length 1-d array is len(ordinal_day_list)
+
+    Raises
+    ------
+    ValueError
+        The outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, rmse]
     """
+
     features = [
         np.full(len(ordinal_day_list), nan_val, dtype=np.double)
         for x in range(len(feature_outputs))
@@ -104,22 +117,28 @@ def extract_features(
                         if np.isnan(features[n][index]):
                             features[n][index] = 0
                     else:
-                        raise Exception(
+                        raise ValueError(
                             "the outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, rmse]"
                         )
                 break
     return features
 
 
-def generate_sample_num(label, sample_parameters):
-    """
-    generate sample number for each land cover category using the method from 'Optimizing selection of training and
-    auxiliary data for operational land cover classification for the LCMAP initiative'
-    Args:
-        label: an array of land-cover categories, i.e., map
-        sample_parameters: obcold parameter structure
-    Returns:
+def generate_sample_num(label: np.ndarray, sample_parameters: dict) -> np.ndarray:
+    """generate sample number for each land cover category using the method from the paper 'Optimizing
+    selection of training and auxiliary data for operational land cover classification for the LCMAP initiative'
 
+    Parameters
+    ----------
+    label : np.ndarray
+        a label map
+    sample_parameters : dict
+        a dictionary must include "total_landcover_category", "total_samples", "max_category_samples", and "min_category_samples"
+
+    Returns
+    -------
+    np.ndarray
+        1-d array that stores the sample number for each label
     """
     unique_category, unique_counts_category = np.unique(
         label[label <= sample_parameters["total_landcover_category"]],
@@ -145,15 +164,20 @@ def generate_sample_num(label, sample_parameters):
     return percate_samples
 
 
-def get_features(path):
-    """
+def get_features(path: str) -> np.ndarray:
+    """get block-based features
+
     Parameters
     ----------
-    path:
-    Returns: (block_width*block_height, total feature) array
+    path : str
+        Path for feature output
+
+    Returns
     -------
-        the feature temp array file for block_id and year
+    np.ndarray
+        2-d array for block-based features, (block_width*block_height, total feature)
     """
+
     return np.load(path)
 
 
@@ -165,13 +189,21 @@ class PyClassifier:
         logger: Optional[Logger] = None,
         band_num: int = 7,
     ):
-        """
+        """_summary_
+
         Parameters
         ----------
-        dataset_info: dataset_info class
-        feature_outputs: a list of outputted feature name
-            it must be within [a0, c1, a1, b1,a2, b2, a3, b3, rmse]
+        dataset_info : :py:type:`~pyxccd.common.DatasetInfo`
+            time-series basic dataset info
+        feature_outputs : list, optional
+            Indicate which features to be outputted.  They must be within [a0, c1, a1, b1,a2, b2, a3,
+            b3, rmse], by default ["a0", "a1", "b1"]
+        logger : Optional[Logger], optional
+            log handler, by default None
+        band_num : int, optional
+            the band number to be processed, by default 7
         """
+
         self.dataset_info = dataset_info
         # self.dataset_info.block_width = int(self.dataset_info.n_cols / self.dataset_info.n_block_x)
         # self.dataset_info.block_height = int(self.dataset_info.n_rows / self.dataset_info.n_block_y)
@@ -191,25 +223,26 @@ class PyClassifier:
             self.logger = logger
         self.band_num = band_num
 
-    def predict_features(self, block_id, cold_block, year_list_to_predict, ismat=False):
+    def predict_features(
+        self, block_id: int, cold_block: np.ndarray, year_list_to_predict: list
+    ) -> np.ndarray:
         """
         Parameters
         ----------
-        block_id: integer
-            the block id
-        cold_block: nested array of colddt datatype
-            the block-based change records produced by cold algorithms
-        year_list_to_predict:
-            the list of classification years
-            Note that the reason for not parsing cold_block to get year bounds is that the year ranges of blocks
+        block_id: int
+            Block id, started from 1
+        cold_block: np.ndarray
+            Block-based :py:type:`~pyxccd.common.cold_rec_cg` produced by COLD algorithms
+        year_list_to_predict: list
+            A list of the years to extract features
+            Note that the reason for not parsing cold_block to get year bounds is that the year range of blocks
             may vary from each other, so the year bounds are required to be defined from the tile level, not block level
             such as from 'starting_end_date.txt'
-        ismat:boolean
-            True -> the input is MATLAB-outputted change records
 
         Returns
         -------
-        an array [len(year_list_to_predict), block_width*block_height, n_features]
+        np.ndarray
+            3d array, (len(year_list_to_predict), block_width*block_height, n_features)
         """
         block_features = np.full(
             (
@@ -264,18 +297,22 @@ class PyClassifier:
 
         return block_features
 
-    def train_rfmodel(self, full_feature_array, label):
-        """
+    def train_rfmodel(self, full_feature_array: np.ndarray, label: np.ndarray):
+        """training a random forest model based on feature layers and a label map
+
         Parameters
         ----------
-        full_feature_array: (nrows, ncols, feature_number) array
-            feature array for the whole tile
-        label: (nrows, ncols) array
-            reference array for the whole tile
+        full_feature_array : np.ndarray
+            3-d array for full feature layers, (nrows, ncols, feature_number)
+        label : np.ndarray
+            1-d array for a label map
+
         Returns
         -------
-            a sklearn random forest model
+        class
+            A sklearn random forest model
         """
+
         assert label.shape == (self.dataset_info.n_rows, self.dataset_info.n_cols)
         samplecount = generate_sample_num(label, defaults["CLASSIFIER"])
         index_list = []
@@ -297,16 +334,20 @@ class PyClassifier:
         rf_model.fit(feature_extraction, label_list)
         return rf_model
 
-    def classification_block(self, rf_model, tmp_feature):
-        """
-        make classification for temp feature array for a single year, single block
+    def classify_block(self, rf_model: dict, tmp_feature: np.ndarray) -> np.ndarray:
+        """classify feature block for a single year
+
         Parameters
         ----------
-        rf_model: sklearn random forest model
-        tmp_feature:
-        Return: (block_height, block_width) array
+        rf_model : dict
+            sklearn random forest model
+        tmp_feature : np.ndarray
+            2-d array for features, (block_width*block_height, n_features)
+
+        Returns
         -------
-            cmap, the feature temp array file for block_id and year
+        np.ndarray
+            2d array, a classification map, (block_height, block_width)
         """
         cmap = rf_model.predict(tmp_feature).reshape(
             self.dataset_info.block_height, self.dataset_info.block_width
@@ -343,23 +384,36 @@ class PyClassifierHPC(PyClassifier):
         rf_path: Optional[str] = None,
         logger: Optional[Logger] = None,
     ):
-        """
+        """_summary_
+
         Parameters
         ----------
-        dataset_info: dataset_info data class
-        record_path: str
-            the path that saves change records
-        year_list_to_predict:
-            the list of classification years
-        tmp_path: string, default is None
-            the path to save temporal folder, if None, will set /record_path/feature_maps
-        output_path: string, default is None
-            the path to save classification map output, if None, will set /record_path/feature_maps
-        feature_outputs: a list of outputted feature name
-            it must be within [a0, c1, a1, b1,a2, b2, a3, b3, rmse]
-        seedmap_path: the path for the seed map to produce rf model
-        rf_path: the path for existing random forest forest
-        logger: the logger handler
+        dataset_info : DatasetInfo
+            Time-series dataset information data class
+        record_path : str
+            Path that are source folder for the COLD results
+        band_num : int, optional
+            The band number, by default 7
+        year_list_to_predict : _type_, optional
+            A list of years for classification, by default list(range(1982, 2022))
+        tmp_path : Optional[str], optional
+            Path for saving temporal files, by default None. if None, will set /record_path/feature_maps
+        output_path : Optional[str], optional
+            Path to save classification outputS, by default None
+        feature_outputs : list, optional
+            A list of outputted feature name, it must be within [a0, c1, a1, b1,a2, b2, a3, b3,
+            rmse]. by default ["a0", "a1", "b1"]
+        seedmap_path : Optional[str], optional
+            Path for the seed map that provides labels to produce rf model, by default None
+        rf_path : Optional[str], optional
+            Path for existing random forest forest, by default None
+        logger : Optional[Logger], optional
+            Logger handler, by default None
+
+        Raises
+        ------
+        e
+            Raise the error when the parameter inputs for initializing classifier are not correct
         """
         try:
             self._check_inputs_thematic(
@@ -409,6 +463,21 @@ class PyClassifierHPC(PyClassifier):
     def _check_inputs_thematic(
         dataset_info, record_path, tmp_path, seedmap_path, rf_path
     ):
+        """check the inputs for initializing a classifier
+
+        Parameters
+        ----------
+        dataset_info : DatasetInfo
+            Basic information of time-series dataset
+        record_path : str
+            Path that saved COLD results
+        tmp_path : str
+            Path for saving temporal files, by default None. if None, will set /record_path/feature_maps
+        seedmap_path : str
+            Path for the seed map that provides labels to produce rf model, by default None
+        rf_path : str
+            Path for existing random forest forest, by default None
+        """
         if (isinstance(dataset_info.n_rows, int) is False) or (dataset_info.n_rows < 0):
             raise ValueError("n_rows must be positive integer")
         if (isinstance(dataset_info.n_cols, int) is False) or (dataset_info.n_cols < 0):
@@ -528,7 +597,19 @@ class PyClassifierHPC(PyClassifier):
             for file in tmp_yearlyclass_filenames
         ]
 
-    def get_fullfeature_forcertainyear(self, year):
+    def get_fullfeature_forcertainyear(self, year: int) -> list:
+        """get
+
+        Parameters
+        ----------
+        year : int
+            Year to get a feature
+
+        Returns
+        -------
+        list
+            A list of all blocks as 3-d array (block_height, block_width, n_features)
+        """
         tmp_feature_filenames = [
             file
             for file in os.listdir(self.tmp_path)
@@ -573,7 +654,14 @@ class PyClassifierHPC(PyClassifier):
             except IOError as e:
                 raise e
 
-    def step1_feature_generation(self, block_id):
+    def step1_feature_generation(self, block_id: int):
+        """generate feature based on COLD results
+
+        Parameters
+        ----------
+        block_id : int
+            the id of block
+        """
         if os.path.exists(
             join(self.record_path, "record_change_x{}_y{}_cold.npy").format(
                 get_block_x(block_id, self.dataset_info.n_block_x),
@@ -606,7 +694,23 @@ class PyClassifierHPC(PyClassifier):
         ):
             pass
 
-    def step2_train_rf(self, ref_year=None, rf_path=None):
+    def step2_train_rf(
+        self, ref_year: Optional[int] = None, rf_path: Optional[str] = None
+    ):
+        """training a random forest model, and save it into rf_path
+
+        Parameters
+        ----------
+        ref_year : int, optional
+            The year to provide features which will be further connected to seed map, by default None
+        rf_path : str, optional
+            Path to save random forest model , by default None. If none, will saved to rf_path
+
+        Raises
+        ------
+        ValueError
+            couldn't locate seedmap that provide label maps
+        """
         while not self.is_finished_step1_predict_features():
             time.sleep(5)
 
@@ -631,7 +735,19 @@ class PyClassifierHPC(PyClassifier):
         else:
             self._save_rf_model(rf_model, rf_path)
 
-    def step3_classification(self, block_id):
+    def step3_classification(self, block_id: int):
+        """classify a block
+
+        Parameters
+        ----------
+        block_id : int_
+            the block id
+
+        Raises
+        ------
+        IOError
+            _description_
+        """
         while not self._is_finished_step2_train_rfmodel():
             time.sleep(5)
         time.sleep(
@@ -651,7 +767,7 @@ class PyClassifierHPC(PyClassifier):
                     "tmp_feature_year{}_block{}.npy".format(year, block_id),
                 )
             )
-            cmap = self.classification_block(rf_model, tmp_feature_block)
+            cmap = self.classify_block(rf_model, tmp_feature_block)
             self._save_yearlyclassification_maps(block_id, year, cmap)
         with open(
             join(
@@ -662,7 +778,19 @@ class PyClassifierHPC(PyClassifier):
         ):
             pass
 
-    def step3_classification_sccd(self, block_id):
+    def step3_classification_sccd(self, block_id: int):
+        """classifying based on sccd output
+
+        Parameters
+        ----------
+        block_id : int
+            block id
+
+        Raises
+        ------
+        IOError
+            couldn't locate rf model file
+        """
         while not self._is_finished_step2_train_rfmodel():
             time.sleep(5)
         try:
@@ -675,7 +803,7 @@ class PyClassifierHPC(PyClassifier):
         # for year in self.year_list_to_predict:
         #     tmp_feature_block = get_features(join(self.tmp_path, 'tmp_feature_year{}_block{}.npy'.format(year,
         #                                                                                                 block_id)))
-        #     cmap = self.classification_block(rf_model, tmp_feature_block)
+        #     cmap = self.classify_block(rf_model, tmp_feature_block)
         #     self._save_yearlyclassification_maps(block_id, year, cmap)
 
         tmp_feature_block = get_features(
@@ -689,7 +817,7 @@ class PyClassifierHPC(PyClassifier):
         ):
             return
 
-        cmap = self.classification_block(rf_model, tmp_feature_block)
+        cmap = self.classify_block(rf_model, tmp_feature_block)
         self._save_yearlyclassification_maps(block_id, "now", cmap)
         with open(
             join(
@@ -701,6 +829,13 @@ class PyClassifierHPC(PyClassifier):
             pass
 
     def step4_assemble(self, clean=True):
+        """assesmble all block-based classification results into one map
+
+        Parameters
+        ----------
+        clean : bool, optional
+            _description_, by default True
+        """
         while not self._is_finished_step3_classification():
             time.sleep(5)
         for year in self.year_list_to_predict:
@@ -713,6 +848,13 @@ class PyClassifierHPC(PyClassifier):
             self._clean()  # _clean all temp files
 
     def step4_assemble_sccd(self, clean=True):
+        """assessmble all block-based classification results based upon sccd into one map
+
+        Parameters
+        ----------
+        clean : bool, optional
+            _description_, by default True
+        """
         while not self._is_finished_step3_classification():
             time.sleep(5)
 
@@ -729,7 +871,13 @@ class PyClassifierHPC(PyClassifier):
         if clean:
             self._clean()  # _clean all temp files
 
-    def is_finished_step4_assemble(self):
+    def is_finished_step4_assemble(self) -> bool:
+        """check if step is finished
+
+        Returns
+        -------
+        bool
+        """
         for year in self.year_list_to_predict:
             if not os.path.exists(
                 join(self.output_path, "yearlyclassification_{}.npy".format(year))

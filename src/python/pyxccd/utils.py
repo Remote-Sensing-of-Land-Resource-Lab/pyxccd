@@ -5,7 +5,7 @@ from os.path import join
 from dataclasses import fields
 import os
 import datetime as dt
-
+from scipy import stats
 # from osgeo import gdal
 import rasterio
 from rasterio.plot import reshape_as_image
@@ -14,13 +14,15 @@ from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
 
 def rio_loaddata(path: str) -> np.ndarray:
-    """_summary_
+    """load raster dataset as numpy array
 
-    Args:
-        path (str): the path of the input raster
-
-    Returns:
-        np.ndarray: _description_
+    Parameters
+    ----------
+    path : str
+        path of the input raster
+    Returns
+    -------
+    np.ndarray
     """
     with rasterio.open(path, "r") as ds:
         arr = ds.read()
@@ -30,43 +32,55 @@ def rio_loaddata(path: str) -> np.ndarray:
             return reshape_as_image(arr)
 
 
-def get_block_y(block_id, n_block_x):
-    """
+def get_block_y(block_id: int, n_block_x: int) -> int:
+    """get block pos in y axis (started from 1)
+    
     Parameters
     ----------
-    block_id: integer
-    n_block_x: integer, number of blocks at x xis
+    block_id: int
+        The id of the block to be processed
+    n_block_x: int 
+        Total number of blocks at x axis
 
     Returns
     -------
-    current block id at y axis
+    int
+        current block id at y axis (start from 1)
     """
     return int((block_id - 1) / n_block_x) + 1
 
 
-def get_block_x(block_id, n_block_x):
-    """
+def get_block_x(block_id: int, n_block_x: int) -> int:
+    """get block pos at x axis (started from 1)
+    
     Parameters
     ----------
-    block_id: integer
-    n_block_x: integer, number of blocks at x xis
+    block_id: int
+        The id of the block to be processed
+    n_block_x: int
+        Total number of blocks at x axis
 
     Returns
     -------
-    current block id at x axis
+    int
+        current block pos at x axis (start from 1)
     """
     return (block_id - 1) % n_block_x + 1
 
 
-def get_col_index(pos, n_cols, current_block_x, block_width):
-    """
+def get_col_index(pos: int, n_cols, current_block_x, block_width) -> int:
+    """get column index in a block
+    
     Parameters
     ----------
-    pos
-    n_cols
-    current_block_x
-    block_width
-
+    pos: int
+        The position of a pixel, i.e., i_row * n_cols + i_col + 1
+    n_cols: int
+        The number of columns
+    current_block_x: int
+        The current block id at y axis
+    block_width: int
+        block width
     Returns
     -------
 
@@ -74,15 +88,18 @@ def get_col_index(pos, n_cols, current_block_x, block_width):
     return int((pos - 1) % n_cols) - (current_block_x - 1) * block_width
 
 
-def get_row_index(pos, n_cols, current_block_y, block_height):
+def get_row_index(pos, n_cols, current_block_y, block_height) -> int:
     """
     Parameters
     ----------
-    pos: start from 1
-    n_cols
-    current_block_y
-    block_height
-
+    pos: int
+        The position of a pixel, i.e., i_row * n_cols + i_col + 1
+    n_cols: int
+        The number of columns
+    current_block_y: int
+        The current block id at y axis
+    block_height: int
+        block height
     Returns
     -------
 
@@ -100,22 +117,24 @@ def assemble_cmmaps(
     cm_output_interval: int,
     clean: bool = True,
 ):
-    """
-    this function reorganized block-based fix-interval CM intermediate files into map-based output (one map per interval)
+    """reorganized block-based change magnitudes into a series of maps
+    
     Parameters
     ----------
-    config: dictionary
-        pyxccd config dictionary
-    result_path: string
+    config: dict
+        pyxccd config dict
+    result_path: str
         the path where block-based CM intermediate files are
-    cmmap_path: string
+    cmmap_path: str
         the path to save the new map-based output
-    starting_date: integer
+    starting_date: int
         the starting date of the dataset
-    n_cm_maps: integer
+    n_cm_maps: int
         the number of change magnitude outputted per pixel
-    prefix: {'CM', 'CM_date', 'CM_direction'}
-    clean: True -> clean tmp files
+    prefix: str
+        choose from 'CM', 'CM_date', 'CM_direction'
+    clean: bool 
+        if True, clean tmp files
     Returns
     -------
 
@@ -133,6 +152,8 @@ def assemble_cmmaps(
 
     elif prefix == "CM_direction":
         output_type = np.uint8  # type: ignore
+    else:
+        raise ValueError("prefix has been among CM, CM_direction, CM_direction")
 
     cm_map_list = [
         np.full(
@@ -200,40 +221,51 @@ def assemble_cmmaps(
             os.remove(join(result_path, file))
 
 
-def get_rowcol_intile(index, block_width, block_height, block_x, block_y):
-    """
-    calculate row and col in original images based on pos index and block location
+def get_rowcol_intile(id: int, block_width: int, block_height: int, block_x: int, block_y: int):
+    """Calculate row and col in original images based on pos index and block location
+    
     Parameters
     ----------
-    id: integer
-        position id of the pixel (i.e., i_row * n_cols + i_col)
-    block_width: integer
+    id: int
+        id of the pixel (i.e., i_row * n_cols + i_col). Note starting from 0
+    block_width: int
         the width of each block
-    block_height: integer
+    block_height: int
         the height of each block
-    block_x:integer
+    block_x:int
         block location at x direction
-    block_y:integer
+    block_y:int
         block location at y direction
     Returns
     -------
-    (original_row, original_col)
-    row and col number (starting from 1) in original image (e.g., Landsat ARD 5000*5000)
+    (int, int)
+        return (original_row, original_col), i.e., row and col number (starting from 1) in original image (e.g., Landsat ARD 5000*5000)
     """
-    original_row = int(index / block_width + (block_y - 1) * block_height + 1)
-    original_col = int(index % block_width + (block_x - 1) * block_width + 1)
+    original_row = int(id / block_width + (block_y - 1) * block_height + 1)
+    original_col = int(id % block_width + (block_x - 1) * block_width + 1)
     return original_row, original_col
 
 
-def get_id_inblock(pos, block_width, block_height, n_cols):
+def get_id_inblock(pos: int, block_width: int, block_height: int, n_cols: int):
+    """pixel id in the block, starting from 0
+
+    Parameters
+    ----------
+    pos : int
+        position id of a pixel, i.e., i_row * n_cols + i_col + 1
+    block_width : int
+        the width of the block
+    block_height : int
+        the width of the height
+    n_cols : int
+        the number of the culimn
+
+    Returns
+    -------
+    int
+        pixel id, i.e., i_row * n_cols + i_col
     """
-    :param pos:
-    :param block_width:
-    :param block_height:
-    :param block_x:
-    :param block_y:
-    :return: pixel id in the bloack, starting from 0
-    """
+
     row_inblock = int(int((pos - 1) / n_cols) % block_height)
     col_inblock = (pos - 1) % n_cols % block_width
     return row_inblock * block_width + col_inblock
@@ -269,75 +301,91 @@ def get_id_inblock(pos, block_width, block_height, n_cols):
 #     return True
 
 
-def get_time_now(tz):
-    """
+def get_time_now(tz: str):
+    """get datetime for now
+    
     Parameters
     ----------
-    tz: string
+    tz: str
+        The input time zone
 
     Returns
     -------
-    datatime format of current time
+    datetime
+        datatime format of current time
     """
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def get_ymd_now(tz):
-    """
-    Parameters
-    ----------
-    tz: string
+# def get_ymd_now(tz):
+#     """get datetime for now
+    
+#     Parameters
+#     ----------
+#     tz: str
+#         The input time zone
 
-    Returns
-    -------
-    datatime format of current time
-    """
-    return datetime.now(tz).strftime("%Y-%m-%d")
+#     Returns
+#     -------
+#     datetime
+#         datatime format of current time
+#     """
+#     return datetime.now(tz).strftime("%Y-%m-%d")
 
 
-def get_doy(ordinal_date):
-    """
+def get_doy(ordinal_date: int)->str:
+    """get doy from ordinal date
+    
     Parameters
     ----------
     ordinal_date: int
-    a ordinal date (MATLAB-format ordinal date)
+        a ordinal date (MATLAB-format ordinal date)
 
-    Returns: string
+    Returns:
     -------
-    doy
+    str
+        day of year
     """
     return str(pd.Timestamp.fromordinal(ordinal_date).timetuple().tm_yday).zfill(3)
 
 
-def get_anchor_days(starting_day, n_cm_maps, interval):
+# def get_anchor_days(starting_day: int, n_cm_maps: int, interval: int):
+#     """
+#     get a list of starting days for each change magnitude time slices
+    
+#     Parameters
+#     ----------
+#     starting_days:int
+#         Starting days
+#     n_cm_maps: int
+#         The number of change magnitudes
+#     interval:int
+#         The interval of change magnitudes
+
+#     Returns
+#     -------
+#         A list of starting day
+#     """
+#     return np.arange(
+#         start=starting_day, stop=starting_day + n_cm_maps * interval, step=interval
+#     )
+
+
+def assemble_array(array_list: list, n_block_x: int)->np.ndarray:
     """
-    get a list of starting days for each change magnitude time slices
+    Assemble a list of block-based array to a bigger array that aligns with the dimension of an ARD tile
+    
     Parameters
     ----------
-    starting_days
-    n_cm_maps
-    interval
+    array_list: list
+        a list of np.ndarray
+    n_block_x: int
+        block number at x axis
 
     Returns
     -------
-
-    """
-    return np.arange(
-        start=starting_day, stop=starting_day + n_cm_maps * interval, step=interval
-    )
-
-
-def assemble_array(array_list, n_block_x):
-    """
-    assemble a list of block-based array to a bigger array that aligns with the dimension of an ARD tile
-    Parameters
-    ----------
-    array_list
-    n_block_x: block number at x axis
-
-    Returns
-    -------
-    an array [nrows, ncols]
+    np.ndarray
+        an array [nrows, ncols]
     """
     full_feature_array = np.hstack(array_list)
     full_feature_array = np.vstack(
@@ -346,7 +394,23 @@ def assemble_array(array_list, n_block_x):
     return full_feature_array
 
 
-def read_blockdata(block_folder, total_pixels, total_bands):
+def read_blockdata(block_folder:str, total_pixels:int, total_bands:int)->tuple:
+    """read block dataset and date time series
+
+    Parameters
+    ----------
+    block_folder : str
+        path for storing block-based change records
+    total_pixels : int
+        nrows*ncols
+    total_bands : int
+        total band number
+
+    Returns
+    -------
+    tuple
+        (np.ndarray, np.ndarray), (3-d array of shape(n_dates, total_pixels, total_bands), 1-d array of shape(n_dates, ))
+    """
     img_files = [f for f in os.listdir(block_folder) if f.startswith("L")]
 
     # sort image files by dates
@@ -368,27 +432,62 @@ def read_blockdata(block_folder, total_pixels, total_bands):
     return img_stack, img_dates_sorted
 
 
-def read_data(path):
+def read_data(path: str)->np.ndarray:
     """Load a sample file containing acquisition days and spectral values.
     The first column is assumed to be the day number, subsequent columns
     correspond to the day number. This improves readability of large datasets.
-    Args:
-        path: location of CSV containing test data
-    Returns:
-        A 2D numpy array.
+
+    Parameters
+    ----------
+    path : str
+        the path of csv
+
+    Returns
+    -------
+    np.ndarray
+
     """
     return np.genfromtxt(path, delimiter=",", dtype=np.int64, encoding="utf-8").T
 
 
-def date2matordinal(year, month, day):
-    return pd.Timestamp.toordinal(dt.date(year, month, day))
+# def date2matordinal(year:int, month:int, day:int):
+#     """
+
+#     Parameters
+#     ----------
+#     year : int
+#         _description_
+#     month : int
+#         _descriptdate2matordinalion_
+#     day : int
+#         _description_
+
+#     Returns
+#     -------
+#     _type_
+#         _description_
+#     """
+#     return pd.Timestamp.toordinal(dt.date(year, month, day))
 
 
-def matordinal2date(ordinal):
-    return pd.Timestamp.fromordinal(ordinal)
+# def matordinal2date(ordinal):
+#     return pd.Timestamp.fromordinal(ordinal)
 
 
-def save_nrtfiles(out_folder, outfile_prefix, sccd_pack, data_ext):
+def save_nrtfiles(out_folder:str, outfile_prefix:str, sccd_pack:SccdOutput, data_ext:pd.DataFrame):
+    """save nrt files into local for debug purpose
+
+    Parameters
+    ----------
+    out_folder : str
+        The folder to svae results
+    outfile_prefix : str
+        prefix for saved files 
+    sccd_pack : SccdOutput
+        SCCD output
+    data_ext : pd.DataFrame
+        observation as pandas dataframe
+    """
     """
     save all files for C debug
     :param out_folder: the outputted folder
@@ -420,16 +519,33 @@ def save_nrtfiles(out_folder, outfile_prefix, sccd_pack, data_ext):
     )
 
 
-def save_obs2csv(out_path, data):
+def save_obs2csv(out_path:str, data:pd.DataFrame):
+    """save observation dataframe to a local csv
+
+    Parameters
+    ----------
+    out_path : str
+        the path for saving csv
+    data : pd.DataFrame
+        data to be outputed
+    """
     data.to_csv(out_path, index=False, header=False)
 
 
-def unindex_sccdpack(sccd_pack_single):
+def unindex_sccdpack(sccd_pack_single:SccdOutput)->list:
+    """remove index of sccdpack to save memory
+
+    Parameters
+    ----------
+    sccd_pack_single : SccdOutput
+        sccd output
+
+    Returns
+    -------
+    list
+        a list for five SccdOutput components
     """
-    remove index of sccdpack to save memory
-    sccd_pack_single: a namedtuple SccdOutput
-    :return: a nested list
-    """
+
     sccd_pack_single = sccd_pack_single._replace(
         rec_cg=sccd_pack_single.rec_cg.tolist()
     )
@@ -447,12 +563,25 @@ def unindex_sccdpack(sccd_pack_single):
     return list(sccd_pack_single)
 
 
-def index_sccdpack(sccd_pack_single):
+def index_sccdpack(sccd_pack_single:list)->SccdOutput:
+    """convert a list of SccdOutput components back to namedtuple SccdOutput
+    
+    Parameters
+    ----------
+    sccd_pack_single : list
+        A list of SccdOutput components
+
+    Returns
+    -------
+    SccdOutput
+        sccd output
+
+    Raises
+    ------
+    Exception
+       The element number of sccd_pack_single is not five
     """
-    convert list of sccdpack to namedtuple to facilitate parse,
-    :param sccd_pack_single: a nested list
-    :return: a namedtuple SccdOutput
-    """
+
     if len(sccd_pack_single) != defaults["SCCD"]["PACK_ITEM"]:
         raise Exception(
             "the element number of sccd_pack_single must be {}".format(
@@ -483,21 +612,30 @@ def index_sccdpack(sccd_pack_single):
     return sccd_pack_single
 
 
-def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=None):
-    """_summary_
-    Args:
-        array (np.ndarray): input array
-        out_path (str): the path for saving output
-        ref_image_path (_type_, optional): _description_. Defaults to None.
-        gtype (_type_, optional): _description_. Defaults to rasterio.int16.
+def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=None, dtype=None):
+    """save an array into the local as tif, using the georeference from a refimage
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Inputted array to be converted
+    out_path : str
+        Path for the output
+    ref_image_path : str, optional
+        Path for the reference image to copy georeference info, by default None
+    dtype : _type_, optional
+       str or numpy.dtype, optional. The data type for bands. For example: uint8 or rasterio.uint16.
     """
+    if dtype == None:
+        dtype = np.int16
+        
     if ref_image_path is None:
         profile = {
             "driver": "GTiff",
             "height": array.shape[0],
             "width": array.shape[1],
             "count": 1,
-            "dtype": array.dtype,
+            "dtype": dtype,
             "compress": "lzw",
         }
     else:
@@ -507,18 +645,24 @@ def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=Non
 
     with rasterio.open(out_path, "w", **profile) as dst:
         dst.write(array, 1)
+        
 
 
-def coefficient_matrix(dates, num_coefficients):
+def coefficient_matrix(date:int, num_coefficients: int) -> np.ndarray:
+    """Generate cos and sin variables for Fourier transform function
+
+    Parameters
+    ----------
+    date : int
+        Inputted ordinal date
+    num_coefficients : int
+        Number of variables to be outputted, i.e., the length of the matrix as return
+
+    Returns
+    -------
+    np.ndarray
     """
-    Fourier transform function to be used for the matrix of inputs for
-    model fitting
-    Args:
-        dates: list of ordinal dates
-        num_coefficients: how many coefficients to use to build the matrix
-    Returns:
-        Populated numpy array with coefficient values
-    """
+
     slope_scale = 10000
     w23 = 2 * np.pi / 365.25
     matrix = np.zeros(shape=(num_coefficients), order="F")
@@ -530,34 +674,54 @@ def coefficient_matrix(dates, num_coefficients):
     sin = np.sin
 
     matrix[0] = 1
-    matrix[1] = dates / slope_scale
-    matrix[2] = cos(w23 * dates)
-    matrix[3] = sin(w23 * dates)
+    matrix[1] = date / slope_scale
+    matrix[2] = cos(w23 * date)
+    matrix[3] = sin(w23 * date)
 
     if num_coefficients >= 6:
         w45 = 2 * w23
-        matrix[4] = cos(w45 * dates)
-        matrix[5] = sin(w45 * dates)
+        matrix[4] = cos(w45 * date)
+        matrix[5] = sin(w45 * date)
 
     if num_coefficients >= 8:
         w67 = 3 * w23
-        matrix[6] = cos(w67 * dates)
-        matrix[7] = sin(w67 * dates)
+        matrix[6] = cos(w67 * date)
+        matrix[7] = sin(w67 * date)
 
     return matrix
 
 
-def predict_ref(model, dates, num_coefficients=6):
-    coef_matrix = coefficient_matrix(dates, num_coefficients)
-    return np.dot(coef_matrix, model.T)
+def predict_ref(coefs:np.ndarray, date:int, num_coefficients:int=6)->int:
+    """predicting a single-band reflectance using harmonic coefficients for a date
 
+    Parameters
+    ----------
+    coefs : np.ndarray
+        1-d array for harmonic coefficients 
+    date : int
+        ordinal date for the inputted date
+    num_coefficients : int, optional
+        the number of coefs, by default 6
 
-def generate_rowcolimage(ref_image_path, out_path):
+    Returns
+    -------
+    int
+        the predicted reflectance 
     """
-    a function to convert source image to index image (starting from 1, e.g., the first pixel is 10001)
-    :param ref_image_path: the path for reference images
-    :param out_path:  the path for output images
-    :return:
+    coef_matrix = coefficient_matrix(date, num_coefficients)
+    return np.dot(coef_matrix, coefs.T)
+
+
+def generate_rowcolimage(ref_image_path:str, out_path:str):
+    """a function to convert the reference image to index image (starting from 1, e.g., the first pixel is 100001),
+    which has the same rows and columns as the reference image
+
+    Parameters
+    ----------
+    ref_image_path : str
+        Path of the reference image
+    out_path : str
+        Path of the outputted image
     """
     # ref_image_path = '/home/coloury/Dropbox/UCONN/HLS/HLS.L30.T18TYM.2022074T153249.v2.0.B10.tif'
     # ref_image = gdal.Open(ref_image_path, gdal.GA_ReadOnly)
@@ -575,18 +739,21 @@ def generate_rowcolimage(ref_image_path, out_path):
         profile.update(dtype="int32", count=1, compress="lzw")
     with rasterio.open(out_path, "w", **profile) as dst:
         dst.write(index, 1)
-    save_1band_fromrefimage(index, out_path, ref_image_path)
+    save_1band_fromrefimage(index, out_path, ref_image_path, dtype=np.int32)
 
 
-def calculate_sccd_cm(sccd_pack):
-    """
+def calculate_sccd_cm(sccd_pack:SccdOutput)->float:
+    """compute median change magnitude for the current anomalies at the tail 
+
     Parameters
     ----------
-    sccd_pack
+    sccd_pack : SccdOutput
+        sccd output
 
     Returns
     -------
-
+    float
+        computed as the median values for the current conse_last change magnitudes
     """
     start_index = defaults["SCCD"]["NRT_BAND"] - sccd_pack.nrt_model[0]["conse_last"]
     pred_ref = np.asarray(
@@ -617,26 +784,100 @@ def calculate_sccd_cm(sccd_pack):
 
 
 def class_from_dict(data_class, dict_var: dict):
-    """convert dictionary to dataclas
+    """convert dictionary to dataclass following the declaration of the dataclass
 
-    Args:
-        dataclass (DataclassInstance | type[DataclassInstance]): _description_
-        dict_var (dict): _description_
+    Parameters
+    ----------
+    data_class : 
+        Declare for dataclass
+    dict_var : dict
+        Inputted dictionary
 
-    Returns:
-        _type_: _description_
+    Returns
+    -------
+    dataclass
     """
     fieldSet = {f.name for f in fields(data_class) if f.init}
     filteredArgDict = {k: v for k, v in dict_var.items() if k in fieldSet}
     return data_class(**filteredArgDict)
 
 
-def rio_warp(input: str, output: str, template: str):
-    """warp image using rasterio cmd
-    Args:
-        input (str): the directory of input file
-        output (str): the directory of output file
-        template (str): the directory of template file that define the output georeference informations
+def rio_warp(input_path: str, output_path: str, template_path: str):
+    """warp a raster from a template file
+
+    Parameters
+    ----------
+    input_path : str
+        path of inputted raster
+    output_path : str
+        path of outputted path
+    template_path : str
+        path of template path
     """
     cmd = f"rio warp {input} {output} --like {template} --overwrite"
     os.system(cmd)
+
+def modeby(input_array: np.ndarray, index_array: np.ndarray) -> list:
+    """calculate modes of input_array groupped by index_array.
+
+    Parameters
+    ----------
+    input_array : np.ndarray
+        input array to calculate
+    index_array : np.ndarray
+        the object array, where the same id indicates the pixel for the same object
+
+    Returns
+    -------
+    list
+        a list of mode value for each object, following ascending order of unique id. modified from: https://stackoverflow.com/questions/49372918/group-numpy-into-multiple-sub-arrays-using-an-array-of-values
+    """
+    
+    # Get argsort indices, to be used to sort a and b in the next steps
+    # input_array = classification_map
+    # index_array = object_map
+    sidx = index_array.argsort(kind="mergesort")
+    a_sorted = input_array[sidx]
+    b_sorted = index_array[sidx]
+
+    # Get the group limit indices (start, stop of groups)
+    cut_idx = np.flatnonzero(np.r_[True, b_sorted[1:] != b_sorted[:-1], True])
+
+    # Split input array with those start, stop ones
+    split = [a_sorted[i:j] for i, j in zip(cut_idx[:-1], cut_idx[1:])]
+    mode_list = [stats.mode(x, keepdims=True)[0][0] for x in split]
+    return mode_list
+
+
+def mode_median_by(input_array_mode:np.ndarray, input_array_median: np.ndarray, index_array: np.ndarray)-> list:
+    """_summary_
+
+    Parameters
+    ----------
+    input_array_mode : np.ndarray
+        input array for calculating mode
+    input_array_median : np.ndarray
+        input array for calculating median
+    index_array : np.ndarray
+        the array for indicating objects. The pixels in the same object have the same ids
+
+    Returns
+    -------
+    (list, list)
+        a list of mode value and a list of median value for each object
+    """
+    
+    sidx = index_array.argsort(kind="mergesort")
+    a1_sorted = input_array_mode[sidx]
+    a2_sorted = input_array_median[sidx]
+    b_sorted = index_array[sidx]
+
+    # Get the group limit indices (start, stop of groups)
+    cut_idx = np.flatnonzero(np.r_[True, b_sorted[1:] != b_sorted[:-1], True])
+
+    # Split input array with those start, stop ones
+    split_mode = [a1_sorted[i:j] for i, j in zip(cut_idx[:-1], cut_idx[1:])]
+    split_median = [a2_sorted[i:j] for i, j in zip(cut_idx[:-1], cut_idx[1:])]
+    mode_list = [stats.mode(x)[0][0] for x in split_mode]
+    median_list = [np.median(x[~np.isnan(x)]) for x in split_median]
+    return mode_list, median_list

@@ -246,28 +246,28 @@ def cold_detect(
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        probability threshold of change magnitude, default is 0.99
+        probability threshold of change magnitude, by default 0.99
     conse: int
-        consecutive observation number, default is 6
+        consecutive observation number, by default 6
     pos: int
-        position id of the pixel, default is 1
+        position id of the pixel, by default 1
     b_output_cm: bool
         'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e., 
         (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
     starting_date: int
         the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile.
-        should have the same date, only for b_output_cm is True. default is 0.
+        should have the same date, only for b_output_cm is True. by default 0.
     n_cm: int
-        length of outputted change magnitude. Only b_output_cm == 'True'. default is 0.
+        length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
     cm_output_interval: int
-        temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. default is 0.
+        temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
     b_c2: bool
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. default is True
+        pixel test due to the current low quality. by default True
     gap_days: int
         define the day number of the gap year for determining i_dense. The COLD will skip the i_dense 
         days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap 
-        year is in the middle of the time range. default is 365.25.
+        year is in the middle of the time range. by default 365.25.
     fitlam: float 
         between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, 
         but will affect the outputted harmonic model
@@ -372,12 +372,12 @@ def obcold_reconstruct(
     break_dates: numpy.ndarray
         1d time series of break dates obtained from other procedures such as obia
     conse: int
-        consecutive observation number, default is 6
+        consecutive observation number, by default 6
     pos: int
-        position id of the pixel, default is 1
+        position id of the pixel, by default 1
     b_c2: bool
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. default is True
+        pixel test due to the current low quality. by default True
 
     Returns
     -------
@@ -452,26 +452,26 @@ def sccd_detect(
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        Probability threshold of change magnitude, default is 0.99
+        Probability threshold of change magnitude, by default 0.99
     conse: int
-        Consecutive observation number, default is 6
+        Consecutive observation number, by default 6
     pos: int
-        Position id of the pixel, default is 1
+        Position id of the pixel, by default 1
     b_c2: bool
         A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. default is True
+        pixel test due to the current low quality. by default True
     b_pinpoint: bool
         If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg, 
-        which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, default is False.
+        which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
         Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks). 
     gate_pcg: float
-        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, default is 0.90.
+        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     state_intervaldays: float
-        If larger than 0, output states at a day interval of state_intervaldays, default is 0.0 (meaning that no states will be outputted).
+        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted).
         For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, 
-        otherwise use the local coefficients from kalman filter, default is False.
+        otherwise use the local coefficients from kalman filter, by default False.
         
     Returns
     -------
@@ -579,13 +579,13 @@ def sccd_update(
     qas: numpy.ndarray
         1d new time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        probability threshold of change magnitude, default is 0.99
+        probability threshold of change magnitude, by default 0.99
     conse: int
-        consecutive observation number, default is 6
+        consecutive observation number, by default 6
     pos: int
-        position id of the pixel, default is 1
+        position id of the pixel, by default 1
     gate_pcg: float
-        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, default is 0.90.
+        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     predictability_pcg: float 
         probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     Returns
@@ -649,9 +649,9 @@ def sccd_identify(
     sccd_pack: :py:type:`~pyxccd.common.SccdOutput`
         S-CCD output
     dist_conse: int 
-        Minimum consecutive anomaly number required to identify disturbance, default is 6
+        Minimum consecutive anomaly number required to identify disturbance, by default 6
     p_cg: float
-        Change magnitude probability threshold to identify disturbance, default is 0.99
+        Change magnitude probability threshold to identify disturbance, by default 0.99
     t_cg_singleband: float
         single-band change magnitude to identify greenning breaks, by default -200
       see Eq. 10 in Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., & Zhou, C. (2020).
@@ -742,28 +742,28 @@ def cold_detect_flex(
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        probability threshold of change magnitude, default is 0.99
+        probability threshold of change magnitude, by default 0.99
     conse: int
-        consecutive observation number, default is 6
+        consecutive observation number, by default 6
     pos: int
-        position id of the pixel, default is 1
+        position id of the pixel, by default 1
     b_output_cm: bool
         'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e., 
         (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
     starting_date: int
         the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile.
-        should have the same date, only for b_output_cm is True. default is 0.
+        should have the same date, only for b_output_cm is True. by default 0.
     n_cm: int
-        length of outputted change magnitude. Only b_output_cm == 'True'. default is 0.
+        length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
     cm_output_interval: int
-        temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. default is 0.
+        temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
     b_c2: bool
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. default is True
+        pixel test due to the current low quality. by default True
     gap_days: int
         define the day number of the gap year for determining i_dense. The COLD will skip the i_dense 
         days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap 
-        year is in the middle of the time range. default is 365.25.
+        year is in the middle of the time range. by default 365.25.
     fitlam: float 
         between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, 
         but will affect the outputted harmonic model
@@ -862,26 +862,26 @@ def sccd_detect_flex(
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        Probability threshold of change magnitude, default is 0.99
+        Probability threshold of change magnitude, by default 0.99
     conse: int
-        Consecutive observation number, default is 6
+        Consecutive observation number, by default 6
     pos: int
-        Position id of the pixel, default is 1
+        Position id of the pixel, by default 1
     b_c2: bool
         A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. default is True
+        pixel test due to the current low quality. by default True
     b_pinpoint: bool
         If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg, 
-        which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, default is False.
+        which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
         Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks). 
     gate_pcg: float
-        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, default is 0.90.
+        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     state_intervaldays: float
-        If larger than 0, output states at a day interval of state_intervaldays, default is 0.0 (meaning that no states will be outputted).
+        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted).
         For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, 
-        otherwise use the local coefficients from kalman filter, default is False.
+        otherwise use the local coefficients from kalman filter, by default False.
     tmask_b1: int
         The first band id for tmask. Started from 1.
     tmask_b2: int
@@ -974,13 +974,13 @@ def sccd_update_flex(
     qas: numpy.ndarray
         1d new time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        probability threshold of change magnitude, default is 0.99
+        probability threshold of change magnitude, by default 0.99
     conse: int
-        consecutive observation number, default is 6
+        consecutive observation number, by default 6
     pos: int
-        position id of the pixel, default is 1
+        position id of the pixel, by default 1
     gate_pcg: float
-        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, default is 0.90.
+        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     predictability_pcg: float 
         probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     Returns

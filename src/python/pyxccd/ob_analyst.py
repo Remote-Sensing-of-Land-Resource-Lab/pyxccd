@@ -12,7 +12,7 @@ from scipy import stats
 from scipy.stats import chi2
 from os.path import join, exists
 from logging import Logger
-from pyxccd.utils import get_block_x, get_block_y, read_blockdata, get_rowcol_intile
+from pyxccd.utils import get_block_x, get_block_y, read_blockdata, get_rowcol_intile, modeby, mode_median_by
 from pyxccd.app import defaults
 from pyxccd import obcold_reconstruct
 from skimage.segmentation import slic
@@ -26,7 +26,7 @@ from pyxccd.common import DatasetInfo
 NAN_VAL = -9999
 
 
-def cmname_fromdate(ordinal_date):
+def _cmname_fromdate(ordinal_date):
     """
     get file name from ordinate date
     Args:
@@ -41,7 +41,7 @@ def cmname_fromdate(ordinal_date):
     )
 
 
-def cmdatename_fromdate(ordinal_date):
+def _cmdatename_fromdate(ordinal_date):
     """
     get date file name from ordinate date
     Args:
@@ -56,7 +56,7 @@ def cmdatename_fromdate(ordinal_date):
     )
 
 
-def obiaresname_fromdate(ordinal_date):
+def _obiaresname_fromdate(ordinal_date):
     """
     get OBIA result file name from ordinate date
     Args:
@@ -71,26 +71,32 @@ def obiaresname_fromdate(ordinal_date):
     )
 
 
-def is_change_object(
-    stats_lut_row,
-    uniform_threshold,
-    uniform_sizeslope,
-    keyword,
-    classification_map,
-    parameters=None,
+def _is_change_object(
+    stats_lut_row:dict,
+    keyword:str,
+    classification_map:np.ndarray,
+    uniform_threshold=None,
+    uniform_sizeslope=None,
+    parameters=None
 ):
-    """
-    parameters
-    ----------
-    is_thematic: True -> that has thematic inputs; False-> default parameter will be applied
-    stats_lut_row: a table of ['id', 'change magnitude', 'mode of lc category', 'pixel number']
-    uniform_threshold: grid searching usage, overwriting default parameter
-    uniform_sizeslope: grid searching usage, overwriting default parameter
-    keyword: string, keyword to calculate change magnitude, 'cm_average' or 'cm_median'
+    """_summary_
 
-    Returns: boolean
+    Parameters
+    ----------
+    stats_lut_row : dict
+        a dictionary that has 'npixels', 'keyword', 'mode'
+
+    keyword : str
+        keyword to calculate change magnitude, 'cm_average' or 'cm_median'
+    classification_map : np.ndarray
+        labek map
+    parameters : _type_, optional
+        define size slope and intercept, by default None
+
+    Returns
     -------
-        True -> is change object
+    bool
+        _description_
     """
     # LCMAP category id
     # developed_id: 1
@@ -218,60 +224,6 @@ def is_change_object(
                 else:
                     return False
 
-
-def modeby(input_array, index_array):
-    """
-    calculate modes of input_array groupped by index_array.
-    Args:
-        input_array: input array to group
-        index_array: index array of input array
-
-    Returns:
-        a list of modes for splitted subarray following ascending order of unique id
-        modified from: https://stackoverflow.com/questions/49372918/group-numpy-into-multiple-sub-arrays-using-an-array-of-values
-    """
-    # Get argsort indices, to be used to sort a and b in the next steps
-    # input_array = classification_map
-    # index_array = object_map
-    sidx = index_array.argsort(kind="mergesort")
-    a_sorted = input_array[sidx]
-    b_sorted = index_array[sidx]
-
-    # Get the group limit indices (start, stop of groups)
-    cut_idx = np.flatnonzero(np.r_[True, b_sorted[1:] != b_sorted[:-1], True])
-
-    # Split input array with those start, stop ones
-    split = [a_sorted[i:j] for i, j in zip(cut_idx[:-1], cut_idx[1:])]
-    mode_list = [stats.mode(x, keepdims=True)[0][0] for x in split]
-    return mode_list
-
-
-def mode_median_by(input_array_mode, input_array_median, index_array):
-    """
-    Args:
-        input_array_mode: input array for calculating mode
-        input_array_median: input array for calculating mode
-        index_array: index array of input array
-
-    Returns:
-        a list of modes for splitted subarray following ascending order of unique id
-    """
-    sidx = index_array.argsort(kind="mergesort")
-    a1_sorted = input_array_mode[sidx]
-    a2_sorted = input_array_median[sidx]
-    b_sorted = index_array[sidx]
-
-    # Get the group limit indices (start, stop of groups)
-    cut_idx = np.flatnonzero(np.r_[True, b_sorted[1:] != b_sorted[:-1], True])
-
-    # Split input array with those start, stop ones
-    split_mode = [a1_sorted[i:j] for i, j in zip(cut_idx[:-1], cut_idx[1:])]
-    split_median = [a2_sorted[i:j] for i, j in zip(cut_idx[:-1], cut_idx[1:])]
-    mode_list = [stats.mode(x)[0][0] for x in split_mode]
-    median_list = [np.median(x[~np.isnan(x)]) for x in split_median]
-    return mode_list, median_list
-
-
 def segmentation_floodfill(
     cm_array: np.ndarray,
     cm_date_array: np.ndarray,
@@ -283,23 +235,31 @@ def segmentation_floodfill(
     date_interval: int = 60,
     peak_threshold: Optional[float] = None,
 ):
-    """
-    hierachical segmentation based on floodfill
+    """hierachical segmentation based on floodfill
+    
     Parameters
     ----------
-    cm_array: 2-d numpy array, change magnitude array
+    cm_array: np.ndarray
+        2-d numpy array, change magnitude array
     cm_date_array: 2-d numpy array, change date array
-    cm_array_l1: 2-d numpy array
-    cm_array_l1_date: 2-d numpy array
+    cm_array_l1: np.ndarray
+        2-d numpy array
+    cm_array_l1_date: np.ndarray
+        2-d numpy array
     floodfill_ratio: float
         the change magnitude ratio of the considered pixel over the seed pixel to be included into the cluster
-    parameters: parameter dictionary
+    parameters: dict
+        OBCOLD Parameters   
     b_dist_prob_map: boolean
         if true, cm_array is probability
-    date_interval: the date interval for cm_date_array to connect adjacent pixels within the floodfill process
-    peak_threshold:
+    date_interval: int
+        the date interval for cm_date_array to connect adjacent pixels within the floodfill process
+    peak_threshold:float
+        the threshold defining local peaks
+    
     Returns
     -------
+    tuple
     [object_map_s1, cm_date_array, object_map_s2, s1_info]:
         object_map_s1: object map for superpixel,
         cm_date_array: change date maps which is updated by filling na values from the previous change date map,
@@ -449,20 +409,20 @@ def segmentation_floodfill(
     return object_map_s1, cm_date_array, object_map_s2, s1_info
 
 
-def normalize_clip(data, min, max, na_val=None):
-    if max == min:
-        tmp = np.full_like(data, fill_value=0)
-    else:
-        tmp = (data - min) / (max - min)
-        np.clip(tmp, 0, 1, out=tmp)
-    if na_val is not None:
-        tmp[data == na_val] = na_val
-    return tmp
+# def normalize_clip(data, min, max, na_val=None):
+#     if max == min:
+#         tmp = np.full_like(data, fill_value=0)
+#     else:
+#         tmp = (data - min) / (max - min)
+#         np.clip(tmp, 0, 1, out=tmp)
+#     if na_val is not None:
+#         tmp[data == na_val] = na_val
+#     return tmp
 
 
 def segmentation_slic(
-    cm_array,
-    cm_date_array,
+    cm_array:np.ndarray,
+    cm_date_array:np.ndarray,
     cm_array_l1=None,
     cm_array_l1_date=None,
     low_bound=None,
@@ -693,18 +653,29 @@ def object_analysis(
     uniform_sizeslope=None,
     parameters=None,
 ):
-    """
-    Args:
-        object_map_s1: 2-d array, object map for superpixel
-        object_map_s2: 2-d array, object map for patch level
-        s1_info: a zipped list, the first element is id and the second element is average
-        classification_map: 2-d array, the classification map which is one year prior to object_map_s1
-        uniform_threshold: double, if not none, using a uniform change probability for all land categories, only used
-                          for parameter testing
-        uniform_sizeslope: double, if not none, using a uniform size factor for all land categories, only used
-                          for parameter testing
-    Returns:
+    """_summary_
 
+    Parameters
+    ----------
+    object_map_s1 : np.ndarray
+        object map for superpixel
+    object_map_s2 : np.ndarray
+        _object map for patch level
+    s1_info : dict
+        a zipped list, the first element is id and the second element is average
+    classification_map : np.ndarray, optional
+        2-d array, the classification map which is one year prior to object_map_s1, by default None
+    uniform_threshold : double, optional
+        A uniform change probability for all land categories, only used for parameter testing, by default None
+    uniform_sizeslope : _type_, optional
+        A uniform size factor for all land categories, only used for parameter testing, by default None
+    parameters : _type_, optional
+        _description_, by default None
+
+    Returns
+    -------
+    _type_
+        _description_
     """
     # if classification_map is not None:
     #     assert classification_map.shape == object_map_s1.shape
@@ -752,7 +723,7 @@ def object_analysis(
     if len(class_labels) > 0:  # if non-background change objects > 0
         for index in class_labels:
             stats_lut_row = stats_lut.loc[stats_lut["label"] == index]
-            if is_change_object(
+            if _is_change_object(
                 stats_lut_row,
                 uniform_threshold,
                 uniform_sizeslope,
@@ -905,12 +876,12 @@ class ObjectAnalystHPC:
                 (self.dataset_info.n_rows, self.dataset_info.n_cols), 0, dtype=np.int32
             )
         else:
-            date_array = np.load(join(self.cmmap_path, cmdatename_fromdate(date) + ".npy")).astype(np.int32)
+            date_array = np.load(join(self.cmmap_path, _cmdatename_fromdate(date) + ".npy")).astype(np.int32)
             date_array_copy = date_array
             date_array = date_array + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"]
             date_array[date_array_copy == -9999] = -9999
             del date_array_copy
-            date_array_last = np.load(join(self.cmmap_path, cmdatename_fromdate(date - cm_output_interval) + ".npy")).astype(np.int32)
+            date_array_last = np.load(join(self.cmmap_path, _cmdatename_fromdate(date - cm_output_interval) + ".npy")).astype(np.int32)
             date_array_copy = date_array_last
             date_array_last = date_array_last + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"]
             date_array_last[date_array_copy == -9999] = -9999
@@ -922,24 +893,24 @@ class ObjectAnalystHPC:
                     object_map_s2,
                     s1_info,
                 ] = segmentation_floodfill(
-                    np.load(join(self.cmmap_path, cmname_fromdate(date) + ".npy")),
+                    np.load(join(self.cmmap_path, _cmname_fromdate(date) + ".npy")),
                     date_array,
                     np.load(
                         join(
                             self.cmmap_path,
-                            cmname_fromdate(date - cm_output_interval) + ".npy",
+                            _cmname_fromdate(date - cm_output_interval) + ".npy",
                         )
                     ),
                     date_array_last
                 )
             elif method == "slic":
                 [object_map_s1, cm_date_array_updated, object_map_s2, s1_info] = segmentation_slic(
-                    np.load(join(self.cmmap_path, cmname_fromdate(date) + ".npy")),
+                    np.load(join(self.cmmap_path, _cmname_fromdate(date) + ".npy")),
                     date_array,
                     np.load(
                         join(
                             self.cmmap_path,
-                            cmname_fromdate(date - cm_output_interval) + ".npy",
+                            _cmname_fromdate(date - cm_output_interval) + ".npy",
                         )
                     ),
                     date_array_last
@@ -951,12 +922,12 @@ class ObjectAnalystHPC:
                     object_map_s2,
                     s1_info,
                 ] = segmentation_watershed(
-                    np.load(join(self.cmmap_path, cmname_fromdate(date) + ".npy")),
+                    np.load(join(self.cmmap_path, _cmname_fromdate(date) + ".npy")),
                     date_array,
                     np.load(
                         join(
                             self.cmmap_path,
-                            cmname_fromdate(date - cm_output_interval) + ".npy",
+                            _cmname_fromdate(date - cm_output_interval) + ".npy",
                         )
                     ),
                     date_array_last
@@ -992,13 +963,13 @@ class ObjectAnalystHPC:
         Returns:
 
         """
-        filenm = obiaresname_fromdate(date)
+        filenm = _obiaresname_fromdate(date)
         bytesize = 4
 
         # prevent -9999 * date
         cm_date_array_updated[cm_date_array_updated < 0] = 0
         # need yo load date snapshot
-        # cm_date_snapshot = np.load(join(self.cmmap_path, cmdatename_fromdate(date)+'.npy'))
+        # cm_date_snapshot = np.load(join(self.cmmap_path, _cmdatename_fromdate(date)+'.npy'))
         result_blocks = np.lib.stride_tricks.as_strided(
             np.multiply(change_map, cm_date_array_updated).astype(np.int32),
             shape=(
