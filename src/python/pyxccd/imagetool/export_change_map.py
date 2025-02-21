@@ -12,177 +12,30 @@ import click
 
 # from mpi4py import MPI
 import multiprocessing
-from multiprocessing import Pool
 import functools
 
 # from osgeo import gdal_array
 import pickle
 import rasterio
 import yaml
-from collections import namedtuple
 import datetime as datetime
-from pyxccd.utils import class_from_dict, rio_loaddata
-from pyxccd.common import DatasetInfo
+from pyxccd.utils import (
+    class_from_dict,
+    rio_loaddata,
+    extract_features,
+    getcategory_cold,
+    getcategory_sccd,
+)
+from pyxccd.common import DatasetInfo, SccdOutput, sccd_dt, nrtqueue_dt, nrtmodel_dt
 
 
 PACK_ITEM = 6
-SccdOutput = namedtuple(
-    "SccdOutput", "position rec_cg min_rmse nrt_mode nrt_model nrt_queue"
-)
-output_sccd = np.dtype(
-    [
-        ("t_start", np.int32),
-        ("t_break", np.int32),
-        ("num_obs", np.int32),
-        ("coefs", np.float32, (6, 6)),
-        ("rmse", np.float32, 6),
-        ("magnitude", np.float32, 6),
-    ],
-    align=True,
-)
-
-output_nrtqueue = np.dtype(
-    [("clry", np.short, 6), ("clrx_since1982", np.short)], align=True
-)
-output_nrtmodel = np.dtype(
-    [
-        ("t_start_since1982", np.short),
-        ("num_obs", np.short),
-        ("obs", np.short, (6, 5)),
-        ("obs_date_since1982", np.short, 5),
-        ("covariance", np.float32, (6, 36)),
-        ("nrt_coefPs", np.float32, (6, 6)),
-        ("H", np.float32, 6),
-        ("rmse_sum", np.uint32, 6),
-        ("cm_outputs", np.short),
-        ("cm_outputs_date", np.short),
-    ],
-    align=True,
-)
-
 coef_names = ["a0", "c1", "a1", "b1", "a2", "b2", "a3", "b3", "cv", "rmse"]
 band_names = [0, 1, 2, 3, 4, 5, 6]
 SLOPE_SCALE = 10000
 
-
 # copy from /pyxccd/src/python/pyxccd/pyclassifier.py because MPI has conflicts with the pyxccd package in UCONN HPC.
 # Dirty approach!
-def extract_features(
-    cold_plot, band, ordinal_day_list, nan_val, feature_outputs=["a0", "a1", "b1"]
-):
-    """
-    generate features for classification based on a plot-based rec_cg and a list of days to be predicted
-    Parameters
-    ----------
-    cold_plot: nested array
-        plot-based rec_cg
-    band: integer
-        the predicted band number range from 0 to 6
-    ordinal_day_list: list
-        a list of days that this function will predict every days as a list as output
-    nan_val: integer
-        NA value assigned to the output
-    feature_outputs: a list of outputted feature name
-        it must be within [a0, c1, a1, b1,a2, b2, a3, b3, cv, rmse]
-    Returns
-    -------
-        feature: a list (length = n_feature) of 1-array [len(ordinal_day_list)]
-    """
-    features = [
-        np.full(len(ordinal_day_list), nan_val, dtype=np.double)
-        for x in range(len(feature_outputs))
-    ]
-    for index, ordinal_day in enumerate(ordinal_day_list):
-        # print(index)
-        for idx, cold_curve in enumerate(cold_plot):
-            if idx == len(cold_plot) - 1:
-                max_days = datetime.datetime(
-                    pd.Timestamp.fromordinal(cold_plot[idx]["t_end"]).year, 12, 31, 0, 0
-                ).toordinal()
-            else:
-                max_days = cold_plot[idx + 1]["t_start"]
-            break_year = (
-                pd.Timestamp.fromordinal(cold_curve["t_break"]).year
-                if (cold_curve["t_break"] > 0 and cold_curve["change_prob"] == 100)
-                else -9999
-            )
-            min_day = (
-                datetime.datetime(1985, 12, 31, 0, 0).toordinal()
-                if idx == 0
-                else cold_curve["t_start"]
-            )
-
-            # if cold_curve["t_start"] <= ordinal_day < max_days:
-            if min_day <= ordinal_day < max_days:
-                for n, feature in enumerate(feature_outputs):
-                    if feature not in feature_outputs:
-                        raise Exception(
-                            "the outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, cv, rmse]"
-                        )
-                    if int(cold_curve["category"] / 10) == 5:  # permanent snow
-                        features[n][index] = 0
-                        continue
-                    if feature == "a0":
-                        features[n][index] = (
-                            cold_curve["coefs"][band][0]
-                            + cold_curve["coefs"][band][1] * ordinal_day / SLOPE_SCALE
-                        )
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "c1":
-                        features[n][index] = cold_curve["coefs"][band][1] / SLOPE_SCALE
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "a1":
-                        features[n][index] = cold_curve["coefs"][band][2]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "b1":
-                        features[n][index] = cold_curve["coefs"][band][3]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "a2":
-                        features[n][index] = cold_curve["coefs"][band][4]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "b2":
-                        features[n][index] = cold_curve["coefs"][band][5]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "a3":
-                        features[n][index] = cold_curve["coefs"][band][6]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "b3":
-                        features[n][index] = cold_curve["coefs"][band][7]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    elif feature == "rmse":
-                        features[n][index] = cold_curve["rmse"][band]
-                        if np.isnan(features[n][index]):
-                            features[n][index] = 0
-                    # else:
-                    #     raise Exception(
-                    #         'the outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, cv, rmse]')
-                break
-
-    # we have to separately deal with cv. dirty solution
-    if "cv" in feature_outputs:
-        ordinal_day_years = [
-            pd.Timestamp.fromordinal(day).year for day in ordinal_day_list
-        ]
-        for index, ordinal_year in enumerate(ordinal_day_years):
-            for cold_curve in cold_plot:
-                if (cold_curve["t_break"] == 0) or (cold_curve["change_prob"] != 100):
-                    continue
-                break_year = pd.Timestamp.fromordinal(cold_curve["t_break"]).year
-                if break_year == ordinal_year:
-                    features[feature_outputs.index("cv")][index] = cold_curve[
-                        "magnitude"
-                    ][band]
-                    break
-
-    return features
 
 
 def index_sccdpack(sccd_pack_single):
@@ -204,96 +57,61 @@ def index_sccdpack(sccd_pack_single):
         )
     else:
         sccd_pack_single = sccd_pack_single._replace(
-            rec_cg=np.asarray(sccd_pack_single.rec_cg, dtype=output_sccd)
+            rec_cg=np.asarray(sccd_pack_single.rec_cg, dtype=sccd_dt)
         )
     if len(sccd_pack_single.nrt_model) > 0:
         sccd_pack_single = sccd_pack_single._replace(
-            nrt_model=np.asarray(sccd_pack_single.nrt_model, dtype=output_nrtmodel)
+            nrt_model=np.asarray(sccd_pack_single.nrt_model, dtype=nrtmodel_dt)
         )
     if len(sccd_pack_single.nrt_queue) > 0:
         sccd_pack_single = sccd_pack_single._replace(
-            nrt_queue=np.asarray(sccd_pack_single.nrt_queue, dtype=output_nrtqueue)
+            nrt_queue=np.asarray(sccd_pack_single.nrt_queue, dtype=nrtqueue_dt)
         )
     return sccd_pack_single
 
 
-def getcategory_cold(cold_plot, i_curve):
-    t_c = -200
-    if (
-        cold_plot[i_curve]["magnitude"][3] > t_c
-        and cold_plot[i_curve]["magnitude"][2] < -t_c
-        and cold_plot[i_curve]["magnitude"][4] < -t_c
-    ):
-        if (
-            cold_plot[i_curve + 1]["coefs"][3, 1]
-            > np.abs(cold_plot[i_curve]["coefs"][3, 1])
-            and cold_plot[i_curve + 1]["coefs"][2, 1]
-            < -np.abs(cold_plot[i_curve]["coefs"][2, 1])
-            and cold_plot[i_curve + 1]["coefs"][4, 1]
-            < -np.abs(cold_plot[i_curve]["coefs"][4, 1])
-        ):
-            return 3  # aforestation
-        else:
-            return 2  # regrowth
-    else:
-        return 1  # land disturbance
+# def getcategory_obcold(cold_plot, i_curve, last_dist_type):
+#     t_c = -250
+#     if (
+#         cold_plot[i_curve]["magnitude"][3] > t_c
+#         and cold_plot[i_curve]["magnitude"][2] < -t_c
+#         and cold_plot[i_curve]["magnitude"][4] < -t_c
+#     ):
+#         if (
+#             cold_plot[i_curve + 1]["coefs"][3, 1]
+#             > np.abs(cold_plot[i_curve]["coefs"][3, 1])
+#             and cold_plot[i_curve + 1]["coefs"][2, 1]
+#             < -np.abs(cold_plot[i_curve]["coefs"][2, 1])
+#             and cold_plot[i_curve + 1]["coefs"][4, 1]
+#             < -np.abs(cold_plot[i_curve]["coefs"][4, 1])
+#         ):
+#             return 3  # aforestation
+#         else:
+#             return 2  # regrowth
+#     else:
+#         if i_curve > 0:
+#             if (
+#                 cold_plot[i_curve]["t_break"] - cold_plot[i_curve - 1]["t_break"]
+#                 > 365.25 * 5
+#             ) or (last_dist_type != 1):
+#                 return 1
+#             flip_count = 0
+#             for b in range(5):
+#                 if (
+#                     cold_plot[i_curve]["magnitude"][b + 1]
+#                     * cold_plot[i_curve - 1]["magnitude"][b + 1]
+#                     < 0
+#                 ):
+#                     flip_count = flip_count + 1
+#             if flip_count >= 4:
+#                 return 4
+#             else:
+#                 return 1
+#         else:
+#             return 1  # land disturbance
 
 
-def getcategory_obcold(cold_plot, i_curve, last_dist_type):
-    t_c = -250
-    if (
-        cold_plot[i_curve]["magnitude"][3] > t_c
-        and cold_plot[i_curve]["magnitude"][2] < -t_c
-        and cold_plot[i_curve]["magnitude"][4] < -t_c
-    ):
-        if (
-            cold_plot[i_curve + 1]["coefs"][3, 1]
-            > np.abs(cold_plot[i_curve]["coefs"][3, 1])
-            and cold_plot[i_curve + 1]["coefs"][2, 1]
-            < -np.abs(cold_plot[i_curve]["coefs"][2, 1])
-            and cold_plot[i_curve + 1]["coefs"][4, 1]
-            < -np.abs(cold_plot[i_curve]["coefs"][4, 1])
-        ):
-            return 3  # aforestation
-        else:
-            return 2  # regrowth
-    else:
-        if i_curve > 0:
-            if (
-                cold_plot[i_curve]["t_break"] - cold_plot[i_curve - 1]["t_break"]
-                > 365.25 * 5
-            ) or (last_dist_type != 1):
-                return 1
-            flip_count = 0
-            for b in range(5):
-                if (
-                    cold_plot[i_curve]["magnitude"][b + 1]
-                    * cold_plot[i_curve - 1]["magnitude"][b + 1]
-                    < 0
-                ):
-                    flip_count = flip_count + 1
-            if flip_count >= 4:
-                return 4
-            else:
-                return 1
-        else:
-            return 1  # land disturbance
-
-
-# for sccd we won't consider afforestation
-def getcategory_sccd(cold_plot, i_curve):
-    t_c = -200
-    if (
-        cold_plot[i_curve]["magnitude"][3] > t_c
-        and cold_plot[i_curve]["magnitude"][2] < -t_c
-        and cold_plot[i_curve]["magnitude"][4] < -t_c
-    ):
-        return 2  # regrowth
-    else:
-        return 1  # land disturbance
-
-
-def export_map_processing(
+def _export_map_processing(
     dataset_info,
     method,
     year_uppbound,
@@ -461,12 +279,12 @@ def export_map_processing(
                 )
                 return
 
-            if method == "OBCOLD":
-                current_dist_type = getcategory_obcold(
-                    cold_block, count, current_dist_type
-                )
-            else:
-                current_dist_type = getcategory_cold(cold_block, count)
+            # if method == "OBCOLD":
+            #     current_dist_type = getcategory_obcold(
+            #         cold_block, count, current_dist_type
+            #     )
+            # else:
+            current_dist_type = getcategory_cold(cold_block, count)
             break_year = pd.Timestamp.fromordinal(curve["t_break"]).year
             if break_year < year_lowbound or break_year > year_uppbound:
                 continue
@@ -667,7 +485,7 @@ def main(
     block_list = list(range(0, dataset_info.nblocks))
     pool = multiprocessing.Pool(n_cores)
     partial_func = functools.partial(
-        export_map_processing,
+        _export_map_processing,
         dataset_info,
         method,
         year_uppbound,
@@ -682,7 +500,7 @@ def main(
     pool.join()
 
     # for i in range(dataset_info.nblocks):
-    #     export_map_processing(ranks_percore, n_cores, dataset_info, method, year_uppbound, year_lowbound, coefs, coefs_bands, result_path, out_path, i)
+    #     _export_map_processing(ranks_percore, n_cores, dataset_info, method, year_uppbound, year_lowbound, coefs, coefs_bands, result_path, out_path, i)
 
     # assemble
     for year in range(year_lowbound, year_uppbound + 1):

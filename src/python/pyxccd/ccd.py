@@ -137,70 +137,6 @@ def _validate_data_flex(dates, ts_data, qas):
     return dates, ts_data, qas
 
 
-# def _nrt_stablity_test(sccd_plot, threshold, parameters, conse=6):
-#     """
-#     calculate the valid conse pixel, and the stable observation number out of valid conse
-#     Parameters
-#     ----------
-#     sccd_plot: sccd pack
-#     threshold: the change magnitude threshold to define stable obs
-#     parameters: pyxccd parameters
-#     conse: the default conse
-#
-#     Returns
-#     -------
-#     number of test obs, number of stable obs
-#     """
-#
-#     if sccd_plot.nrt_mode == 0 or sccd_plot.nrt_mode == 3 or sccd_plot.nrt_mode == 4: # snow mode
-#         return 0, 0
-#     else:
-#         pred_ref = numpy.asarray([[predict_ref(sccd_plot.nrt_model[0]['nrt_coefs'][b],
-#                                             sccd_plot.nrt_model[0]['obs_date_since1982'][
-#                                                 i_conse] + parameters['COMMON'][
-#                                                 'JULIAN_LANDSAT4_LAUNCH'])
-#                                 for i_conse in range(parameters['COMMON']['default_conse'])]
-#                                for b in range(parameters['SCCD']['NRT_BAND'])])
-#         cm = (sccd_plot.nrt_model[0]['obs'][:, 0:parameters['COMMON']['default_conse']] - pred_ref)[1:6, :]  # exclude blue band
-#         if sccd_plot.nrt_model['num_obs'] < 18:
-#             df = 4
-#         else:
-#             df = 6
-#         cm_normalized = numpy.sum((cm.T / numpy.max([sccd_plot.min_rmse[1:6],
-#                                                numpy.sqrt(sccd_plot.nrt_model['rmse_sum'][0][1:6] /
-#                                                        (sccd_plot.nrt_model['num_obs'] - df))], axis=0)).T ** 2, axis=0)
-#         if sccd_plot.nrt_mode == 2 or sccd_plot.nrt_mode == 5:  # bi mode - legacy
-#             valid_test_num = numpy.min([len(sccd_plot.nrt_queue) - conse, conse])
-#             cm_normalized = cm_normalized[(conse - valid_test_num): conse]
-#             n_stable = len(cm_normalized[cm_normalized < threshold])
-#             return valid_test_num, n_stable
-#         elif sccd_plot.nrt_mode == 1:  # monitor mode
-#             n_stable = len(cm_normalized[cm_normalized < threshold])
-#             return conse, n_stable
-#
-#
-# def test_stablity(sccd_plot, parameters, threshold=15.086, min_test_obs=3, stable_ratio=0.5):
-#     """
-#     test if the harmonic model is stable
-#     Parameters
-#     ----------
-#     sccd_plot: sccd pack
-#     threshold: the change magnitude threshold to define stable obs
-#     parameters: pyxccd parameters
-#
-#     Returns
-#     -------
-#     True or false
-#     """
-#     test_conse, n_stable = _nrt_stablity_test(sccd_plot, threshold, parameters, conse=6)
-#     if n_stable < min_test_obs:
-#         return False
-#     else:
-#         if n_stable * 1.0 / test_conse > stable_ratio:
-#             return True
-#         else:
-#             return False
-
 def cold_detect(
     dates,
     ts_b,
@@ -222,7 +158,6 @@ def cold_detect(
     gap_days=365.25,
     fitlam=20,
 ):
-
     """running pixel-based COLD algorithm.
 
     Parameters
@@ -252,39 +187,33 @@ def cold_detect(
     pos: int
         position id of the pixel, by default 1
     b_output_cm: bool
-        'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e., 
-        (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
+        'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e., (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
     starting_date: int
-        the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile.
-        should have the same date, only for b_output_cm is True. by default 0.
+        the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile. should have the same date, only for b_output_cm is True. by default 0.
     n_cm: int
         length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
     cm_output_interval: int
         temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
     b_c2: bool
-        a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. by default True
+        a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     gap_days: int
-        define the day number of the gap year for determining i_dense. The COLD will skip the i_dense 
-        days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap 
-        year is in the middle of the time range. by default 365.25.
-    fitlam: float 
-        between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, 
-        but will affect the outputted harmonic model
+        define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
+    fitlam: float
+        between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
     Returns
     -------
     numpy.ndarray | (numpy.ndarray, numpy.ndarray, numpy.ndarray)
-    
-        If  b_output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd; 
+
+        If  b_output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd;
         if b_output_cm is True, a tuple (cold_results, cm_outputs, cm_outputs_date) will be returned
-        
+
             cold_results: numpy.ndarray
                 A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
-        
+
             cm_outputs: numpy.ndarray
                 Change magnitude list, shape (n_cm,)
-            
+
             cm_outputs_date: numpy.ndarray
                 Change magnitude date list, shape (n_cm,)
     """
@@ -348,7 +277,7 @@ def obcold_reconstruct(
     b_c2=True,
 ):
     """re-contructructing change records using break dates.
-    
+
     Parameters
     ----------
     dates: numpy.ndarray
@@ -376,13 +305,12 @@ def obcold_reconstruct(
     pos: int
         position id of the pixel, by default 1
     b_c2: bool
-        a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. by default True
+        a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
 
     Returns
     -------
     numpy.ndarray
- 
+
         cold_results: numpy.ndarray
             A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
     """
@@ -458,38 +386,36 @@ def sccd_detect(
     pos: int
         Position id of the pixel, by default 1
     b_c2: bool
-        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
+        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
         pixel test due to the current low quality. by default True
     b_pinpoint: bool
-        If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg, 
+        If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg,
         which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
-        Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks). 
+        Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
     gate_pcg: float
         Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     state_intervaldays: float
-        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted).
-        For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
+        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
-        If True, use curve fitting to get harmonic coefficients for the temporal segment, 
-        otherwise use the local coefficients from kalman filter, by default False.
-        
+        If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
+
     Returns
     -------
     :py:type:`~pyxccd.common.SccdOutput` | (:py:type:`~pyxccd.common.SccdOutput`, pd.DataFrame) | (:py:type:`~pyxccd.common.SccdOutput`, numpy.ndarray)
-    
+
         If b_pinpoint is False and b_output_state is False, sccdoutput will be returned (by default);
-        if b_pinpoint is False and b_output_state is True,  (sccdoutput, states_info) will be returned; 
+        if b_pinpoint is False and b_output_state is True,  (sccdoutput, states_info) will be returned;
         if b_pinpoint is True, (sccdoutput, pinpoints) will be returned
-        
+
             sccdoutput: :py:type:`~pyxccd.common.SccdOutput`
                 A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
-            
+
             states_info: pd.DataFrame
                 A table of three state time series (trend, annual, semiannual) for six inputted spectral bands
-            
+
             pinpoints: numpy.ndarray
                 A structured array of dtype = :py:type:`~pyxccd.common.pinpoint`
-        
+
     """
     _validate_params(
         func_name="sccd_detect",
@@ -586,13 +512,13 @@ def sccd_update(
         position id of the pixel, by default 1
     gate_pcg: float
         change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
-    predictability_pcg: float 
+    predictability_pcg: float
         probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     Returns
     ----------
     :py:type:`~pyxccd.common.SccdOutput`
         A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
-    
+
     """
     # if not isinstance(sccd_pack, SccdOutput):
     #     raise ValueError("The type of sccd_pack has to be namedtuple 'SccdOutput'!")
@@ -643,19 +569,18 @@ def sccd_identify(
 ):
     """
     identify disturbance date for the current monitoring model from SccdOutput
-    
+
     Parameters
     ----------
     sccd_pack: :py:type:`~pyxccd.common.SccdOutput`
         S-CCD output
-    dist_conse: int 
+    dist_conse: int
         Minimum consecutive anomaly number required to identify disturbance, by default 6
     p_cg: float
         Change magnitude probability threshold to identify disturbance, by default 0.99
     t_cg_singleband: float
         single-band change magnitude to identify greenning breaks, by default -200
-      see Eq. 10 in Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., & Zhou, C. (2020).
-      Continuous monitoring of land disturbance based on Landsat time series. Remote Sensing of Environment, 238, 111116.
+      see Eq. 10 in Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., & Zhou, C. (2020). Continuous monitoring of land disturbance based on Landsat time series. Remote Sensing of Environment, 238, 111116.
     t_angle_scale100: float
         Threshold for included angle (scale by 100), by default 45
     transform_mode: bool
@@ -729,10 +654,10 @@ def cold_detect_flex(
     gap_days=365.25,
     tmask_b1=1,
     tmask_b2=1,
-    fitlam=20
+    fitlam=20,
 ):
     """running pixel-based COLD algorithm for any band combination (flexible mode).
-   
+
     Parameters
     ----------
     dates: numpy.ndarray
@@ -742,45 +667,40 @@ def cold_detect_flex(
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        probability threshold of change magnitude, by default 0.99
+        Probability threshold of change magnitude, by default 0.99
     conse: int
-        consecutive observation number, by default 6
+        Consecutive observation number, by default 6
     pos: int
         position id of the pixel, by default 1
     b_output_cm: bool
-        'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e., 
+        'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e.,
         (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
     starting_date: int
-        the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile.
-        should have the same date, only for b_output_cm is True. by default 0.
+        The starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_output_cm is True. by default 0.
     n_cm: int
-        length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
+        Length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
     cm_output_interval: int
-        temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
+        Temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
     b_c2: bool
-        a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
-        pixel test due to the current low quality. by default True
+        Indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     gap_days: int
-        define the day number of the gap year for determining i_dense. The COLD will skip the i_dense 
-        days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap 
-        year is in the middle of the time range. by default 365.25.
-    fitlam: float 
-        between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, 
-        but will affect the outputted harmonic model
-        
+        Define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
+    fitlam: float
+        Between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
+
     Returns
     -------
     numpy.ndarray | (numpy.ndarray, numpy.ndarray, numpy.ndarray)
-    
-        If  b_output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd; 
+
+        If  b_output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd;
         if b_output_cm is True, a tuple (cold_results, cm_outputs, cm_outputs_date) will be returned
-        
+
             cold_results: numpy.ndarray
                 A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
-        
+
             cm_outputs: numpy.ndarray
                 Change magnitude list, shape (n_cm,)
-            
+
             cm_outputs_date: numpy.ndarray
                 Change magnitude date list, shape (n_cm,)
     """
@@ -807,7 +727,7 @@ def cold_detect_flex(
             f"Can't input more than {MAX_FLEX_BAND} bands ({nbands} > {MAX_FLEX_BAND})"
         )
     if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError(f"tmask_b1 or tmask_b2 is larger than the input band number")
+        raise RuntimeError("tmask_b1 or tmask_b2 is larger than the input band number")
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.99999, nbands)
     rec_cg = _cold_detect_flex(
@@ -868,27 +788,24 @@ def sccd_detect_flex(
     pos: int
         Position id of the pixel, by default 1
     b_c2: bool
-        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid 
+        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
         pixel test due to the current low quality. by default True
     b_pinpoint: bool
-        If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg, 
-        which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
-        Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks). 
+        If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg, which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
+        Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
     gate_pcg: float
-        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
+        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     state_intervaldays: float
-        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted).
-        For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
+        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
-        If True, use curve fitting to get harmonic coefficients for the temporal segment, 
-        otherwise use the local coefficients from kalman filter, by default False.
+        If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
     tmask_b1: int
         The first band id for tmask. Started from 1.
     tmask_b2: int
         The second band id for tmask. Started from 1.
     b_fitting_coefs: bool
         True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients. Default it False.
-    
+
     Returns
     ----------
     SccdOutput: 1-d array of structured type, if b_pinpoint==False
@@ -974,20 +891,20 @@ def sccd_update_flex(
     qas: numpy.ndarray
         1d new time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
-        probability threshold of change magnitude, by default 0.99
+        Probability threshold of change magnitude, by default 0.99
     conse: int
-        consecutive observation number, by default 6
+        Consecutive observation number, by default 6
     pos: int
-        position id of the pixel, by default 1
+        Position id of the pixel, by default 1
     gate_pcg: float
-        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
-    predictability_pcg: float 
-        probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
+        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
+    predictability_pcg: float
+        Probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     Returns
     ----------
     :py:type:`~pyxccd.common.SccdOutput`
         A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
-    
+
     """
     # if not isinstance(sccd_pack, SccdOutput):
     #     raise ValueError("The type of sccd_pack has to be namedtuple 'SccdOutput'!")

@@ -15,15 +15,15 @@ The Continuous Change Detection and Claasification (CCDC) algorithm has been pop
 
 We developed pyxccd mainly for the below purposes:
    
-1. **Near real-time monitoring**: this package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes
+1. **Near real-time monitoring**: this package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
 
-2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_.
-3. 
-4. **Large-scale time-series processing in the desktop environment**: the core of xccd was coded in C with the superior computing efficiency and small memory usage
+2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
 
-5. **Using dataset other than Landsat (such as Sentinel-2, modis)**: pyxccd supports the use of any band combination from any sensor (the flexible mode)
+3. **Large-scale time-series processing in the desktop environment**: the core of xccd was coded in C with the superior computing efficiency and small memory usage;
 
-6. **Decomposing time-series signals to unveil inter-season/inter-annual variation (such as phenological shifts)**: S-CCD allows continuously outputting trend and seasonal signal components as "states"
+4. **Using dataset other than Landsat (such as Sentinel-2, modis)**: pyxccd supports the use of any band combination from any sensor (the flexible mode);
+
+5. **Decomposing time-series signals to unveil inter-season/inter-annual variation (such as phenological shifts)**: S-CCD allows continuously outputting trend and seasonal signal components as "states";
 
 
 
@@ -182,10 +182,10 @@ S-CCD:
 
    # require offline processing for the first time 
    from pyxccd import sccd_detect, sccd_update
-   sccd_pack = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas)
+   sccd_pack = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, qas)
 
    # then use sccd_pack to do recursive and short-memory NRT update
-   sccd_pack_new = sccd_update(sccd_pack, dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas)
+   sccd_pack_new = sccd_update(sccd_pack, dates, blues, greens, reds, nirs, swir1s, swir2s, qas)
 
 Q&A
 ~~~

@@ -220,13 +220,13 @@ def single_image_stacking_hls(
 
         if sensor == "L30":
             try:
-                B1 = rio_loaddata(join(source_dir, folder, "{}.B02.tif".format(folder)))
-                B2 = rio_loaddata(join(source_dir, folder, "{}.B03.tif".format(folder)))
-                B3 = rio_loaddata(join(source_dir, folder, "{}.B04.tif".format(folder)))
-                B4 = rio_loaddata(join(source_dir, folder, "{}.B05.tif".format(folder)))
-                B5 = rio_loaddata(join(source_dir, folder, "{}.B06.tif".format(folder)))
-                B6 = rio_loaddata(join(source_dir, folder, "{}.B07.tif".format(folder)))
-                B7 = np.full(B6.shape, 0)  # assign zero
+                b1 = rio_loaddata(join(source_dir, folder, "{}.B02.tif".format(folder)))
+                b2 = rio_loaddata(join(source_dir, folder, "{}.B03.tif".format(folder)))
+                b3 = rio_loaddata(join(source_dir, folder, "{}.B04.tif".format(folder)))
+                b4 = rio_loaddata(join(source_dir, folder, "{}.B05.tif".format(folder)))
+                b5 = rio_loaddata(join(source_dir, folder, "{}.B06.tif".format(folder)))
+                b6 = rio_loaddata(join(source_dir, folder, "{}.B07.tif".format(folder)))
+                b7 = np.full(b6.shape, 0)  # assign zero
 
             except Exception as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
@@ -234,13 +234,13 @@ def single_image_stacking_hls(
                 return False
         else:
             try:
-                B1 = rio_loaddata(join(source_dir, folder, "{}.B02.tif".format(folder)))
-                B2 = rio_loaddata(join(source_dir, folder, "{}.B03.tif".format(folder)))
-                B3 = rio_loaddata(join(source_dir, folder, "{}.B04.tif".format(folder)))
-                B4 = rio_loaddata(join(source_dir, folder, "{}.B8A.tif".format(folder)))
-                B5 = rio_loaddata(join(source_dir, folder, "{}.B11.tif".format(folder)))
-                B6 = rio_loaddata(join(source_dir, folder, "{}.B12.tif".format(folder)))
-                B7 = np.full(B6.shape, 0)
+                b1 = rio_loaddata(join(source_dir, folder, "{}.B02.tif".format(folder)))
+                b2 = rio_loaddata(join(source_dir, folder, "{}.B03.tif".format(folder)))
+                b3 = rio_loaddata(join(source_dir, folder, "{}.B04.tif".format(folder)))
+                b4 = rio_loaddata(join(source_dir, folder, "{}.B8A.tif".format(folder)))
+                b5 = rio_loaddata(join(source_dir, folder, "{}.B11.tif".format(folder)))
+                b6 = rio_loaddata(join(source_dir, folder, "{}.B12.tif".format(folder)))
+                b7 = np.full(b6.shape, 0)
 
             except Exception as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
@@ -248,12 +248,12 @@ def single_image_stacking_hls(
                 return False
 
         if (
-            (B1 is None)
-            or (B2 is None)
-            or (B3 is None)
-            or (B4 is None)
-            or (B5 is None)
-            or (B6 is None)
+            (b1 is None)
+            or (b2 is None)
+            or (b3 is None)
+            or (b4 is None)
+            or (b5 is None)
+            or (b6 is None)
         ):
             logger.error("Reading Landsat band fails for {}".format(folder))
             return False
@@ -263,7 +263,7 @@ def single_image_stacking_hls(
             bytesize = 2  # short16 = 2 * byte
             # source: https://towardsdatascience.com/efficiently-splitting-an-image-into-tiles-in-python-using-numpy-d1bf0dd7b6f7
             B1_blocks = np.lib.stride_tricks.as_strided(
-                B1,
+                b1,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -278,7 +278,7 @@ def single_image_stacking_hls(
                 ),
             )
             B2_blocks = np.lib.stride_tricks.as_strided(
-                B2,
+                b2,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -293,7 +293,7 @@ def single_image_stacking_hls(
                 ),
             )
             B3_blocks = np.lib.stride_tricks.as_strided(
-                B3,
+                b3,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -308,7 +308,7 @@ def single_image_stacking_hls(
                 ),
             )
             B4_blocks = np.lib.stride_tricks.as_strided(
-                B4,
+                b4,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -323,7 +323,7 @@ def single_image_stacking_hls(
                 ),
             )
             B5_blocks = np.lib.stride_tricks.as_strided(
-                B5,
+                b5,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -338,7 +338,7 @@ def single_image_stacking_hls(
                 ),
             )
             B6_blocks = np.lib.stride_tricks.as_strided(
-                B6,
+                b6,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -353,7 +353,7 @@ def single_image_stacking_hls(
                 ),
             )
             B7_blocks = np.lib.stride_tricks.as_strided(
-                B7,
+                b7,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -417,7 +417,7 @@ def single_image_stacking_hls(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                np.dstack([b1, b2, b3, b4, b5, b6, b7, QA_band_unpacked]).astype(
                     np.int16
                 ),
             )
@@ -568,25 +568,25 @@ def single_image_stacking(
         if b_c2 is False:
             if sensor == "LT5" or sensor == "LE7" or sensor == "LT4":
                 try:
-                    B1 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B1.tif".format(folder))
+                    b1 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b1.tif".format(folder))
                     )
-                    B2 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B2.tif".format(folder))
+                    b2 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b2.tif".format(folder))
                     )
-                    B3 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B3.tif".format(folder))
+                    b3 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b3.tif".format(folder))
                     )
-                    B4 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B4.tif".format(folder))
+                    b4 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b4.tif".format(folder))
                     )
-                    B5 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B5.tif".format(folder))
+                    b5 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b5.tif".format(folder))
                     )
-                    B6 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B7.tif".format(folder))
+                    b6 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b7.tif".format(folder))
                     )
-                    B7 = rio_loaddata(
+                    b7 = rio_loaddata(
                         join(
                             join(tmp_path, "{}_BT".format(folder[0 : len(folder) - 3])),
                             "{}_BTB6.tif".format(folder[0 : len(folder) - 3]),
@@ -600,25 +600,25 @@ def single_image_stacking(
                     return
             elif sensor == "LC8" or "LC9":
                 try:
-                    B1 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B2.tif".format(folder))
+                    b1 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b2.tif".format(folder))
                     )
-                    B2 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B3.tif".format(folder))
+                    b2 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b3.tif".format(folder))
                     )
-                    B3 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B4.tif".format(folder))
+                    b3 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b4.tif".format(folder))
                     )
-                    B4 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B5.tif".format(folder))
+                    b4 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b5.tif".format(folder))
                     )
-                    B5 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B6.tif".format(folder))
+                    b5 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b6.tif".format(folder))
                     )
-                    B6 = rio_loaddata(
-                        join(join(tmp_path, folder), "{}B7.tif".format(folder))
+                    b6 = rio_loaddata(
+                        join(join(tmp_path, folder), "{}b7.tif".format(folder))
                     )
-                    B7 = rio_loaddata(
+                    b7 = rio_loaddata(
                         join(
                             join(tmp_path, "{}_BT".format(folder[0 : len(folder) - 3])),
                             "{}_BTB10.tif".format(folder[0 : len(folder) - 3]),
@@ -633,25 +633,25 @@ def single_image_stacking(
         else:
             if sensor == "LT5" or sensor == "LE7" or sensor == "LT4":
                 try:
-                    B1 = rio_loaddata(
+                    b1 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B1.TIF".format(folder))
                     )
-                    B2 = rio_loaddata(
+                    b2 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B2.TIF".format(folder))
                     )
-                    B3 = rio_loaddata(
+                    b3 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B3.TIF".format(folder))
                     )
-                    B4 = rio_loaddata(
+                    b4 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B4.TIF".format(folder))
                     )
-                    B5 = rio_loaddata(
+                    b5 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B5.TIF".format(folder))
                     )
-                    B6 = rio_loaddata(
+                    b6 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B7.TIF".format(folder))
                     )
-                    B7 = rio_loaddata(
+                    b7 = rio_loaddata(
                         join(
                             join(tmp_path, "{}_BT".format(folder[0 : len(folder) - 3])),
                             "{}_BT_B6.TIF".format(folder[0 : len(folder) - 3]),
@@ -665,25 +665,25 @@ def single_image_stacking(
                     return
             elif sensor == "LC8" or "LC9":
                 try:
-                    B1 = rio_loaddata(
+                    b1 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B2.TIF".format(folder))
                     )
-                    B2 = rio_loaddata(
+                    b2 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B3.TIF".format(folder))
                     )
-                    B3 = rio_loaddata(
+                    b3 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B4.TIF".format(folder))
                     )
-                    B4 = rio_loaddata(
+                    b4 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B5.TIF".format(folder))
                     )
-                    B5 = rio_loaddata(
+                    b5 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B6.TIF".format(folder))
                     )
-                    B6 = rio_loaddata(
+                    b6 = rio_loaddata(
                         join(join(tmp_path, folder), "{}_B7.TIF".format(folder))
                     )
-                    B7 = rio_loaddata(
+                    b7 = rio_loaddata(
                         join(
                             tmp_path,
                             "{}_BT".format(folder[0 : len(folder) - 3]),
@@ -698,25 +698,25 @@ def single_image_stacking(
                     return
 
         if (
-            (B1 is None)
-            or (B2 is None)
-            or (B3 is None)
-            or (B4 is None)
-            or (B5 is None)
-            or (B6 is None)
-            or (B7 is None)
+            (b1 is None)
+            or (b2 is None)
+            or (b3 is None)
+            or (b4 is None)
+            or (b5 is None)
+            or (b6 is None)
+            or (b7 is None)
         ):
             logger.error("Reading Landsat band fails for {}".format(folder))
             return
 
         if b_c2 is True:
-            B1 = (10000 * (B1 * 2.75e-05 - 0.2)).astype(np.int16)
-            B2 = (10000 * (B2 * 2.75e-05 - 0.2)).astype(np.int16)
-            B3 = (10000 * (B3 * 2.75e-05 - 0.2)).astype(np.int16)
-            B4 = (10000 * (B4 * 2.75e-05 - 0.2)).astype(np.int16)
-            B5 = (10000 * (B5 * 2.75e-05 - 0.2)).astype(np.int16)
-            B7 = (10000 * (B7 * 2.75e-05 - 0.2)).astype(np.int16)
-            B6 = (10 * (B6 * 0.00341802 + 149)).astype(np.int16)
+            b1 = (10000 * (b1 * 2.75e-05 - 0.2)).astype(np.int16)
+            b2 = (10000 * (b2 * 2.75e-05 - 0.2)).astype(np.int16)
+            b3 = (10000 * (b3 * 2.75e-05 - 0.2)).astype(np.int16)
+            b4 = (10000 * (b4 * 2.75e-05 - 0.2)).astype(np.int16)
+            b5 = (10000 * (b5 * 2.75e-05 - 0.2)).astype(np.int16)
+            b7 = (10000 * (b7 * 2.75e-05 - 0.2)).astype(np.int16)
+            b6 = (10 * (b6 * 0.00341802 + 149)).astype(np.int16)
 
         # if path_array is not None, we will eliminate those observation that has different path with its assigned path
         if path_array is not None:  # meaning that single-path processing
@@ -760,7 +760,7 @@ def single_image_stacking(
             bytesize = 2  # short16 = 2 * byte
             # source: https://towardsdatascience.com/efficiently-splitting-an-image-into-tiles-in-python-using-numpy-d1bf0dd7b6f7
             B1_blocks = np.lib.stride_tricks.as_strided(
-                B1,
+                b1,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -775,7 +775,7 @@ def single_image_stacking(
                 ),
             )
             B2_blocks = np.lib.stride_tricks.as_strided(
-                B2,
+                b2,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -790,7 +790,7 @@ def single_image_stacking(
                 ),
             )
             B3_blocks = np.lib.stride_tricks.as_strided(
-                B3,
+                b3,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -805,7 +805,7 @@ def single_image_stacking(
                 ),
             )
             B4_blocks = np.lib.stride_tricks.as_strided(
-                B4,
+                b4,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -820,7 +820,7 @@ def single_image_stacking(
                 ),
             )
             B5_blocks = np.lib.stride_tricks.as_strided(
-                B5,
+                b5,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -835,7 +835,7 @@ def single_image_stacking(
                 ),
             )
             B6_blocks = np.lib.stride_tricks.as_strided(
-                B6,
+                b6,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -850,7 +850,7 @@ def single_image_stacking(
                 ),
             )
             B7_blocks = np.lib.stride_tricks.as_strided(
-                B7,
+                b7,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -914,7 +914,7 @@ def single_image_stacking(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                np.dstack([b1, b2, b3, b4, b5, b6, b7, QA_band_unpacked]).astype(
                     np.int16
                 ),
             )
@@ -1032,51 +1032,51 @@ def single_image_stacking_collection2(
 
         if sensor == "LT5" or sensor == "LE7" or sensor == "LT4":
             try:
-                # B1 = rio_loaddata(join(join(tmp_path, folder),
+                # b1 = rio_loaddata(join(join(tmp_path, folder),
                 #                               "{}_SR_B1.TIF".format(folder)))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B1.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B1 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b1 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B2.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B2 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b2 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B3.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B3 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b3 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B4.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B4 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b4 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B5.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B5 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b5 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B7.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B6 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b6 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
 
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_ST_B6.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
             except ValueError as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                 logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
@@ -1088,86 +1088,86 @@ def single_image_stacking_collection2(
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B1 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b1 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B3.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B2 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b2 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B4.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B3 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b3 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B5.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B4 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b4 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B6.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B5 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b5 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_SR_B7.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B6 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b6 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
 
                 rio_warp(
                     join(tmp_path, folder, f"{folder}_ST_B10.TIF"),
                     join(tmp_path, folder, "_tmp_img.tif"),
                     reference_path,
                 )
-                B7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
+                b7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
             except ValueError as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
-                logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
+                logger.error(f"Cannot open Landsat bands for {folder}: {e}")
                 return
 
         if (
-            (B1 is None)
-            or (B2 is None)
-            or (B3 is None)
-            or (B4 is None)
-            or (B5 is None)
-            or (B6 is None)
-            or (B7 is None)
+            (b1 is None)
+            or (b2 is None)
+            or (b3 is None)
+            or (b4 is None)
+            or (b5 is None)
+            or (b6 is None)
+            or (b7 is None)
         ):
             logger.error("Reading Landsat band fails for {}".format(folder))
             return
 
         # source: https://www.usgs.gov/faqs/how-do-i-use-scale-factor-landsat-level-2-science-products?qt-
         # news_science_products=0#qt-news_science_products recommended by yongquan
-        B1_t = (10000 * (B1 * 2.75e-05 - 0.2)).astype(np.int16)
-        B2_t = (10000 * (B2 * 2.75e-05 - 0.2)).astype(np.int16)
-        B3_t = (10000 * (B3 * 2.75e-05 - 0.2)).astype(np.int16)
-        B4_t = (10000 * (B4 * 2.75e-05 - 0.2)).astype(np.int16)
-        B5_t = (10000 * (B5 * 2.75e-05 - 0.2)).astype(np.int16)
-        B7_t = (10000 * (B7 * 2.75e-05 - 0.2)).astype(np.int16)
-        B6_t = (10 * (B6 * 0.00341802 + 149)).astype(np.int16)
+        B1_t = (10000 * (b1 * 2.75e-05 - 0.2)).astype(np.int16)
+        B2_t = (10000 * (b2 * 2.75e-05 - 0.2)).astype(np.int16)
+        B3_t = (10000 * (b3 * 2.75e-05 - 0.2)).astype(np.int16)
+        B4_t = (10000 * (b4 * 2.75e-05 - 0.2)).astype(np.int16)
+        B5_t = (10000 * (b5 * 2.75e-05 - 0.2)).astype(np.int16)
+        B7_t = (10000 * (b7 * 2.75e-05 - 0.2)).astype(np.int16)
+        B6_t = (10 * (b6 * 0.00341802 + 149)).astype(np.int16)
 
         # padding zeros
-        B1 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B1[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B1_t
-        B2 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B2[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B2_t
-        B3 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B3[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B3_t
-        B4 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B4[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B4_t
-        B5 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B5[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B5_t
-        B6 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B6[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B6_t
-        B7 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
-        B7[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B7_t
+        b1 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b1[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B1_t
+        b2 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b2[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B2_t
+        b3 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b3[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B3_t
+        b4 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b4[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B4_t
+        b5 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b5[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B5_t
+        b6 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b6[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B6_t
+        b7 = np.zeros([dataset_info.n_rows, dataset_info.n_cols]).astype(np.int16)
+        b7[0 : B1_t.shape[0], 0 : B1_t.shape[1]] = B7_t
 
         if is_partition is True:
             # width of a block
@@ -1175,7 +1175,7 @@ def single_image_stacking_collection2(
             # source: https://towardsdatascience.com/efficiently-splitting-an-image-into-tiles-
             # in-python-using-numpy-d1bf0dd7b6f7
             B1_blocks = np.lib.stride_tricks.as_strided(
-                B1,
+                b1,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1190,7 +1190,7 @@ def single_image_stacking_collection2(
                 ),
             )
             B2_blocks = np.lib.stride_tricks.as_strided(
-                B2,
+                b2,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1205,7 +1205,7 @@ def single_image_stacking_collection2(
                 ),
             )
             B3_blocks = np.lib.stride_tricks.as_strided(
-                B3,
+                b3,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1220,7 +1220,7 @@ def single_image_stacking_collection2(
                 ),
             )
             B4_blocks = np.lib.stride_tricks.as_strided(
-                B4,
+                b4,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1235,7 +1235,7 @@ def single_image_stacking_collection2(
                 ),
             )
             B5_blocks = np.lib.stride_tricks.as_strided(
-                B5,
+                b5,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1250,7 +1250,7 @@ def single_image_stacking_collection2(
                 ),
             )
             B6_blocks = np.lib.stride_tricks.as_strided(
-                B6,
+                b6,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1265,7 +1265,7 @@ def single_image_stacking_collection2(
                 ),
             )
             B7_blocks = np.lib.stride_tricks.as_strided(
-                B7,
+                b7,
                 shape=(
                     dataset_info.n_block_y,
                     dataset_info.n_block_x,
@@ -1329,7 +1329,7 @@ def single_image_stacking_collection2(
         else:
             np.save(
                 join(out_dir, file_name),
-                np.dstack([B1, B2, B3, B4, B5, B6, B7, QA_band_unpacked]).astype(
+                np.dstack([b1, b2, b3, b4, b5, b6, b7, QA_band_unpacked]).astype(
                     np.int16
                 ),
             )
@@ -1613,7 +1613,7 @@ def main(
                         logger.error("Unzip fails for {}".format(folder_list[0]))
                 if collection == "ARD":
                     ref_path = join(
-                        tmp_path, folder_list[0], "{}B1.tif".format(folder_list[0])
+                        tmp_path, folder_list[0], "{}b1.tif".format(folder_list[0])
                     )
                 else:
                     ref_path = join(

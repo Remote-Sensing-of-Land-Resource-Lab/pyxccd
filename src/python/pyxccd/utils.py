@@ -1,16 +1,26 @@
-import numpy as np
 from datetime import datetime
-import pandas as pd
+import datetime as dt
 from os.path import join
 from dataclasses import fields
 import os
-import datetime as dt
+
 from scipy import stats
+
+import numpy as np
+import pandas as pd
+
 # from osgeo import gdal
 import rasterio
 from rasterio.plot import reshape_as_image
 from .app import defaults
-from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
+from .common import (
+    SccdOutput,
+    nrtqueue_dt,
+    sccd_dt,
+    nrtmodel_dt,
+    DatasetInfo,
+    cold_rec_cg,
+)
 
 
 def rio_loaddata(path: str) -> np.ndarray:
@@ -34,12 +44,12 @@ def rio_loaddata(path: str) -> np.ndarray:
 
 def get_block_y(block_id: int, n_block_x: int) -> int:
     """get block pos in y axis (started from 1)
-    
+
     Parameters
     ----------
     block_id: int
         The id of the block to be processed
-    n_block_x: int 
+    n_block_x: int
         Total number of blocks at x axis
 
     Returns
@@ -52,7 +62,7 @@ def get_block_y(block_id: int, n_block_x: int) -> int:
 
 def get_block_x(block_id: int, n_block_x: int) -> int:
     """get block pos at x axis (started from 1)
-    
+
     Parameters
     ----------
     block_id: int
@@ -70,7 +80,7 @@ def get_block_x(block_id: int, n_block_x: int) -> int:
 
 def get_col_index(pos: int, n_cols, current_block_x, block_width) -> int:
     """get column index in a block
-    
+
     Parameters
     ----------
     pos: int
@@ -118,7 +128,7 @@ def assemble_cmmaps(
     clean: bool = True,
 ):
     """reorganized block-based change magnitudes into a series of maps
-    
+
     Parameters
     ----------
     config: dict
@@ -133,7 +143,7 @@ def assemble_cmmaps(
         the number of change magnitude outputted per pixel
     prefix: str
         choose from 'CM', 'CM_date', 'CM_direction'
-    clean: bool 
+    clean: bool
         if True, clean tmp files
     Returns
     -------
@@ -221,9 +231,11 @@ def assemble_cmmaps(
             os.remove(join(result_path, file))
 
 
-def get_rowcol_intile(id: int, block_width: int, block_height: int, block_x: int, block_y: int):
+def get_rowcol_intile(
+    id: int, block_width: int, block_height: int, block_x: int, block_y: int
+):
     """Calculate row and col in original images based on pos index and block location
-    
+
     Parameters
     ----------
     id: int
@@ -303,7 +315,7 @@ def get_id_inblock(pos: int, block_width: int, block_height: int, n_cols: int):
 
 def get_time_now(tz: str):
     """get datetime for now
-    
+
     Parameters
     ----------
     tz: str
@@ -319,7 +331,7 @@ def get_time_now(tz: str):
 
 # def get_ymd_now(tz):
 #     """get datetime for now
-    
+
 #     Parameters
 #     ----------
 #     tz: str
@@ -333,9 +345,9 @@ def get_time_now(tz: str):
 #     return datetime.now(tz).strftime("%Y-%m-%d")
 
 
-def get_doy(ordinal_date: int)->str:
+def get_doy(ordinal_date: int) -> str:
     """get doy from ordinal date
-    
+
     Parameters
     ----------
     ordinal_date: int
@@ -352,7 +364,7 @@ def get_doy(ordinal_date: int)->str:
 # def get_anchor_days(starting_day: int, n_cm_maps: int, interval: int):
 #     """
 #     get a list of starting days for each change magnitude time slices
-    
+
 #     Parameters
 #     ----------
 #     starting_days:int
@@ -371,10 +383,10 @@ def get_doy(ordinal_date: int)->str:
 #     )
 
 
-def assemble_array(array_list: list, n_block_x: int)->np.ndarray:
+def assemble_array(array_list: list, n_block_x: int) -> np.ndarray:
     """
     Assemble a list of block-based array to a bigger array that aligns with the dimension of an ARD tile
-    
+
     Parameters
     ----------
     array_list: list
@@ -394,45 +406,29 @@ def assemble_array(array_list: list, n_block_x: int)->np.ndarray:
     return full_feature_array
 
 
-def read_blockdata(block_folder:str, total_pixels:int, total_bands:int)->tuple:
-    """read block dataset and date time series
+# def read_blockdata(block_folder, total_pixels, total_bands):
+#     img_files = [f for f in os.listdir(block_folder) if f.startswith("L")]
 
-    Parameters
-    ----------
-    block_folder : str
-        path for storing block-based change records
-    total_pixels : int
-        nrows*ncols
-    total_bands : int
-        total band number
-
-    Returns
-    -------
-    tuple
-        (np.ndarray, np.ndarray), (3-d array of shape(n_dates, total_pixels, total_bands), 1-d array of shape(n_dates, ))
-    """
-    img_files = [f for f in os.listdir(block_folder) if f.startswith("L")]
-
-    # sort image files by dates
-    img_dates = [
-        pd.Timestamp.toordinal(
-            dt.datetime(int(folder_name[9:13]), 1, 1)
-            + dt.timedelta(int(folder_name[13:16]) - 1)
-        )
-        for folder_name in img_files
-    ]
-    files_date_zip = sorted(zip(img_dates, img_files))
-    img_files_sorted = [x[1] for x in files_date_zip]
-    img_dates_sorted = np.asarray([x[0] for x in files_date_zip])
-    img_stack = [
-        np.load(join(block_folder, f)).reshape(total_pixels, total_bands)
-        for f in img_files_sorted
-    ]
-    img_stack = np.dstack(img_stack)
-    return img_stack, img_dates_sorted
+#     # sort image files by dates
+#     img_dates = [
+#         pd.Timestamp.toordinal(
+#             dt.datetime(int(folder_name[9:13]), 1, 1)
+#             + dt.timedelta(int(folder_name[13:16]) - 1)
+#         )
+#         for folder_name in img_files
+#     ]
+#     files_date_zip = sorted(zip(img_dates, img_files))
+#     img_files_sorted = [x[1] for x in files_date_zip]
+#     img_dates_sorted = np.asarray([x[0] for x in files_date_zip])
+#     img_stack = [
+#         np.load(join(block_folder, f)).reshape(total_pixels, total_bands)
+#         for f in img_files_sorted
+#     ]
+#     img_stack = np.dstack(img_stack)
+#     return img_stack, img_dates_sorted
 
 
-def read_data(path: str)->np.ndarray:
+def read_data(path: str) -> np.ndarray:
     """Load a sample file containing acquisition days and spectral values.
     The first column is assumed to be the day number, subsequent columns
     correspond to the day number. This improves readability of large datasets.
@@ -474,7 +470,9 @@ def read_data(path: str)->np.ndarray:
 #     return pd.Timestamp.fromordinal(ordinal)
 
 
-def save_nrtfiles(out_folder:str, outfile_prefix:str, sccd_pack:SccdOutput, data_ext:pd.DataFrame):
+def save_nrtfiles(
+    out_folder: str, outfile_prefix: str, sccd_pack: SccdOutput, data_ext: pd.DataFrame
+):
     """save nrt files into local for debug purpose
 
     Parameters
@@ -482,7 +480,7 @@ def save_nrtfiles(out_folder:str, outfile_prefix:str, sccd_pack:SccdOutput, data
     out_folder : str
         The folder to svae results
     outfile_prefix : str
-        prefix for saved files 
+        prefix for saved files
     sccd_pack : SccdOutput
         SCCD output
     data_ext : pd.DataFrame
@@ -519,7 +517,7 @@ def save_nrtfiles(out_folder:str, outfile_prefix:str, sccd_pack:SccdOutput, data
     )
 
 
-def save_obs2csv(out_path:str, data:pd.DataFrame):
+def save_obs2csv(out_path: str, data: pd.DataFrame):
     """save observation dataframe to a local csv
 
     Parameters
@@ -532,7 +530,7 @@ def save_obs2csv(out_path:str, data:pd.DataFrame):
     data.to_csv(out_path, index=False, header=False)
 
 
-def unindex_sccdpack(sccd_pack_single:SccdOutput)->list:
+def unindex_sccdpack(sccd_pack_single: SccdOutput) -> list:
     """remove index of sccdpack to save memory
 
     Parameters
@@ -563,9 +561,9 @@ def unindex_sccdpack(sccd_pack_single:SccdOutput)->list:
     return list(sccd_pack_single)
 
 
-def index_sccdpack(sccd_pack_single:list)->SccdOutput:
+def index_sccdpack(sccd_pack_single: list) -> SccdOutput:
     """convert a list of SccdOutput components back to namedtuple SccdOutput
-    
+
     Parameters
     ----------
     sccd_pack_single : list
@@ -612,7 +610,9 @@ def index_sccdpack(sccd_pack_single:list)->SccdOutput:
     return sccd_pack_single
 
 
-def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=None, dtype=None):
+def save_1band_fromrefimage(
+    array: np.ndarray, out_path: str, ref_image_path=None, dtype=None
+):
     """save an array into the local as tif, using the georeference from a refimage
 
     Parameters
@@ -628,7 +628,7 @@ def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=Non
     """
     if dtype == None:
         dtype = np.int16
-        
+
     if ref_image_path is None:
         profile = {
             "driver": "GTiff",
@@ -645,10 +645,9 @@ def save_1band_fromrefimage(array: np.ndarray, out_path: str, ref_image_path=Non
 
     with rasterio.open(out_path, "w", **profile) as dst:
         dst.write(array, 1)
-        
 
 
-def coefficient_matrix(date:int, num_coefficients: int) -> np.ndarray:
+def coefficient_matrix(date: int, num_coefficients: int) -> np.ndarray:
     """Generate cos and sin variables for Fourier transform function
 
     Parameters
@@ -691,13 +690,13 @@ def coefficient_matrix(date:int, num_coefficients: int) -> np.ndarray:
     return matrix
 
 
-def predict_ref(coefs:np.ndarray, date:int, num_coefficients:int=6)->int:
+def predict_ref(coefs: np.ndarray, date: int, num_coefficients: int = 6) -> int:
     """predicting a single-band reflectance using harmonic coefficients for a date
 
     Parameters
     ----------
     coefs : np.ndarray
-        1-d array for harmonic coefficients 
+        1-d array for harmonic coefficients
     date : int
         ordinal date for the inputted date
     num_coefficients : int, optional
@@ -706,13 +705,13 @@ def predict_ref(coefs:np.ndarray, date:int, num_coefficients:int=6)->int:
     Returns
     -------
     int
-        the predicted reflectance 
+        the predicted reflectance
     """
     coef_matrix = coefficient_matrix(date, num_coefficients)
     return np.dot(coef_matrix, coefs.T)
 
 
-def generate_rowcolimage(ref_image_path:str, out_path:str):
+def generate_rowcolimage(ref_image_path: str, out_path: str):
     """a function to convert the reference image to index image (starting from 1, e.g., the first pixel is 100001),
     which has the same rows and columns as the reference image
 
@@ -742,8 +741,8 @@ def generate_rowcolimage(ref_image_path:str, out_path:str):
     save_1band_fromrefimage(index, out_path, ref_image_path, dtype=np.int32)
 
 
-def calculate_sccd_cm(sccd_pack:SccdOutput)->float:
-    """compute median change magnitude for the current anomalies at the tail 
+def calculate_sccd_cm(sccd_pack: SccdOutput) -> float:
+    """compute median change magnitude for the current anomalies at the tail
 
     Parameters
     ----------
@@ -788,7 +787,7 @@ def class_from_dict(data_class, dict_var: dict):
 
     Parameters
     ----------
-    data_class : 
+    data_class :
         Declare for dataclass
     dict_var : dict
         Inputted dictionary
@@ -814,8 +813,9 @@ def rio_warp(input_path: str, output_path: str, template_path: str):
     template_path : str
         path of template path
     """
-    cmd = f"rio warp {input} {output} --like {template} --overwrite"
+    cmd = f"rio warp {input_path} {output_path} --like {template_path} --overwrite"
     os.system(cmd)
+
 
 def modeby(input_array: np.ndarray, index_array: np.ndarray) -> list:
     """calculate modes of input_array groupped by index_array.
@@ -832,7 +832,7 @@ def modeby(input_array: np.ndarray, index_array: np.ndarray) -> list:
     list
         a list of mode value for each object, following ascending order of unique id. modified from: https://stackoverflow.com/questions/49372918/group-numpy-into-multiple-sub-arrays-using-an-array-of-values
     """
-    
+
     # Get argsort indices, to be used to sort a and b in the next steps
     # input_array = classification_map
     # index_array = object_map
@@ -849,7 +849,11 @@ def modeby(input_array: np.ndarray, index_array: np.ndarray) -> list:
     return mode_list
 
 
-def mode_median_by(input_array_mode:np.ndarray, input_array_median: np.ndarray, index_array: np.ndarray)-> list:
+def mode_median_by(
+    input_array_mode: np.ndarray,
+    input_array_median: np.ndarray,
+    index_array: np.ndarray,
+) -> list:
     """_summary_
 
     Parameters
@@ -866,7 +870,7 @@ def mode_median_by(input_array_mode:np.ndarray, input_array_median: np.ndarray, 
     (list, list)
         a list of mode value and a list of median value for each object
     """
-    
+
     sidx = index_array.argsort(kind="mergesort")
     a1_sorted = input_array_mode[sidx]
     a2_sorted = input_array_median[sidx]
@@ -881,3 +885,206 @@ def mode_median_by(input_array_mode:np.ndarray, input_array_median: np.ndarray, 
     mode_list = [stats.mode(x)[0][0] for x in split_mode]
     median_list = [np.median(x[~np.isnan(x)]) for x in split_median]
     return mode_list, median_list
+
+
+def getcategory_cold(cold_plot: np.ndarray, i_curve: int, t_c: float = -200.0) -> int:
+    """an empirical way to get break category for COLD algorithm
+
+    Parameters
+    ----------
+    cold_plot : np.ndarray
+        Cold result for a single pixel, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
+    i_curve : int
+        Curve number to be classified
+    t_c : float, optional
+        The threshold to be used, by default -200.0
+
+    Returns
+    -------
+    int
+        break category
+
+            1 - land disturbance
+
+            2 - regrowth
+
+            3 - aforestation
+
+    """
+    if (
+        cold_plot[i_curve]["magnitude"][3] > t_c
+        and cold_plot[i_curve]["magnitude"][2] < -t_c
+        and cold_plot[i_curve]["magnitude"][4] < -t_c
+    ):
+        if (
+            cold_plot[i_curve + 1]["coefs"][3, 1]
+            > np.abs(cold_plot[i_curve]["coefs"][3, 1])
+            and cold_plot[i_curve + 1]["coefs"][2, 1]
+            < -np.abs(cold_plot[i_curve]["coefs"][2, 1])
+            and cold_plot[i_curve + 1]["coefs"][4, 1]
+            < -np.abs(cold_plot[i_curve]["coefs"][4, 1])
+        ):
+            return 3  # aforestation
+        else:
+            return 2  # regrowth
+    else:
+        return 1  # land disturbance
+
+
+def getcategory_sccd(sccd_plot: np.ndarray, i_curve: int, t_c: float = -200.0) -> int:
+    """an empirical way to get break category for COLD algorithm
+
+    Parameters
+    ----------
+    sccd_plot : np.ndarray
+        sccd offline result for a single pixel, a structured array of dtype = :py:type:`~pyxccd.common.rec_cg`
+    i_curve : int
+        Curve number to be classified
+    t_c : float, optional
+        The threshold to be used, by default -200.0
+
+    Returns
+    -------
+    int
+        break category
+
+            1 - land disturbance
+
+            2 - regrowth
+
+            3 - aforestation
+    """
+    if (
+        sccd_plot[i_curve]["magnitude"][3] > t_c
+        and sccd_plot[i_curve]["magnitude"][2] < -t_c
+        and sccd_plot[i_curve]["magnitude"][4] < -t_c
+    ):
+        return 2  # regrowth
+    else:
+        return 1  # land disturbance
+
+
+def extract_features(
+    cold_plot: np.ndarray,
+    band: int,
+    ordinal_day_list: list,
+    nan_val: int = 0,
+    feature_outputs: list = ["a0", "a1", "b1"],
+) -> list:
+    """generate features for classification based on a plot-based rec_cg and a list of days to be predicted
+
+    Parameters
+    ----------
+    cold_plot : np.ndarray
+        A structured array of :py:type:`~pyxccd.common.cold_rec_cg`
+    band : int
+        Band index, started from 0, i.e., index 0 is band 1, index 1 is band 2, etc
+    ordinal_day_list : list
+        A list of ordinal day to extract a0, a0 = intercept + slope * a1 / 10000
+    nan_val : int
+        The default values assigned to feature output, by default 0
+    feature_outputs : list, optional
+        Indicate which features to be outputted.  They must be within [a0, c1, a1, b1,a2, b2, a3, b3, rmse],
+        by default ["a0", "a1", "b1"]
+
+    Returns
+    -------
+    A list
+        a list of 1-d array. The length of list is len(feature_outputs); the length of 1-d array is len(ordinal_day_list)
+
+    Raises
+    ------
+    ValueError
+        The outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, cv, rmse]
+    """
+
+    features = [
+        np.full(len(ordinal_day_list), nan_val, dtype=np.double)
+        for x in range(len(feature_outputs))
+    ]
+    for index, ordinal_day in enumerate(ordinal_day_list):
+        # print(index)
+        for idx, cold_curve in enumerate(cold_plot):
+            if idx == len(cold_plot) - 1:
+                max_days = dt.datetime(
+                    pd.Timestamp.fromordinal(cold_plot[idx]["t_end"]).year, 12, 31, 0, 0
+                ).toordinal()
+            else:
+                max_days = cold_plot[idx + 1]["t_start"]
+
+            min_day = (
+                dt.datetime(1985, 12, 31, 0, 0).toordinal()
+                if idx == 0
+                else cold_curve["t_start"]
+            )
+            if min_day <= ordinal_day < max_days:
+                for n, feature in enumerate(feature_outputs):
+                    if int(cold_curve["category"] / 10) == 5:  # permanent snow
+                        features[n][index] = 0
+                        continue
+                    if feature == "a0":
+                        features[n][index] = (
+                            cold_curve["coefs"][band][0]
+                            + cold_curve["coefs"][band][1]
+                            * ordinal_day
+                            / defaults["COMMON"]["SLOPE_SCALE"]
+                        )
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "c1":
+                        features[n][index] = (
+                            cold_curve["coefs"][band][1]
+                            / defaults["COMMON"]["SLOPE_SCALE"]
+                        )
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "a1":
+                        features[n][index] = cold_curve["coefs"][band][2]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "b1":
+                        features[n][index] = cold_curve["coefs"][band][3]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "a2":
+                        features[n][index] = cold_curve["coefs"][band][4]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "b2":
+                        features[n][index] = cold_curve["coefs"][band][5]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "a3":
+                        features[n][index] = cold_curve["coefs"][band][6]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "b3":
+                        features[n][index] = cold_curve["coefs"][band][7]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    elif feature == "rmse":
+                        features[n][index] = cold_curve["rmse"][band]
+                        if np.isnan(features[n][index]):
+                            features[n][index] = 0
+                    else:
+                        raise ValueError(
+                            "the outputted feature must be in [a0, c1, a1, b1,a2, b2, a3, b3, rmse, cv]"
+                        )
+                break
+
+    if "cv" in feature_outputs:
+        ordinal_day_years = [
+            pd.Timestamp.fromordinal(day).year for day in ordinal_day_list
+        ]
+        for index, ordinal_year in enumerate(ordinal_day_years):
+            for cold_curve in cold_plot:
+                if (cold_curve["t_break"] == 0) or (cold_curve["change_prob"] != 100):
+                    continue
+                break_year = pd.Timestamp.fromordinal(cold_curve["t_break"]).year
+                if break_year == ordinal_year:
+                    features[feature_outputs.index("cv")][index] = cold_curve[
+                        "magnitude"
+                    ][band]
+                    break
+
+    return features
