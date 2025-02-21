@@ -11,6 +11,12 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
+  apt_packages:
+  - cmake
+  - gfortran
+  - build-essential
+  - zlib1g-dev
+  - libgsl-dev
 
 sphinx:
   configuration: docs/source/conf.py
@@ -19,5 +25,5 @@ formats: all
 python:
   install:
   - requirements: requirements/docs.txt
-  # - method: pip
-  #   path: .
+  - method: pip
+    path: .
