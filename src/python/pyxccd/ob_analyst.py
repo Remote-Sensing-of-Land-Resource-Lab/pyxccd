@@ -12,7 +12,13 @@ from scipy import stats
 from scipy.stats import chi2
 from os.path import join, exists
 from logging import Logger
-from pyxccd.utils import get_block_x, get_block_y, read_blockdata, get_rowcol_intile, modeby, mode_median_by
+from pyxccd.utils import (
+    get_block_x,
+    get_block_y,
+    get_rowcol_intile,
+    modeby,
+    mode_median_by,
+)
 from pyxccd.app import defaults
 from pyxccd import obcold_reconstruct
 from skimage.segmentation import slic
@@ -24,6 +30,28 @@ from pyxccd.common import DatasetInfo
 
 
 NAN_VAL = -9999
+
+
+def _read_blockdata(block_folder, total_pixels, total_bands):
+    img_files = [f for f in os.listdir(block_folder) if f.startswith("L")]
+
+    # sort image files by dates
+    img_dates = [
+        pd.Timestamp.toordinal(
+            dt.datetime(int(folder_name[9:13]), 1, 1)
+            + dt.timedelta(int(folder_name[13:16]) - 1)
+        )
+        for folder_name in img_files
+    ]
+    files_date_zip = sorted(zip(img_dates, img_files))
+    img_files_sorted = [x[1] for x in files_date_zip]
+    img_dates_sorted = np.asarray([x[0] for x in files_date_zip])
+    img_stack = [
+        np.load(join(block_folder, f)).reshape(total_pixels, total_bands)
+        for f in img_files_sorted
+    ]
+    img_stack = np.dstack(img_stack)
+    return img_stack, img_dates_sorted
 
 
 def _cmname_fromdate(ordinal_date):
@@ -72,12 +100,12 @@ def _obiaresname_fromdate(ordinal_date):
 
 
 def _is_change_object(
-    stats_lut_row:dict,
-    keyword:str,
-    classification_map:np.ndarray,
+    stats_lut_row: dict,
+    keyword: str,
+    classification_map: np.ndarray,
     uniform_threshold=None,
     uniform_sizeslope=None,
-    parameters=None
+    parameters=None,
 ):
     """_summary_
 
@@ -139,7 +167,10 @@ def _is_change_object(
                     scale = log10_size * parameters["default_sizeslope"] + intercept
                 else:
                     scale = 2
-                if float(stats_lut_row[keyword]) * scale > parameters["default_threshold"]:
+                if (
+                    float(stats_lut_row[keyword]) * scale
+                    > parameters["default_threshold"]
+                ):
                     return True
                 else:
                     return False
@@ -224,6 +255,7 @@ def _is_change_object(
                 else:
                     return False
 
+
 def segmentation_floodfill(
     cm_array: np.ndarray,
     cm_date_array: np.ndarray,
@@ -236,7 +268,7 @@ def segmentation_floodfill(
     peak_threshold: Optional[float] = None,
 ):
     """hierachical segmentation based on floodfill
-    
+
     Parameters
     ----------
     cm_array: np.ndarray
@@ -249,14 +281,14 @@ def segmentation_floodfill(
     floodfill_ratio: float
         the change magnitude ratio of the considered pixel over the seed pixel to be included into the cluster
     parameters: dict
-        OBCOLD Parameters   
+        OBCOLD Parameters
     b_dist_prob_map: boolean
         if true, cm_array is probability
     date_interval: int
         the date interval for cm_date_array to connect adjacent pixels within the floodfill process
     peak_threshold:float
         the threshold defining local peaks
-    
+
     Returns
     -------
     tuple
@@ -295,7 +327,9 @@ def segmentation_floodfill(
             peak_threshold = chi2.ppf(0.90, 5)
         if cm_array_l1 is None:
             cm_array_l1 = np.full((n_rows, n_cols), NAN_VAL, dtype=np.int16)
-        cm_array_l1[cm_array_l1 < (chi2.ppf(0.90, 5) * parameters["cm_scale"])] = NAN_VAL
+        cm_array_l1[cm_array_l1 < (chi2.ppf(0.90, 5) * parameters["cm_scale"])] = (
+            NAN_VAL
+        )
         cm_array[cm_array == NAN_VAL] = cm_array_l1[cm_array == NAN_VAL]
         cm_array = cm_array.astype(float) / parameters["cm_scale"]
 
@@ -314,7 +348,9 @@ def segmentation_floodfill(
 
     # using gaussian kernel ( with 1 sigma value) to smooth images in hpc_preparation for floodfill
     kernel = Gaussian2DKernel(x_stddev=bandwidth, y_stddev=bandwidth)
-    cm_array_gaussian_s1 = convolve(cm_array, kernel, boundary="extend", preserve_nan=True)
+    cm_array_gaussian_s1 = convolve(
+        cm_array, kernel, boundary="extend", preserve_nan=True
+    )
     if b_dist_prob_map:
         cm_array_gaussian_s1[np.isnan(cm_array)] = 0
     else:
@@ -326,7 +362,9 @@ def segmentation_floodfill(
 
     seed_index = np.where(cm_array_gaussian_s1 > peak_threshold)
     cm_seed = cm_array_gaussian_s1[seed_index]
-    zip_list = sorted(zip(cm_seed, np.transpose(seed_index)), key=lambda t: t[0], reverse=True)
+    zip_list = sorted(
+        zip(cm_seed, np.transpose(seed_index)), key=lambda t: t[0], reverse=True
+    )
     seed_index = [x[1] for x in zip_list]  # type: ignore
     # seed_index = np.flip(seed_index, axis=0)
 
@@ -335,9 +373,9 @@ def segmentation_floodfill(
     floodflags_base = 8
     floodflags_base |= cv2.FLOODFILL_MASK_ONLY
     floodflags_base |= cv2.FLOODFILL_FIXED_RANGE
-    cm_stack = np.dstack([cm_array_gaussian_s1, cm_array_gaussian_s1, cm_date_array]).astype(
-        np.float32
-    )
+    cm_stack = np.dstack(
+        [cm_array_gaussian_s1, cm_array_gaussian_s1, cm_date_array]
+    ).astype(np.float32)
     for i in range(len(seed_index)):
         # print(i)
         remainder = i % 255
@@ -385,9 +423,13 @@ def segmentation_floodfill(
     #                                          properties=['label', 'mean_intensity']))
 
     # unique always returned sorted list
-    unq_s1, ids_s1, count_s1 = np.unique(object_map_s1, return_inverse=True, return_counts=True)
+    unq_s1, ids_s1, count_s1 = np.unique(
+        object_map_s1, return_inverse=True, return_counts=True
+    )
     mean_list = (
-        np.bincount(ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape))
+        np.bincount(
+            ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape)
+        )
         / count_s1
     )
     # mean_list = np.sqrt(np.bincount(ids_s1.astype(int),
@@ -421,8 +463,8 @@ def segmentation_floodfill(
 
 
 def segmentation_slic(
-    cm_array:np.ndarray,
-    cm_date_array:np.ndarray,
+    cm_array: np.ndarray,
+    cm_date_array: np.ndarray,
     cm_array_l1=None,
     cm_array_l1_date=None,
     low_bound=None,
@@ -476,7 +518,9 @@ def segmentation_slic(
 
     # using gaussian kernel ( with 1 sigma value) to smooth images in hpc_preparation for floodfill
     kernel = Gaussian2DKernel(x_stddev=bandwidth, y_stddev=bandwidth)
-    cm_array_gaussian_s1 = convolve(cm_array, kernel, boundary="extend", preserve_nan=True)
+    cm_array_gaussian_s1 = convolve(
+        cm_array, kernel, boundary="extend", preserve_nan=True
+    )
     cm_array_gaussian_s1[np.isnan(cm_array)] = NAN_VAL
 
     mask = np.full_like(cm_array_gaussian_s1, fill_value=0)
@@ -510,9 +554,13 @@ def segmentation_slic(
     # superpixel-level object status
     # s1_info = pd.DataFrame(regionprops_table(object_map_s1, cm_array_gaussian_s1, cache=False,
     #                                          properties=['label', 'mean_intensity']))
-    unq_s1, ids_s1, count_s1 = np.unique(object_map_s1, return_inverse=True, return_counts=True)
+    unq_s1, ids_s1, count_s1 = np.unique(
+        object_map_s1, return_inverse=True, return_counts=True
+    )
     mean_list = (
-        np.bincount(ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape))
+        np.bincount(
+            ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape)
+        )
         / count_s1
     )
     # mean_list = np.sqrt(np.bincount(ids_s1.astype(int), weights=np.square(cm_array_gaussian_s1.astype(np.int64)).reshape(ids_s1.shape)) / count_s1)
@@ -614,22 +662,30 @@ def segmentation_watershed(
 
     # using gaussian kernel ( with 1 sigma value) to smooth images in hpc_preparation for floodfill
     kernel = Gaussian2DKernel(x_stddev=bandwidth, y_stddev=bandwidth)
-    cm_array_gaussian_s1 = convolve(cm_array, kernel, boundary="extend", preserve_nan=True)
+    cm_array_gaussian_s1 = convolve(
+        cm_array, kernel, boundary="extend", preserve_nan=True
+    )
     cm_array_gaussian_s1[np.isnan(cm_array)] = NAN_VAL
 
     mask = np.full_like(cm_array_gaussian_s1, fill_value=0)
     mask[cm_array_gaussian_s1 > low_bound] = 1
 
-    object_map_s1 = watershed(-cm_array_gaussian_s1, connectivity=2, compactness=0, mask=mask)
+    object_map_s1 = watershed(
+        -cm_array_gaussian_s1, connectivity=2, compactness=0, mask=mask
+    )
     # enforce lower probability pixel to be 0
     object_map_s1[cm_array_gaussian_s1 < low_bound] = 0
 
     # superpixel-level object status
     # s1_info = pd.DataFrame(regionprops_table(object_map_s1, cm_array_gaussian_s1, cache=False,
     #                                          properties=['label', 'mean_intensity']))
-    unq_s1, ids_s1, count_s1 = np.unique(object_map_s1, return_inverse=True, return_counts=True)
+    unq_s1, ids_s1, count_s1 = np.unique(
+        object_map_s1, return_inverse=True, return_counts=True
+    )
     mean_list = (
-        np.bincount(ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape))
+        np.bincount(
+            ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape)
+        )
         / count_s1
     )
     mean_list[unq_s1 == 0] = NAN_VAL  # force mean of unchanged objects to be -9999
@@ -683,7 +739,9 @@ def object_analysis(
     [n_rows, n_cols] = object_map_s1.shape
     change_map = np.zeros((n_rows, n_cols)).astype(np.uint8)
 
-    unq_s2, ids_s2, count_s2 = np.unique(object_map_s2, return_inverse=True, return_counts=True)
+    unq_s2, ids_s2, count_s2 = np.unique(
+        object_map_s2, return_inverse=True, return_counts=True
+    )
     lut_dict_s2 = dict(zip(unq_s2, count_s2))
     size_map = np.vectorize(lut_dict_s2.get)(
         object_map_s2
@@ -793,11 +851,17 @@ class ObjectAnalystHPC:
             raise ValueError("n_rows must be positive integer")
         if (isinstance(dataset_info.n_cols, int) is False) or (dataset_info.n_cols < 0):
             raise ValueError("n_cols must be positive integer")
-        if (isinstance(dataset_info.n_block_x, int) is False) or (dataset_info.n_block_x < 0):
+        if (isinstance(dataset_info.n_block_x, int) is False) or (
+            dataset_info.n_block_x < 0
+        ):
             raise ValueError("n_block_x must be positive integer")
-        if (isinstance(dataset_info.n_block_y, int) is False) or (dataset_info.n_block_y < 0):
+        if (isinstance(dataset_info.n_block_y, int) is False) or (
+            dataset_info.n_block_y < 0
+        ):
             raise ValueError("n_block_y must be positive integer")
-        if (isinstance(dataset_info.n_block_y, int) is False) or (dataset_info.n_block_y < 0):
+        if (isinstance(dataset_info.n_block_y, int) is False) or (
+            dataset_info.n_block_y < 0
+        ):
             raise ValueError("n_block_y must be positive integer")
 
         if os.path.isdir(stack_path) is False:
@@ -837,7 +901,10 @@ class ObjectAnalystHPC:
             classified_year = pd.Timestamp.fromordinal(date).year - 1
         try:
             classification_map = np.load(
-                join(self.thematic_path, "yearlyclassification_{}.npy".format(classified_year))
+                join(
+                    self.thematic_path,
+                    "yearlyclassification_{}.npy".format(classified_year),
+                )
             )
         except IOError as e:
             raise e
@@ -876,14 +943,23 @@ class ObjectAnalystHPC:
                 (self.dataset_info.n_rows, self.dataset_info.n_cols), 0, dtype=np.int32
             )
         else:
-            date_array = np.load(join(self.cmmap_path, _cmdatename_fromdate(date) + ".npy")).astype(np.int32)
+            date_array = np.load(
+                join(self.cmmap_path, _cmdatename_fromdate(date) + ".npy")
+            ).astype(np.int32)
             date_array_copy = date_array
             date_array = date_array + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"]
             date_array[date_array_copy == -9999] = -9999
             del date_array_copy
-            date_array_last = np.load(join(self.cmmap_path, _cmdatename_fromdate(date - cm_output_interval) + ".npy")).astype(np.int32)
+            date_array_last = np.load(
+                join(
+                    self.cmmap_path,
+                    _cmdatename_fromdate(date - cm_output_interval) + ".npy",
+                )
+            ).astype(np.int32)
             date_array_copy = date_array_last
-            date_array_last = date_array_last + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"]
+            date_array_last = (
+                date_array_last + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"]
+            )
             date_array_last[date_array_copy == -9999] = -9999
             del date_array_copy
             if method == "floodfill":
@@ -901,19 +977,21 @@ class ObjectAnalystHPC:
                             _cmname_fromdate(date - cm_output_interval) + ".npy",
                         )
                     ),
-                    date_array_last
+                    date_array_last,
                 )
             elif method == "slic":
-                [object_map_s1, cm_date_array_updated, object_map_s2, s1_info] = segmentation_slic(
-                    np.load(join(self.cmmap_path, _cmname_fromdate(date) + ".npy")),
-                    date_array,
-                    np.load(
-                        join(
-                            self.cmmap_path,
-                            _cmname_fromdate(date - cm_output_interval) + ".npy",
-                        )
-                    ),
-                    date_array_last
+                [object_map_s1, cm_date_array_updated, object_map_s2, s1_info] = (
+                    segmentation_slic(
+                        np.load(join(self.cmmap_path, _cmname_fromdate(date) + ".npy")),
+                        date_array,
+                        np.load(
+                            join(
+                                self.cmmap_path,
+                                _cmname_fromdate(date - cm_output_interval) + ".npy",
+                            )
+                        ),
+                        date_array_last,
+                    )
                 )
             elif method == "watershed":
                 [
@@ -930,7 +1008,7 @@ class ObjectAnalystHPC:
                             _cmname_fromdate(date - cm_output_interval) + ".npy",
                         )
                     ),
-                    date_array_last
+                    date_array_last,
                 )
 
             if self.thematic_path is not None:
@@ -1004,7 +1082,9 @@ class ObjectAnalystHPC:
             True -> finished; False -> not finished
         """
         for date in date_list:
-            if not exists(join(self.obia_path, "tmp_OBIA_{}_finished.txt".format(date))):
+            if not exists(
+                join(self.obia_path, "tmp_OBIA_{}_finished.txt".format(date))
+            ):
                 return False
         return True
 
@@ -1020,7 +1100,8 @@ class ObjectAnalystHPC:
         obia_files = [
             f
             for f in os.listdir(self.obia_path)
-            if f.startswith("obiaresult") and f.endswith("_x{}_y{}.npy".format(block_x, block_y))
+            if f.startswith("obiaresult")
+            and f.endswith("_x{}_y{}.npy".format(block_x, block_y))
         ]
         # sort image files by dates
         cm_dates = [
@@ -1075,17 +1156,27 @@ class ObjectAnalystHPC:
         block_y = get_block_y(block_id, self.dataset_info.n_block_x)
         block_x = get_block_x(block_id, self.dataset_info.n_block_x)
         if img_stack is None and img_dates_sorted is None:
-            block_folder = join(self.stack_path, "block_x{}_y{}".format(block_x, block_y))
-            img_stack, img_dates_sorted = read_blockdata(
-                block_folder, self.dataset_info.n_cols * self.dataset_info.n_rows, self.band_num + 1
+            block_folder = join(
+                self.stack_path, "block_x{}_y{}".format(block_x, block_y)
+            )
+            img_stack, img_dates_sorted = _read_blockdata(
+                block_folder,
+                self.dataset_info.n_cols * self.dataset_info.n_rows,
+                self.band_num + 1,
             )
         obia_breaks = self.get_allobiaresult_asarray(block_x, block_y)
         result_collect = []
         if img_stack is None or img_dates_sorted is None:
             return None
-        for pos in range(self.dataset_info.block_width * self.dataset_info.block_height):
+        for pos in range(
+            self.dataset_info.block_width * self.dataset_info.block_height
+        ):
             original_row, original_col = get_rowcol_intile(
-                pos, self.dataset_info.block_width, self.dataset_info.block_height, block_x, block_y
+                pos,
+                self.dataset_info.block_width,
+                self.dataset_info.block_height,
+                block_x,
+                block_y,
             )
 
             try:
@@ -1120,7 +1211,8 @@ class ObjectAnalystHPC:
         block_y = get_block_y(block_id, self.dataset_info.n_block_x)
         np.save(
             join(
-                self.obcold_recg_path, "record_change_x{}_y{}_obcold.npy".format(block_x, block_y)
+                self.obcold_recg_path,
+                "record_change_x{}_y{}_obcold.npy".format(block_x, block_y),
             ),
             np.hstack(result_collect),
         )

@@ -235,7 +235,7 @@ class PyClassifier:
         rf_model.fit(feature_extraction, label_list)
         return rf_model
 
-    def classify_block(self, rf_model: dict, tmp_feature: np.ndarray) -> np.ndarray:
+    def classify_block(self, rf_model, tmp_feature: np.ndarray) -> np.ndarray:
         """classify feature block for a single year
 
         Parameters
