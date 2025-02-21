@@ -17,6 +17,9 @@ build:
   - build-essential
   - zlib1g-dev
   - libgsl-dev
+  jobs:
+    build:
+    - bash run_developer_setup.sh
 
 sphinx:
   configuration: docs/source/conf.py
@@ -25,5 +28,7 @@ formats: all
 python:
   install:
   - requirements: requirements/docs.txt
-  - method: pip
-    path: .
+  # - method: pip
+  #   path: .
+
+    # pip install --no-build-isolation --verbose -e . 
