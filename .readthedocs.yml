@@ -20,16 +20,16 @@ build:
   jobs:
       post_create_environment:
         - pip install --no-build-isolation --verbose -e .
-        - pip install -r ./requirements/docs.txt
+        # - pip install -r ./requirements/docs.txt
 
 sphinx:
   configuration: docs/source/conf.py
 formats: all
 
-# python:
-#   install:
-#   - requirements: requirements/docs.txt
-#   - method: pip
-#     path: .
+python:
+  install:
+  - requirements: requirements/docs.txt
+  - method: pip
+    path: .
 
     # pip install --no-build-isolation --verbose -e . 
