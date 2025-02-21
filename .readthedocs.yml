@@ -18,17 +18,17 @@ build:
   - zlib1g-dev
   - libgsl-dev
   jobs:
-    build:
-    - bash run_developer_setup.sh
+      post_create_environment:
+        pip install --no-build-isolation --verbose -e . 
 
 sphinx:
   configuration: docs/source/conf.py
 formats: all
 
-python:
-  install:
-  - requirements: requirements/docs.txt
-  # - method: pip
-  #   path: .
+# python:
+#   install:
+#   - requirements: requirements/docs.txt
+#   - method: pip
+#     path: .
 
     # pip install --no-build-isolation --verbose -e . 
