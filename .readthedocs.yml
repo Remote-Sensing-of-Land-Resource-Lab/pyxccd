@@ -17,7 +17,6 @@ sphinx:
 formats: all
 
 python:
-  version: 3.12
   install:
   - requirements: requirements/headless.txt
   - requirements: requirements/docs.txt
