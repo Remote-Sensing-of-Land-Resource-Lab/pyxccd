@@ -306,12 +306,12 @@ def get_id_inblock(pos: int, block_width: int, block_height: int, n_cols: int):
 #     return True
 
 
-def get_time_now(tz: str):
+def get_time_now(tz):
     """get datetime for now
 
     Parameters
     ----------
-    tz: str
+    tz
         The input time zone
 
     Returns
