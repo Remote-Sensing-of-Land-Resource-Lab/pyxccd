@@ -19,7 +19,7 @@ build:
   - libgsl-dev
   jobs:
       post_create_environment:
-        pip install --no-build-isolation --verbose -e . 
+        - pip install --no-build-isolation --verbose -e . 
 
 sphinx:
   configuration: docs/source/conf.py
