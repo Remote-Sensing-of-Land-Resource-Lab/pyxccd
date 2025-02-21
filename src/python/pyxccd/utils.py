@@ -824,7 +824,7 @@ def mode_median_by(
     input_array_mode: np.ndarray,
     input_array_median: np.ndarray,
     index_array: np.ndarray,
-) -> list:
+) -> tuple:
     """_summary_
 
     Parameters
