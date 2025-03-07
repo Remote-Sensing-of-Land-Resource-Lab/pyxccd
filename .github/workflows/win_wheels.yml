@@ -1,37 +1,22 @@
-name: Win-Wheels
+name: Build-Winows -Wheels
 
 on:
-  push:
-  pull_request:
-    branches: [ devel, main ]
+  # push:
+  # pull_request:
+  #   branches: [ devel, main ]
   # tags: [ '*' ]
-  # workflow_dispatch:
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
-  build_win_wheels:
+  build_windows_wheels:
     name: Build ${{ matrix.cibw-only }} wheel
 
     strategy:
       matrix: 
-        include:
-          #windows wheels
-          - cibw-only: cp38-win_amd64
-            os: windows-latest
-          - cibw-only: cp39-win_amd64
-            os: windows-latest
-          - cibw-only: cp310-win_amd64
-            os: windows-latest
-          - cibw-only: cp311-win_amd64
-            os: windows-latest
-          #linux wheels
-          # - cibw-only: cp38-manylinux_x86_64
-          #   os: ubuntu-latest
-          # - cibw-only: cp39-manylinux_x86_64
-          #   os: ubuntu-latest
-          # - cibw-only: cp310-manylinux_x86_64
-          #   os: ubuntu-latest
-          # - cibw-only: cp311-manylinux_x86_64
-          #   os: ubuntu-latest
+        os: [windows-latest]
+        cibw-only: [cp38-win_amd64, cp39-win_amd64, cp310-win_amd64, cp311-win_amd64, cp312-win_amd64, cp313-win_amd64]
+
     defaults:
       run: # 
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }} 
@@ -77,6 +62,6 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: dist-wheels-${{ matrix.cibw-only }}
+        name: wheels
         path: ./wheelhouse/*.whl
 

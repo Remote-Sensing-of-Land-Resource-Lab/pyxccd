@@ -1,0 +1,207 @@
+name: Build-Linux-Wheels
+
+on:
+  # push:
+  # pull_request:
+  #   branches: [ devel, main ]
+  # tags: [ '*' ]
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build_linux_wheels:
+    ##
+    # Build the binary wheels. Note: even though cibuildwheel will test
+    # them internally here, we will test them independently later in the
+    # test_binpy_wheels step.
+    ##
+    name: ${{ matrix.os }}, arch=${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Normally, xcookie generates explicit lists of platforms to build / test
+        # on, but in this case cibuildwheel does that for us, so we need to just
+        # set the environment variables for cibuildwheel. These are parsed out of
+        # the standard [tool.cibuildwheel] section in pyproject.toml and set
+        # explicitly here.
+        os:
+        - ubuntu-latest
+        cibw_skip:
+        - '*-win32 *-musllinux_* *i686 pp*'
+        arch:
+        - auto
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      if: runner.os == 'Linux' && matrix.arch != 'auto'
+      with:
+        platforms: all
+    - name: Build binary wheels
+      uses: pypa/cibuildwheel@v2.13.1
+      with:
+        output-dir: wheelhouse
+        config-file: pyproject.toml
+      env:
+        CIBW_SKIP: ${{ matrix.cibw_skip }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+    - name: Show built files
+      shell: bash
+      run: ls -la wheelhouse
+    - name: Set up Python 3.11 to combine coverage
+      uses: actions/setup-python@v5
+      if: runner.os == 'Linux'
+      with:
+        python-version: '3.11'
+    - name: Combine coverage Linux
+      if: runner.os == 'Linux'
+      run: |-
+        echo '############ PWD'
+        pwd
+        cp .wheelhouse/.coverage* . || true
+        ls -al
+        python -m pip install coverage[toml]
+        echo '############ combine'
+        coverage combine . || true
+        echo '############ XML'
+        coverage xml -o ./coverage.xml || true
+        echo '### The cwd should now have a coverage.xml'
+        ls -altr
+        pwd
+    - uses: codecov/codecov-action@v4
+      name: Codecov Upload
+      with:
+        file: ./coverage.xml
+    - uses: actions/upload-artifact@v4
+      name: Upload wheels artifact
+      with:
+        name: wheels
+        path: ./wheelhouse/pyxccd*.whl
+  test_linux_wheels:
+    ##
+    # Download the previously build binary wheels from the
+    # build_linux_wheels step, and test them in an independent
+    # environment.
+    ##
+    name: ${{ matrix.python-version }} on ${{ matrix.os }}, arch=${{ matrix.arch }} with ${{ matrix.install-extras }}
+    runs-on: ${{ matrix.os }}
+    needs:
+    - build_linux_wheels
+    strategy:
+      matrix:
+        # Xcookie generates an explicit list of environments that will be used
+        # for testing instead of using the more concise matrix notation.
+        include:
+        - python-version: '3.8'
+          install-extras: tests-strict,runtime-strict,headless-strict
+          os: ubuntu-latest
+          arch: auto
+          gdal-requirement-txt: requirements/gdal-strict.txt
+        - python-version: '3.11'
+          install-extras: tests-strict,runtime-strict,optional-strict,headless-strict
+          os: ubuntu-latest
+          arch: auto
+          gdal-requirement-txt: requirements/gdal-strict.txt
+        - python-version: '3.8'
+          install-extras: tests,optional,headless
+          os: ubuntu-latest
+          arch: auto
+          gdal-requirement-txt: requirements/gdal.txt
+        - python-version: '3.9'
+          install-extras: tests,optional,headless
+          os: ubuntu-latest
+          arch: auto
+          gdal-requirement-txt: requirements/gdal.txt
+        - python-version: '3.10'
+          install-extras: tests,optional,headless
+          os: ubuntu-latest
+          arch: auto
+          gdal-requirement-txt: requirements/gdal.txt
+        - python-version: '3.11'
+          install-extras: tests,optional,headless
+          os: ubuntu-latest
+          arch: auto
+          gdal-requirement-txt: requirements/gdal.txt
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      if: runner.os == 'Linux' && matrix.arch != 'auto'
+      with:
+        platforms: all
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - uses: actions/download-artifact@v4
+      name: Download wheels
+      with:
+        name: wheels
+        path: wheelhouse
+    - name: Install wheel ${{ matrix.install-extras }}
+      shell: bash
+      env:
+        INSTALL_EXTRAS: ${{ matrix.install-extras }}
+        GDAL_REQUIREMENT_TXT: ${{ matrix.gdal-requirement-txt }}
+      run: |-
+        echo "Finding the path to the wheel"
+        ls wheelhouse || echo "wheelhouse does not exist"
+        echo "Installing helpers"
+        pip install setuptools>=0.8 setuptools_scm wheel build -U
+        pip install tomli pkginfo
+        export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('wheelhouse').glob('pyxccd*.whl'))[-1]).replace(chr(92), chr(47)))")
+        export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
+        pip install -r "$GDAL_REQUIREMENT_TXT"
+        pip install --prefer-binary "pyxccd[$INSTALL_EXTRAS]==$MOD_VERSION" -f wheelhouse
+        echo "Install finished."
+    - name: Test wheel ${{ matrix.install-extras }}
+      shell: bash
+      env:
+        CI_PYTHON_VERSION: py${{ matrix.python-version }}
+      run: |-
+        echo "Creating test sandbox directory"
+        export WORKSPACE_DNAME="testdir_${CI_PYTHON_VERSION}_${GITHUB_RUN_ID}_${RUNNER_OS}"
+        echo "WORKSPACE_DNAME=$WORKSPACE_DNAME"
+        mkdir -p $WORKSPACE_DNAME
+        echo "cd-ing into the workspace"
+        cd $WORKSPACE_DNAME
+        pwd
+        ls -altr
+        # Get the path to the installed package and run the tests
+        export MOD_DPATH=$(python -c "import pyxccd, os; print(os.path.dirname(pyxccd.__file__))")
+        echo "
+        ---
+        MOD_DPATH = $MOD_DPATH
+        ---
+        running the pytest command inside the workspace
+        ---
+        "
+        python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="pyxccd" "$MOD_DPATH" ../tests
+        echo "pytest command finished, moving the coverage file to the repo root"
+        ls -al
+        # Move coverage file to a new name
+        mv .coverage "../.coverage.$WORKSPACE_DNAME"
+        echo "changing directory back to th repo root"
+        cd ..
+        ls -al
+    - name: Combine coverage Linux
+      if: runner.os == 'Linux'
+      run: |-
+        echo '############ PWD'
+        pwd
+        cp .wheelhouse/.coverage* . || true
+        ls -al
+        python -m pip install coverage[toml]
+        echo '############ combine'
+        coverage combine . || true
+        echo '############ XML'
+        coverage xml -o ./coverage.xml || true
+        echo '### The cwd should now have a coverage.xml'
+        ls -altr
+        pwd
+    - uses: codecov/codecov-action@v3
+      name: Codecov Upload
+      with:
+        file: ./coverage.xml
