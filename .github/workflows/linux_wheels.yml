@@ -1,4 +1,4 @@
-name: Build-Linux-Wheels
+name: Build Linux Wheels
 
 on:
   # push:
@@ -76,7 +76,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       name: Upload wheels artifact
       with:
-        name: wheels
+        name: wheels-linux
         path: ./wheelhouse/pyxccd*.whl
   test_linux_wheels:
     ##
@@ -138,7 +138,7 @@ jobs:
     - uses: actions/download-artifact@v4
       name: Download wheels
       with:
-        name: wheels
+        name: wheels-linux
         path: wheelhouse
     - name: Install wheel ${{ matrix.install-extras }}
       shell: bash

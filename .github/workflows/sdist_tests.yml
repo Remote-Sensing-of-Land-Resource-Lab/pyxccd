@@ -1,4 +1,4 @@
-name: Build-sdist-and-test
+name: Build sdist And Test
 
 on:
   # push:
@@ -78,5 +78,5 @@ jobs:
     - name: Upload sdist artifact
       uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-sdist
         path: ./wheelhouse/*.tar.gz

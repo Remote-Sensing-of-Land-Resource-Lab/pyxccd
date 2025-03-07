@@ -4,7 +4,7 @@
 # Now based on ~/code/xcookie/xcookie/builders/github_actions.py
 # See: https://github.com/Erotemic/xcookie
 
-name: Tests-Build-Deploy
+name: Test, Build, Deploy
 
 on:
   push:
@@ -65,7 +65,8 @@ jobs:
     steps:
     - uses: actions/download-artifact@v4
       with:
-        name: wheels
+        pattern: wheels-*
+        merge-multiple: true
         path: wheelhouse
     - name: Show files to upload
       shell: bash
