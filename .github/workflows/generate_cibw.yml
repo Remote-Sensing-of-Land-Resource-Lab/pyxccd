@@ -1,0 +1,34 @@
+name: Generate CIBW 
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+        description: The platform to generate cibw list for, can be "windows" or "linux"
+    outputs:
+      cibw-list:
+        description: The generated cibw list in JSON format
+        value: ${{ jobs.generate_windows_cibw_list.outputs.cibw-list }}
+jobs:
+  generate_windows_cibw_list:
+    runs-on: ubuntu-latest
+    outputs:
+      cibw-list: ${{ steps.set-cibw-list.outputs.cibw-list }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+
+      - id: set-cibw-list
+        run: |
+          CIBW_LIST=$(cibuildwheel --print-build-identifiers --platform ${{ inputs.platform }} | jq -R . | jq -sc .)
+          echo cibw-list="$CIBW_LIST" >> $GITHUB_OUTPUT
+          echo $CIBW_LIST
