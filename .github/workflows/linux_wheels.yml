@@ -46,30 +46,12 @@ jobs:
     - name: Show built files
       shell: bash
       run: ls -la wheelhouse
-    - name: Set up Python 3.11 to combine coverage
-      uses: actions/setup-python@v5
-      if: runner.os == 'Linux'
+
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov
       with:
-        python-version: '3.11'
-    - name: Combine coverage Linux
-      if: runner.os == 'Linux'
-      run: |-
-        echo '############ PWD'
-        pwd
-        cp .wheelhouse/.coverage* . || true
-        ls -al
-        python -m pip install coverage[toml]
-        echo '############ combine'
-        coverage combine . || true
-        echo '############ XML'
-        coverage xml -o ./coverage.xml || true
-        echo '### The cwd should now have a coverage.xml'
-        ls -altr
-        pwd
-    - uses: codecov/codecov-action@v4
-      name: Codecov Upload
-      with:
-        file: ./coverage.xml
+        gather-path: wheelhouse
+
     - uses: actions/upload-artifact@v4
       name: Upload wheels artifact
       with:
@@ -90,7 +72,7 @@ jobs:
     strategy:
       matrix: 
         cibw-only: ${{ fromJson(needs.generate_linux_cibw_list.outputs.cibw-list) }}
-        install-extras: ["tests,optional,headless"] # tests-strict,runtime-strict,headless-strict
+        install-extras: ["tests,optional,headless", "tests-strict,runtime-strict,headless-strict"] # 
         os: [ubuntu-latest]
         arch: [auto]
     steps:
@@ -117,63 +99,13 @@ jobs:
       shell: bash
       env:
         INSTALL_EXTRAS: ${{ matrix.install-extras }}
-      run: |-
-        echo "Finding the path to the wheel"
-        ls wheelhouse || echo "wheelhouse does not exist"
-        echo "Installing helpers"
-        pip install setuptools>=0.8 setuptools_scm wheel build -U
-        pip install tomli pkginfo
-        export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('wheelhouse').glob('pyxccd*.whl'))[-1]).replace(chr(92), chr(47)))")
-        export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
-        pip install --prefer-binary "pyxccd[$INSTALL_EXTRAS]==$MOD_VERSION" -f wheelhouse
-        echo "Install finished."
-      # pip install -r "$GDAL_REQUIREMENT_TXT"
+      run: pip install --prefer-binary "pyxccd[$INSTALL_EXTRAS]" -f wheelhouse # there should be only one wheel in the wheelhouse directory
+
     - name: Test wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
       shell: bash
-      env:
-        CI_PYTHON_VERSION: py${{ steps.extract-python-version.outputs.python-version }}
       run: |-
-        echo "Creating test sandbox directory"
-        export WORKSPACE_DNAME="testdir_${CI_PYTHON_VERSION}_${GITHUB_RUN_ID}_${RUNNER_OS}"
-        echo "WORKSPACE_DNAME=$WORKSPACE_DNAME"
-        mkdir -p $WORKSPACE_DNAME
-        echo "cd-ing into the workspace"
-        cd $WORKSPACE_DNAME
-        pwd
-        ls -altr
-        # Get the path to the installed package and run the tests
         export MOD_DPATH=$(python -c "import pyxccd, os; print(os.path.dirname(pyxccd.__file__))")
-        echo "
-        ---
-        MOD_DPATH = $MOD_DPATH
-        ---
-        running the pytest command inside the workspace
-        ---
-        "
-        python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="pyxccd" "$MOD_DPATH" ../tests
-        echo "pytest command finished, moving the coverage file to the repo root"
-        ls -al
-        # Move coverage file to a new name
-        mv .coverage "../.coverage.$WORKSPACE_DNAME"
-        echo "changing directory back to th repo root"
-        cd ..
-        ls -al
-    - name: Combine coverage Linux
-      if: runner.os == 'Linux'
-      run: |-
-        echo '############ PWD'
-        pwd
-        cp .wheelhouse/.coverage* . || true
-        ls -al
-        python -m pip install coverage[toml]
-        echo '############ combine'
-        coverage combine . || true
-        echo '############ XML'
-        coverage xml -o ./coverage.xml || true
-        echo '### The cwd should now have a coverage.xml'
-        ls -altr
-        pwd
-    - uses: codecov/codecov-action@v3
-      name: Codecov Upload
-      with:
-        file: ./coverage.xml
+        python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config pyproject.toml --cov-report term --cov="pyxccd" "$MOD_DPATH" tests
+
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov

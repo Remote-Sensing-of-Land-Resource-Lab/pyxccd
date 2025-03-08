@@ -11,7 +11,7 @@ jobs:
       platform: windows
 
   build_windows_wheels:
-    name: Build ${{ matrix.cibw-only }} Wheels
+    name: Build ${{ matrix.cibw-only }} wheel
     needs: generate_windows_cibw_list
     strategy:
       matrix:
@@ -47,7 +47,7 @@ jobs:
       id: replace-path
       run: echo "py_path=$(echo "${{ steps.setup-python.outputs.python-path }}" | sed 's/\\/\//g')" >> $GITHUB_OUTPUT
 
-    - name: install cibuildwheel
+    - name: install cibuildwheel # cannot use pypa/cibuildwheel because we need to use msys2
       run: |
         ${{ steps.replace-path.outputs.py_path }} -m pip install cibuildwheel
 
@@ -55,14 +55,67 @@ jobs:
       run: |
         echo "using python at: ${{ steps.replace-path.outputs.py_path }}"
         ${{ steps.replace-path.outputs.py_path }} -m cibuildwheel --only ${{ matrix.cibw-only }}
-      env:
-        CIBW_TEST_SKIP: "*"
+      # env: # whether to test the wheels after building
+      #   CIBW_TEST_SKIP: "*"
 
     - name: Show built files
       run: ls -la wheelhouse
+
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov
+      with:
+        gather-path: wheelhouse
 
     - uses: actions/upload-artifact@v4
       with:
         name: wheels-${{ matrix.cibw-only }}
         path: ./wheelhouse/*.whl
 
+  test_windows_wheels:
+    ##
+    # Download the previously build binary wheels from the
+    # build_windows_wheels step, and test them in an independent
+    # environment. (without MSYS2)
+    ##
+    name: Test Wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
+    runs-on: ${{ matrix.os }}
+    needs:
+      - generate_windows_cibw_list
+      - build_windows_wheels
+    strategy:
+      matrix: 
+        cibw-only: ${{ fromJson(needs.generate_windows_cibw_list.outputs.cibw-list) }}
+        install-extras: ["tests,optional,headless","tests-strict,runtime-strict,headless-strict"] # 
+        os: [windows-latest]
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Extract python version from cibw-only
+      id: extract-python-version
+      shell: bash
+      run: echo python-version=$(echo "${{ matrix.cibw-only }}" | sed -n 's/^cp\([0-9]\)\([0-9]\{1,2\}\).*/\1.\2/p' ) >> $GITHUB_OUTPUT
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ steps.extract-python-version.outputs.python-version }}
+    - uses: actions/download-artifact@v4
+      name: Download wheels
+      with:
+        name: wheels-${{ matrix.cibw-only }}
+        path: wheelhouse
+    - name: Install wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
+      shell: powershell
+      env:
+        INSTALL_EXTRAS: ${{ matrix.install-extras }}
+      run: pip install --prefer-binary "pyxccd[$($env:INSTALL_EXTRAS)]" -f wheelhouse # there should be only one wheel in the wheelhouse directory
+
+    - name: Test wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
+      shell: powershell
+      run: |
+        $modDpath = python -c "import pyxccd, os; print(os.path.dirname(pyxccd.__file__))"
+        python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config pyproject.toml --cov-report term --cov="pyxccd" "$modDpath" tests
+      
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov
