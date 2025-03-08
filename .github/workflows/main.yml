@@ -50,6 +50,31 @@ jobs:
     if: github.event_name == 'push'
     uses: ./.github/workflows/win_wheels.yml
 # job to upload the package to PyPI
+  upload-to-test-pypi:
+    needs: 
+      - build_and_test_sdist
+      - build_and_test_linux_wheels
+      - build_and_test_windows_wheels
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !(startsWith(github.event.ref, 'refs/tags') || startsWith(github.event.ref, 'refs/heads/release'))
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/pyxccd
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: wheelhouse
+    - name: Show files to upload
+      shell: bash
+      run: ls -la wheelhouse
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        print-hash: true
   upload-to-pypi:
     needs: 
       - build_and_test_sdist
