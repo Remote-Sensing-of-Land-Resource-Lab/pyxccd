@@ -1,17 +1,18 @@
 [build-system]
 requires = [
     "setuptools>=41.0.1",
-    "scikit-build>=0.11.1",
-    # Note: it is important that numpy is pinned to the minimum version at
-    # build time, because while the numpy ABI is forward compatible, it is 
-    # not backwards compatible.
-    "numpy==1.23.2  ; python_version < '4.0'  and python_version >= '3.11'",
-    "numpy==1.21.6  ; python_version < '3.11' and python_version >= '3.10'",
-    "numpy==1.21.6  ; python_version < '3.10' and python_version >= '3.9'",
-    "numpy==1.21.6  ; python_version < '3.9'  and python_version >= '3.8'",
     "ninja>=1.10.2",
+
+    # manual sync with requirements/build.txt
+    "scikit-build>=0.11.1",
     "cmake>=3.21.2",
     "cython>=0.29.24",
+
+    # manual sync numpy version with requirements/runtime.txt
+    "numpy>=1.26.2,<2  ; python_version < '4.0'  and python_version >= '3.11'",  # Python 3.11+ 
+    "numpy>=1.26.2,<2  ; python_version < '3.11' and python_version >= '3.10'",  # Python 3.10
+    "numpy>=1.26.2,<2  ; python_version < '3.10' and python_version >= '3.9' ",  # Python 3.9
+    "numpy>=1.24.4,<2  ; python_version < '3.9'  and python_version >= '3.8' ",  # Python 3.8
 ]
 
 [tool.xcookie]

@@ -14,7 +14,7 @@ jobs:
     # Build the binary package from source and test it in the same
     # environment.
     ##
-    name: Build sdist
+    name: Build and Test sdist
     runs-on: ubuntu-latest
     steps:
     - name: Checkout source
