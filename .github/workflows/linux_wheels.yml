@@ -97,32 +97,32 @@ jobs:
           install-extras: tests-strict,runtime-strict,headless-strict
           os: ubuntu-latest
           arch: auto
-          gdal-requirement-txt: requirements/gdal-strict.txt
+          # gdal-requirement-txt: requirements/gdal-strict.txt
         - python-version: '3.11'
           install-extras: tests-strict,runtime-strict,optional-strict,headless-strict
           os: ubuntu-latest
           arch: auto
-          gdal-requirement-txt: requirements/gdal-strict.txt
+          # gdal-requirement-txt: requirements/gdal-strict.txt
         - python-version: '3.8'
           install-extras: tests,optional,headless
           os: ubuntu-latest
           arch: auto
-          gdal-requirement-txt: requirements/gdal.txt
+          # gdal-requirement-txt: requirements/gdal.txt
         - python-version: '3.9'
           install-extras: tests,optional,headless
           os: ubuntu-latest
           arch: auto
-          gdal-requirement-txt: requirements/gdal.txt
+          # gdal-requirement-txt: requirements/gdal.txt
         - python-version: '3.10'
           install-extras: tests,optional,headless
           os: ubuntu-latest
           arch: auto
-          gdal-requirement-txt: requirements/gdal.txt
+          # gdal-requirement-txt: requirements/gdal.txt
         - python-version: '3.11'
           install-extras: tests,optional,headless
           os: ubuntu-latest
           arch: auto
-          gdal-requirement-txt: requirements/gdal.txt
+          # gdal-requirement-txt: requirements/gdal.txt
     steps:
     - name: Checkout source
       uses: actions/checkout@v4
@@ -144,7 +144,7 @@ jobs:
       shell: bash
       env:
         INSTALL_EXTRAS: ${{ matrix.install-extras }}
-        GDAL_REQUIREMENT_TXT: ${{ matrix.gdal-requirement-txt }}
+        # GDAL_REQUIREMENT_TXT: ${{ matrix.gdal-requirement-txt }}
       run: |-
         echo "Finding the path to the wheel"
         ls wheelhouse || echo "wheelhouse does not exist"
@@ -153,9 +153,9 @@ jobs:
         pip install tomli pkginfo
         export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('wheelhouse').glob('pyxccd*.whl'))[-1]).replace(chr(92), chr(47)))")
         export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
-        pip install -r "$GDAL_REQUIREMENT_TXT"
         pip install --prefer-binary "pyxccd[$INSTALL_EXTRAS]==$MOD_VERSION" -f wheelhouse
         echo "Install finished."
+      # pip install -r "$GDAL_REQUIREMENT_TXT"
     - name: Test wheel ${{ matrix.install-extras }}
       shell: bash
       env:
