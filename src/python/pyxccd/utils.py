@@ -13,14 +13,7 @@ import pandas as pd
 import rasterio
 from rasterio.plot import reshape_as_image
 from .app import defaults
-from .common import (
-    SccdOutput,
-    nrtqueue_dt,
-    sccd_dt,
-    nrtmodel_dt,
-    DatasetInfo,
-    cold_rec_cg,
-)
+from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
 
 def rio_loaddata(path: str) -> np.ndarray:
@@ -313,12 +306,12 @@ def get_id_inblock(pos: int, block_width: int, block_height: int, n_cols: int):
 #     return True
 
 
-def get_time_now(tz: str):
+def get_time_now(tz):
     """get datetime for now
 
     Parameters
     ----------
-    tz: str
+    tz
         The input time zone
 
     Returns
@@ -404,28 +397,6 @@ def assemble_array(array_list: list, n_block_x: int) -> np.ndarray:
         np.hsplit(full_feature_array, n_block_x)
     )  # (nrows, ncols, nfeatures)
     return full_feature_array
-
-
-# def read_blockdata(block_folder, total_pixels, total_bands):
-#     img_files = [f for f in os.listdir(block_folder) if f.startswith("L")]
-
-#     # sort image files by dates
-#     img_dates = [
-#         pd.Timestamp.toordinal(
-#             dt.datetime(int(folder_name[9:13]), 1, 1)
-#             + dt.timedelta(int(folder_name[13:16]) - 1)
-#         )
-#         for folder_name in img_files
-#     ]
-#     files_date_zip = sorted(zip(img_dates, img_files))
-#     img_files_sorted = [x[1] for x in files_date_zip]
-#     img_dates_sorted = np.asarray([x[0] for x in files_date_zip])
-#     img_stack = [
-#         np.load(join(block_folder, f)).reshape(total_pixels, total_bands)
-#         for f in img_files_sorted
-#     ]
-#     img_stack = np.dstack(img_stack)
-#     return img_stack, img_dates_sorted
 
 
 def read_data(path: str) -> np.ndarray:
@@ -561,7 +532,7 @@ def unindex_sccdpack(sccd_pack_single: SccdOutput) -> list:
     return list(sccd_pack_single)
 
 
-def index_sccdpack(sccd_pack_single: list) -> SccdOutput:
+def index_sccdpack(sccd_pack_single) -> SccdOutput:
     """convert a list of SccdOutput components back to namedtuple SccdOutput
 
     Parameters
@@ -853,7 +824,7 @@ def mode_median_by(
     input_array_mode: np.ndarray,
     input_array_median: np.ndarray,
     index_array: np.ndarray,
-) -> list:
+) -> tuple:
     """_summary_
 
     Parameters
