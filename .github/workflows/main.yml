@@ -4,12 +4,13 @@
 # Now based on ~/code/xcookie/xcookie/builders/github_actions.py
 # See: https://github.com/Erotemic/xcookie
 
-name: Test, Build, Deploy
+name: Lint, Build, Test, Deploy
 
 on:
   push:
+    branches: '*'
+    tags: [ 'v*' ]
   pull_request:
-    branches: [ devel, main ]
 
 jobs:
   lint_job:
@@ -41,22 +42,23 @@ jobs:
         mypy ./src/python/pyxccd
 
   build_and_test_sdist:
+    needs: lint_job # run linting before building and testing
     uses: ./.github/workflows/sdist_tests.yml
   build_and_test_linux_wheels:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
     uses: ./.github/workflows/linux_wheels.yml
   
   build_and_test_windows_wheels:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
     uses: ./.github/workflows/win_wheels.yml
-# job to upload the package to PyPI
+  # job to upload the package to PyPI
   upload-to-test-pypi:
     needs: 
       - build_and_test_sdist
       - build_and_test_linux_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && !(startsWith(github.event.ref, 'refs/tags') || startsWith(github.event.ref, 'refs/heads/release'))
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel')
     environment:
       name: testpypi
       url: https://test.pypi.org/p/pyxccd
@@ -67,10 +69,10 @@ jobs:
       with:
         pattern: wheels-*
         merge-multiple: true
-        path: wheelhouse
+        path: dist # default upload path of pypi-publish
     - name: Show files to upload
       shell: bash
-      run: ls -la wheelhouse
+      run: ls -la dist
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
@@ -81,7 +83,7 @@ jobs:
       - build_and_test_linux_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (startsWith(github.event.ref, 'refs/tags') || startsWith(github.event.ref, 'refs/heads/release'))
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     environment:
       name: pypi
       url: https://pypi.org/p/pyxccd
@@ -92,10 +94,10 @@ jobs:
       with:
         pattern: wheels-*
         merge-multiple: true
-        path: wheelhouse
+        path: dist # default upload path of pypi-publish
     - name: Show files to upload
       shell: bash
-      run: ls -la wheelhouse
+      run: ls -la dist
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
