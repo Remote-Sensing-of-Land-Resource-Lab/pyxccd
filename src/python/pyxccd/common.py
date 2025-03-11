@@ -320,7 +320,7 @@ class nrtqueue:
     clry: numpy.ndarray
     """1-d array of shape (nbands, 1), multispectral clear observation"""
     clrx_since1982: numpy.short
-    """the date number since 1982/1/1, equal to ordinal date - 723546"""
+    """the date number since 1982/7/16, equal to ordinal date - 723742"""
 
 
 @dataclass
@@ -328,13 +328,13 @@ class nrtmodel:
     """The sccd model for the monitoring modes (1/3/5/11), which allows NRT monitoring."""
 
     t_start_since1982: numpy.short
-    """Date number since 1982/1/1, equal to ordinal date - 723546. """
+    """Date number since 1982/7/16, equal to ordinal date - 723742. """
     num_obs: numpy.short
     """Accumulated observation number for the current segment. """
     obs: numpy.ndarray
     """2-d array of shape (nbands, nobs). The 6 spectral bands follow the order (blue, green, red, nir, swir1, swir2) for last 8 observations"""
     obs_date_since1982: numpy.ndarray
-    """1-d array of shape (nobs,). The date number since 1982/1/1 for the last 8 observations. """
+    """1-d array of shape (nobs,). The date number since 1982/7/16 for the last 8 observations. """
     covariance: numpy.ndarray
     """2-d array of shape (nbands, ncofs_cov) | (nbands, n_cov_coefs). The covariance matrix for six bands (blue, green, red, nir, swir1, swir2). Each band has a 6*6 matrix as the covariance matrix
     was flatten into 1d. """
@@ -365,7 +365,7 @@ class pinpoint:
     obs: numpy.ndarray
     """2-d array of shape (nbands, nobs). The 6 spectral bands follow the order (blue, green, red, nir, swir1, swir2) for last 8 observations."""
     obs_date_since1982: numpy.ndarray
-    """1-d array of shape (nobs,). The date number since 1982/1/1 for the last 8 observations. """
+    """1-d array of shape (nobs,). The date number since 1982/7/16 for the last 8 observations. """
     norm_cm: numpy.short
     """Normalized change magnitude for the last conse_last spectral anomalies, multiplied by 100 and rounded. """
     cm_angle: numpy.short
