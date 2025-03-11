@@ -375,8 +375,6 @@ def sccd_detect(
         1d time series of swir1 band of shape(n_obs,)
     ts_s2: numpy.ndarray
         1d time series of swir2 band of shape(n_obs,)
-    ts_t: numpy.ndarray
-        1d time series of thermal band of shape(n_obs,)
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
