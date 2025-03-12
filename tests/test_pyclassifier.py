@@ -4,9 +4,9 @@ import shutil
 import numpy as np
 import joblib
 import pathlib
-from osgeo import gdal_array
+
 from pyxccd.pyclassifier import PyClassifierHPC
-from pyxccd.utils import assemble_array, class_from_dict
+from pyxccd.utils import assemble_array, class_from_dict, rio_loaddata
 from pyxccd.common import DatasetInfo
 
 
@@ -88,7 +88,7 @@ def test_train_rf_model():
     full_feature_2017 = assemble_array(pyclassifier.get_fullfeature_forcertainyear(2017),
                                        data_info.n_block_x)
     rf_model = pyclassifier.train_rfmodel(
-        full_feature_2017, gdal_array.LoadFile(os.fspath(ref_path)))
+        full_feature_2017, rio_loaddata(os.fspath(ref_path)))
     # pyclassifier.save_rf_model(rf_model)
     assert rf_model is not None
 

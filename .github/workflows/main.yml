@@ -1,0 +1,104 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+# Based on ~/code/xcookie/xcookie/rc/tests.yml.in
+# Now based on ~/code/xcookie/xcookie/builders/github_actions.py
+# See: https://github.com/Erotemic/xcookie
+
+name: Lint, Build, Test, Deploy
+
+on:
+  push:
+    branches: '*'
+    tags: [ 'v*' ]
+  pull_request:
+
+jobs:
+  lint_job:
+    ##
+    # Run quick linting and typing checks.
+    # To disable all linting add "linter=false" to the xcookie config.
+    # To disable type checks add "notypes" to the xcookie tags.
+    ##
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+    - name: Set up Python 3.11 for linting
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |-
+        python -m pip install --upgrade pip
+        python -m pip install flake8
+    - name: Lint with flake8
+      run: |-
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 ./src/python/pyxccd --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Typecheck with mypy
+      run: |-
+        python -m pip install mypy
+        mypy --install-types --non-interactive ./src/python/pyxccd
+        mypy ./src/python/pyxccd
+
+  build_and_test_sdist:
+    needs: lint_job # run linting before building and testing
+    uses: ./.github/workflows/sdist_tests.yml
+  build_and_test_linux_wheels:
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
+    uses: ./.github/workflows/linux_wheels.yml
+  
+  build_and_test_windows_wheels:
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
+    uses: ./.github/workflows/win_wheels.yml
+  # job to upload the package to PyPI
+  upload-to-test-pypi:
+    needs: 
+      - build_and_test_sdist
+      - build_and_test_linux_wheels
+      - build_and_test_windows_wheels
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel')
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/pyxccd
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: dist # default upload path of pypi-publish
+    - name: Show files to upload
+      shell: bash
+      run: ls -la dist
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        print-hash: true
+  upload-to-pypi:
+    needs: 
+      - build_and_test_sdist
+      - build_and_test_linux_wheels
+      - build_and_test_windows_wheels
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pyxccd
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: dist # default upload path of pypi-publish
+    - name: Show files to upload
+      shell: bash
+      run: ls -la dist
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        print-hash: true

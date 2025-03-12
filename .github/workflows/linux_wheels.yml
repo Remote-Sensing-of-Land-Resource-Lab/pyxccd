@@ -1,0 +1,111 @@
+name: Build Linux Wheels
+
+on:
+  # push:
+  # pull_request:
+  #   branches: [ devel, main ]
+  # tags: [ '*' ]
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  generate_linux_cibw_list: # output: cibw-list
+    uses: ./.github/workflows/generate_cibw.yml
+    with:
+      platform: linux
+
+  build_linux_wheels:
+    ##
+    # Build the binary wheels. Note: even though cibuildwheel will test
+    # them internally here, we will test them independently later in the
+    # test_binpy_wheels step.
+    ##
+    name: Build ${{ matrix.cibw-only }} wheel
+    needs: generate_linux_cibw_list
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: 
+        cibw-only: ${{ fromJson(needs.generate_linux_cibw_list.outputs.cibw-list) }}
+        os: [ubuntu-latest]
+        arch: [auto]
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      if: runner.os == 'Linux' && matrix.arch != 'auto'
+      with:
+        platforms: all
+    - name: Build binary wheels
+      uses: pypa/cibuildwheel@v2.23.0
+      with:
+        output-dir: wheelhouse
+        config-file: pyproject.toml
+      env:
+        CIBW_BUILD: "${{ matrix.cibw-only }}"
+    - name: Show built files
+      shell: bash
+      run: ls -la wheelhouse
+
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov
+      with:
+        gather-path: wheelhouse
+
+    - uses: actions/upload-artifact@v4
+      name: Upload wheels artifact
+      with:
+        name: wheels-${{ matrix.cibw-only }}
+        path: ./wheelhouse/*.whl
+
+  test_linux_wheels:
+    ##
+    # Download the previously build binary wheels from the
+    # build_linux_wheels step, and test them in an independent
+    # environment.
+    ##
+    name: Test Wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
+    runs-on: ${{ matrix.os }}
+    needs:
+      - generate_linux_cibw_list
+      - build_linux_wheels
+    strategy:
+      matrix: 
+        cibw-only: ${{ fromJson(needs.generate_linux_cibw_list.outputs.cibw-list) }}
+        install-extras: ["tests,optional,headless", "tests-strict,runtime-strict,headless-strict"] # 
+        os: [ubuntu-latest]
+        arch: [auto]
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      if: runner.os == 'Linux' && matrix.arch != 'auto'
+      with:
+        platforms: all
+    - name: Extract python version from cibw-only
+      id: extract-python-version
+      run: echo python-version=$(echo "${{ matrix.cibw-only }}" | sed -n 's/^cp\([0-9]\)\([0-9]\{1,2\}\).*/\1.\2/p' ) >> $GITHUB_OUTPUT
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ steps.extract-python-version.outputs.python-version }}
+    - uses: actions/download-artifact@v4
+      name: Download wheels
+      with:
+        name: wheels-${{ matrix.cibw-only }}
+        path: wheelhouse
+    - name: Install wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
+      shell: bash
+      env:
+        INSTALL_EXTRAS: ${{ matrix.install-extras }}
+      run: pip install --prefer-binary "pyxccd[$INSTALL_EXTRAS]" -f wheelhouse # there should be only one wheel in the wheelhouse directory
+
+    - name: Test wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
+      shell: bash
+      run: |-
+        export MOD_DPATH=$(python -c "import pyxccd, os; print(os.path.dirname(pyxccd.__file__))")
+        python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config pyproject.toml --cov-report term --cov="pyxccd" "$MOD_DPATH" tests
+
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov

@@ -783,12 +783,12 @@ def object_analysis(
         for index in class_labels:
             stats_lut_row = stats_lut.loc[stats_lut["label"] == index]
             if _is_change_object(
-                stats_lut_row,
-                uniform_threshold,
-                uniform_sizeslope,
-                "mean_intensity",
-                classification_map,
-                parameters,
+                stats_lut_row=stats_lut_row,
+                keyword="mean_intensity",
+                classification_map=classification_map,
+                uniform_threshold=uniform_threshold,
+                uniform_sizeslope=uniform_sizeslope,
+                parameters=parameters,
             ):
                 change_group.append(index)
         change_map[np.isin(object_map_s1, change_group)] = 1

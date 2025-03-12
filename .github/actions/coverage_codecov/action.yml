@@ -1,0 +1,38 @@
+name: 'Combine Coverage and Upload to Codecov'
+inputs:
+  gather-path:
+    required: false
+    description: 'Path to the directory where coverage(named like .coverage* ) files are stored'
+    default: '.'
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python (if not already set up)
+      uses: actions/setup-python@v5
+      with:
+        python-version: '>=3.8'
+
+    - name: Gather coverage files
+      shell: bash
+      if: inputs.gather-path!= '.'
+      run: |-
+        cp ${{ inputs.gather-path }}/.coverage* . || true
+
+    - name: Combine coverage
+      shell: bash
+      run: |-
+          echo '############ PWD'
+          pwd
+          ls -al
+          python -m pip install coverage[toml]
+          echo '############ combine'
+          coverage combine . || true
+          echo '############ XML'
+          coverage xml -o ./coverage.xml || true
+          echo '### The cwd should now have a coverage.xml'
+          ls -altr
+          pwd
+    - uses: codecov/codecov-action@v3
+      name: Codecov Upload
+      with:
+          file: ./coverage.xml
