@@ -3,22 +3,87 @@
 # Based on ~/code/xcookie/xcookie/rc/tests.yml.in
 # Now based on ~/code/xcookie/xcookie/builders/github_actions.py
 # See: https://github.com/Erotemic/xcookie
+# modified from https://github.com/ArjanCodes/examples/blob/main/2024/publish_pypi/release.yaml
 
 name: Lint, Build, Test, Deploy
 
 on:
   push:
-    branches: '*'
-    tags: [ 'v*' ]
+    branches: [devel, master]
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+a[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+b[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+rc[0-9]+"
   pull_request:
 
+env:
+  PACKAGE_NAME: "<PACKAGE_NAME>"
+  OWNER: "<OWNER>"
+  TAP_NAME: "<TAP_NAME>"
+
+
 jobs:
+  details:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.release.outputs.new_version }}
+      suffix: ${{ steps.release.outputs.suffix }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract tag and Details
+        id: release
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            NEW_VERSION=$(echo $TAG_NAME | awk -F'-' '{print $1}')
+            SUFFIX=$(echo $TAG_NAME | grep -oP '[a-z]+[0-9]+' || echo "")
+            echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+            echo "Version is $NEW_VERSION"
+            echo "Suffix is $SUFFIX"
+            echo "Tag name is $TAG_NAME"
+          else
+            echo "No tag found"
+            exit 1
+          fi
+
+  check_pypi:
+    needs: details
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch information from PyPI
+        run: |
+          response=$(curl -s https://pypi.org/pypi/${{ env.PACKAGE_NAME }}/json || echo "{}")
+          latest_previous_version=$(echo $response | jq --raw-output "select(.releases != null) | .releases | keys_unsorted | last")
+          if [ -z "$latest_previous_version" ]; then
+            echo "Package not found on PyPI."
+            latest_previous_version="0.0.0"
+          fi
+          echo "Latest version on PyPI: $latest_previous_version"
+          echo "latest_previous_version=$latest_previous_version" >> $GITHUB_ENV
+
+      - name: Compare versions and exit if not newer
+        run: |
+          NEW_VERSION=${{ needs.details.outputs.new_version }}
+          LATEST_VERSION=$latest_previous_version
+          if [ "$(printf '%s\n' "$LATEST_VERSION" "$NEW_VERSION" | sort -rV | head -n 1)" != "$NEW_VERSION" ] || [ "$NEW_VERSION" == "$LATEST_VERSION" ]; then
+            echo "The new version $NEW_VERSION is not greater than the latest version $LATEST_VERSION on PyPI."
+            exit 1
+          else
+            echo "The new version $NEW_VERSION is greater than the latest version $LATEST_VERSION on PyPI."
+          fi
+
   lint_job:
     ##
     # Run quick linting and typing checks.
     # To disable all linting add "linter=false" to the xcookie config.
     # To disable type checks add "notypes" to the xcookie tags.
     ##
+    needs: check_pypi
     runs-on: ubuntu-latest
     steps:
     - name: Checkout source
@@ -45,12 +110,13 @@ jobs:
     needs: lint_job # run linting before building and testing
     uses: ./.github/workflows/sdist_tests.yml
   build_and_test_linux_wheels:
-    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
     uses: ./.github/workflows/linux_wheels.yml
   
   build_and_test_windows_wheels:
-    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
     uses: ./.github/workflows/win_wheels.yml
+
   # job to upload the package to PyPI
   upload-to-test-pypi:
     needs: 
@@ -58,7 +124,7 @@ jobs:
       - build_and_test_linux_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel')
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel')
     environment:
       name: testpypi
       url: https://test.pypi.org/p/pyxccd
@@ -77,13 +143,14 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         print-hash: true
+
   upload-to-pypi:
     needs: 
       - build_and_test_sdist
       - build_and_test_linux_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')&& (github.event.ref =='refs/heads/master')
     environment:
       name: pypi
       url: https://pypi.org/p/pyxccd
@@ -102,3 +169,31 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         print-hash: true
+
+  github_release:
+    name: Create GitHub Release
+    needs: [build_and_test_sdist, details, build_and_test_linux_wheels, build_and_test_windows_wheels]
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel')
+    # if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')&& (github.event.ref =='refs/heads/master')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: Create GitHub Release
+        id: create_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ needs.details.outputs.tag_name }} dist/* --title ${{ needs.details.outputs.tag_name }} --generate-notes

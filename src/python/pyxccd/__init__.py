@@ -1,4 +1,4 @@
-__version__ = '0.1.2'
+__version__ = "0.1"
 
 # Ensure monkey patches run first
 from . import monkey  # NOQA
@@ -10,5 +10,15 @@ from . import monkey  # NOQA
 #     obcold_reconstruct, sccd_detect, sccd_update)
 
 from . import ccd
+
 # from . import _colds_cythons
-from .ccd import cold_detect, obcold_reconstruct, sccd_detect, cold_detect_flex, sccd_update, sccd_identify, calculate_sccd_cm, sccd_detect_flex
+from .ccd import (
+    cold_detect,
+    obcold_reconstruct,
+    sccd_detect,
+    cold_detect_flex,
+    sccd_update,
+    sccd_identify,
+    calculate_sccd_cm,
+    sccd_detect_flex,
+)
