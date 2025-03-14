@@ -88,7 +88,8 @@ jobs:
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        print-hash: true
+        repository-url: https://test.pypi.org/legacy/
+        # print-hash: true
 
   upload-to-pypi:
     needs: 
