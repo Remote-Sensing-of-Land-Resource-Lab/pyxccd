@@ -6,7 +6,7 @@ Installation of the pyxsccd package is complicated by its dependency on libgdal
 and other C libraries. There are easy installations paths and an advanced
 installation path.
 
-Easy installation
+1. Easy installation
 =================
 
 .. code-block:: console
@@ -17,11 +17,48 @@ These wheels are mainly intended to make installation easy for simple
 applications, not so much for production. They are not tested for compatibility
 with all other binary wheels, conda packages, or QGIS.
 
-Pyxccd 1.0 requires Python 3.9 or higher.
+Pyxccd 1.0 requires Python 3.8 or higher.
 
-Advanced installation
+2. Advanced installation
 =====================
+The steps to install this library in development mode are consolidated
+into a single script: ``run_developer_setup.sh``.  On debian-based systems,
+this will install all of the developer requirements and ensure you are setup
+with a working opencv-python-headless Python modules, as well as other
+requirements and then it will compile and install pyxccd in editable
+development mode.
 
+
+The following is an overview of these details and alternative choices that
+could be made.
+
+2.1 Install Required Libraries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ZLIB, GSL libraries are required.
+
+For Ubuntu/Debian systems, they can be installed via:
+
+.. code:: bash
+
+   sudo apt-get update
+   sudo apt-get install build-essential  -y
+   sudo apt-get install zlib1g-dev -y
+   sudo apt-get install gfortran -y
+   sudo apt-get install libgsl-dev -y
+
+On CentOS systems run:
+
+.. code:: bash
+
+   sudo apt-get install gcc gcc-c++ make  -y
+   sudo apt-get install zlib-devel -y
+   sudo apt-get install gcc-gfortran -y
+   # Yum provides an gsl 1.5, but we need 2.7
+   # sudo apt-get install gsl-devel -y
+   curl https://ftp.gnu.org/gnu/gsl/gsl-2.7.1.tar.gz  > gsl.tar.gz && tar xfv gsl.tar.gz && cd gsl-2.7.1 && ./configure --prefix=/usr --disable-static && make && make install
+
+2.2 Install required python packages
 The following instructure assume you are inside a Python virtual environment
 (e.g. via conda or pyenv). 
 
@@ -29,8 +66,6 @@ The following instructure assume you are inside a Python virtual environment
 
     # Install required packages
     pip install -r requirements.txt
-    
-.. code:: bash
 
 Additionally, to access the ``cv2`` module, pyxccd will require either
 ``opencv-python`` or ``opencv-python-headless``, which are mutually exclusive.
@@ -46,7 +81,7 @@ with other libraries. These can be obtained manually via:
 
     pip install -r requirements/graphics.txt
 
-
+2.3 Install pyxccd
 **Option 1: Install in development mode**
 
 For details on installing in development mode see the
