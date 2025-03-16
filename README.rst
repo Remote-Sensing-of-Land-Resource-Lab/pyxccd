@@ -9,13 +9,13 @@ PYXCCD
 A PYthon library for basic and eXtended COntinuous Change Detection algorithms
 =============================================================================================================================
 
-The Continuous Change Detection and Claasification (CCDC) algorithm has been popular for processing satellite-based time series datasets, particularly for Landsat-based datasets. As a CCDC user, you may already be familiar with the existing CCDC tools such as `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_.
+The Continuous Change Detection and Classification (CCDC) algorithm has been popular for processing satellite-based time series datasets, particularly for Landsat-based datasets. As a CCDC user, you may already be familiar with the existing CCDC tools such as `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_.
 
 **Wait.. so why does the pyxccd package still exist?**
 
 We developed pyxccd mainly for the below purposes:
    
-1. **Near real-time monitoring**: this package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
+1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
 
 2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
 
@@ -26,7 +26,7 @@ We developed pyxccd mainly for the below purposes:
 5. **Decomposing time-series signals to unveil inter-season/inter-annual variation (such as phenological shifts)**: S-CCD allows continuously outputting trend and seasonal signal components as "states";
 
 
-Installation
+1. Installation
 ---------------
 It only supports windows and linux system so far. Please contact the author if you wish to install it in the macOS system.
 
@@ -34,7 +34,7 @@ It only supports windows and linux system so far. Please contact the author if y
 
    pip install pyxccd
 
-Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook/pyxccd_example.ipynb>`)
+2. Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook/pyxccd_example.ipynb>`_)
 ----------------------------------------------------------------------------------------------------------------
 
 COLD:
@@ -63,30 +63,17 @@ S-CCD:
    # then use sccd_pack to do recursive and short-memory NRT update
    sccd_pack_new = sccd_update(sccd_pack, dates, blues, greens, reds, nirs, swir1s, swir2s, qas)
 
-Q&A
-~~~
+S-CCD for outputting continuous seasonal and trend states:
 
-Q1: Has pyxccd been verified with original Matlab codes?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code:: python
+   
+   # open state output by setting state_intervaldays as a non-zero value
+   sccd_result, state_days, state_ensemble = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, qas, state_intervaldays=1)
 
-Re: yes, multiple rounds of verification have been done. Comparison
-based on two testing tiles shows that pyxccd and Matlab version have
-smaller than <2% differences for breakpoint detection and <2%
-differences for harmonic coefficients; the accuracy of pyxccd was also
-tested against the same reference dataset used in the original COLD
-paper (Zhu et al., 2020), and pyxccd reached the same accuracy (27%
-omission and 28% commission) showing that the discrepancy doesn’t hurt
-accuracy. The primary source for the discrepancy is mainly from the
-rounding: MATLAB uses float64 precision, while pyxccd chose float32 to
-save the run-time computing memory and boost efficiency.
-
-Q2: how much time for production of a tile-based disturbance map (5000*5000 pixels) using pyxccd?
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Re: I tested it in UCONN HPC environment (200 EPYC7452 cores): for
-processing a 40-year Landsat ARD tile (1982-2021), the stacking
-typically takes 15 mins; per-pixel COLD processing costs averagely 1
-hour; exporting maps needs 7 mins.
+3. Documentation
+----------------
+API documentation: `Pyxccd website <https://pyxccd.readthedocs.io/en/>`_
+Tutorial: under development
 
 4. Citations
 ------------
@@ -106,6 +93,32 @@ Zhou, C. (2020). Continuous monitoring of land disturbance based on
 Landsat time series. *Remote Sensing of Environment*, *238*, 111116.
 
 The recent applications of S-CCD could be found in `CONUS Land Watcher <https://gers.users.earthengine.app/view/nrt-conus>`_
+
+Q&A
+---
+
+Q1: Has pyxccd been verified with original Matlab codes?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Re: yes, multiple rounds of verification have been done. Comparison
+based on two testing tiles shows that pyxccd and Matlab version have
+smaller than <2% differences for breakpoint detection and <2%
+differences for harmonic coefficients; the accuracy of pyxccd was also
+tested against the same reference dataset used in the original COLD
+paper (Zhu et al., 2020), and pyxccd reached the same accuracy (27%
+omission and 28% commission) showing that the discrepancy doesn't hurt
+accuracy. The primary source for the discrepancy is mainly from the
+rounding: MATLAB uses float64 precision, while pyxccd chose float32 to
+save the run-time computing memory and boost efficiency.
+
+Q2: how much time for production of a tile-based disturbance map (5000*5000 pixels) using pyxccd?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Re: I tested it in UCONN HPC environment (200 EPYC7452 cores): for
+processing a 40-year Landsat ARD tile (1982-2021), the stacking
+typically takes 15 mins; per-pixel COLD processing costs averagely 1
+hour, per-pixel S-CCD processing costs averagely 0.5
+hour; exporting maps needs 7 mins.
 
 
 .. |Codecov| image:: https://codecov.io/github/Remote-Sensing-of-Land-Resource-Lab/pyxccd/badge.svg?branch=devel&service=github
