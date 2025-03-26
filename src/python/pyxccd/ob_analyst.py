@@ -429,7 +429,7 @@ def segmentation_floodfill(
     )
     mean_list = (
         np.bincount(
-            ids_s1.astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.shape)
+            ids_s1.flatten().astype(int), weights=cm_array_gaussian_s1.reshape(ids_s1.flatten().shape)
         )
         / count_s1
     )
@@ -743,6 +743,10 @@ def object_analysis(
     unq_s2, ids_s2, count_s2 = np.unique(
         object_map_s2, return_inverse=True, return_counts=True
     )
+    # force ids_s2 to be one-dimensional array, for compatibility with numpy2.x
+    # https://numpy.org/doc/stable/reference/generated/numpy.unique.html
+    ids_s2 = ids_s2.reshape(-1)
+
     lut_dict_s2 = dict(zip(unq_s2, count_s2))
     size_map = np.vectorize(lut_dict_s2.get)(
         object_map_s2
