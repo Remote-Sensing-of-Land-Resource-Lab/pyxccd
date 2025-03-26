@@ -375,8 +375,6 @@ def sccd_detect(
         1d time series of swir1 band of shape(n_obs,)
     ts_s2: numpy.ndarray
         1d time series of swir2 band of shape(n_obs,)
-    ts_t: numpy.ndarray
-        1d time series of thermal band of shape(n_obs,)
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
     p_cg: float
@@ -808,9 +806,15 @@ def sccd_detect_flex(
 
     Returns
     ----------
-    SccdOutput: 1-d array of structured type, if b_pinpoint==False
-    Or
-    [SccdOutput, SccdReccgPinpoint], if b_pinpoint==True
+    :py:type:`~pyxccd.common.SccdOutput` | (:py:type:`~pyxccd.common.SccdOutput`, pd.DataFrame)
+
+    If b_output_state is False, sccdoutput will be returned (by default);
+    if b_output_state is True,  (sccdoutput, states_info) will be returned;
+        sccdoutput: :py:type:`~pyxccd.common.SccdOutput`
+            A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
+
+        states_info: pd.DataFrame
+            A table of three state time series (trend, annual, semiannual) for nbands inputted spectral bands
     """
     _validate_params(
         func_name="sccd_detect_flex",

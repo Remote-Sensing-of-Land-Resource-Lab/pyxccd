@@ -83,7 +83,7 @@ def parse_description():
     readme_fpath = join(dirname(__file__), "README.rst")
     # This breaks on pip install, so check that it exists.
     if exists(readme_fpath):
-        with open(readme_fpath, "r",encoding='utf-8') as f:
+        with open(readme_fpath, "r", encoding="utf-8") as f:
             text = f.read()
         return text
     return ""
@@ -259,9 +259,9 @@ if __name__ == "__main__":
     setupkw["author"] = "Su Ye"
     setupkw["author_email"] = "remotesensingsuy@gmail.com"
     setupkw["url"] = "https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd"
-    setupkw[
-        "description"
-    ] = "python implementation of COntinuous monitoring of Land disturbances algorithm"
+    setupkw["description"] = (
+        "A PYthon library for basic and eXtended COntinuous Change Detection algorithms"
+    )
     setupkw["long_description"] = parse_description()
     setupkw["long_description_content_type"] = "text/x-rst"
     setupkw["license"] = "Apache 2"
@@ -277,21 +277,23 @@ if __name__ == "__main__":
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ]
     setupkw["package_dir"] = {
         "": "src/python",
     }
-    setupkw["cmake_args"] = []+ (['-GMSYS Makefiles' ] if os.name == 'nt' else [])
+    setupkw["cmake_args"] = [] + (["-GMSYS Makefiles"] if os.name == "nt" else [])
     ### <special non-xcookie generated code>
-    setupkw['include_package_data'] = True
-    setupkw['package_data'] = {
-        'pyxccd': [
-            'ob_parameters.yaml',
-            'constants.yaml',
+    setupkw["include_package_data"] = True
+    setupkw["package_data"] = {
+        "pyxccd": [
+            "ob_parameters.yaml",
+            "constants.yaml",
         ],
-        'pyxccd.imagetool': [
-            'config.yaml',
-            'singlepath_landsat_conus.tif',
+        "pyxccd.imagetool": [
+            "config.yaml",
+            "singlepath_landsat_conus.tif",
         ],
     }
     ### </special non-xcookie generated code>

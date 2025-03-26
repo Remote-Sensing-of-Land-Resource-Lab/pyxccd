@@ -13,8 +13,8 @@ We developed pyxccd mainly for the below purposes:
 1. **Near real-time monitoring**: this package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes
 
 2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_.
-3. 
-4. **Large-scale time-series processing in the desktop environment**: the core of xccd was coded in C with the superior computing efficiency and small memory usage
+ 
+3. **Large-scale time-series processing in the desktop environment**: the core of xccd was coded in C with the superior computing efficiency and small memory usage
 
 5. **Using dataset other than Landsat (such as Sentinel-2, modis)**: pyxccd supports the use of any band combination from any sensor (the flexible mode)
 
