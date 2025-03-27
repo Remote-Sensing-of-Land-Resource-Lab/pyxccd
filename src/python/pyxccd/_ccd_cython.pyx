@@ -501,7 +501,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                             'blue_annual', 'green_annual', 'red_annual', 'nir_annual', 'swir1_annual',  'swir2_annual', 'blue_semiannual', 
                             'green_semiannual', 'red_semiannual', 'nir_semiannual', 'swir1_semiannual', 'swir2_semiannual']
                 state_ensemble = state_ensemble.reshape(-1, NRT_BAND * 3)
-                state_all = pd.DataFrame(np.hstack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
+                state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
@@ -848,7 +848,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
             else:
                 colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] 
                 state_ensemble = state_ensemble.reshape(-1, nbands * 3)
-                state_all = pd.DataFrame(np.hstack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
+                state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
