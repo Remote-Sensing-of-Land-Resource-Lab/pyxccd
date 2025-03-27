@@ -8,6 +8,7 @@ PYXCCD
 
 A PYthon library for basic and eXtended COntinuous Change Detection algorithms
 =============================================================================================================================
+**Author**: Su Ye
 
 The Continuous Change Detection and Classification (CCDC) algorithm has been popular for processing satellite-based time series datasets, particularly for Landsat-based datasets. As a CCDC user, you may already be familiar with the existing CCDC tools such as `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_.
 
@@ -68,11 +69,12 @@ S-CCD for outputting continuous seasonal and trend states:
 .. code:: python
    
    # open state output by setting state_intervaldays as a non-zero value
-   sccd_result, state_days, state_ensemble = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, qas, state_intervaldays=1)
+   sccd_result, state_ensemble = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, qas, state_intervaldays=1)
 
 3. Documentation
 ----------------
 API documentation: `Pyxccd website <https://pyxccd.readthedocs.io/en/>`_
+
 Tutorial: under development
 
 4. Citations

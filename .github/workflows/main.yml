@@ -70,7 +70,7 @@ jobs:
       - build_and_test_linux_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.event.ref =='refs/heads/devel') && startsWith(github.event.ref, 'refs/tags')
+    if: (github.event_name == 'push') && (github.event.ref =='refs/heads/devel') && (startsWith(github.event.ref, 'refs/tags'))
     environment:
       name: testpypi
       url: https://test.pypi.org/p/pyxccd
@@ -97,7 +97,7 @@ jobs:
       - build_and_test_linux_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') && github.event.ref =='refs/heads/master'
+    if: (github.event_name == 'push') && (startsWith(github.event.ref, 'refs/tags')) && (github.event.ref =='refs/heads/master')
     environment:
       name: pypi
       url: https://pypi.org/p/pyxccd
