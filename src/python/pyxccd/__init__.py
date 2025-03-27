@@ -1,4 +1,4 @@
-__version__ = "0.3"
+__version__ = "0.3.1"
 
 # Ensure monkey patches run first
 from . import monkey  # NOQA
