@@ -71,8 +71,6 @@ S-CCD for outputting continuous seasonal and trend states:
 
 3. Documentation
 ----------------
-API documentation: `Pyxccd website <https://pyxccd.readthedocs.io/en/>`_
-
 Tutorial: under development
 
 4. Citations
