@@ -1,20 +1,18 @@
 PYXCCD
 ======
 
-|GithubActions| |Pypi| |Downloads| 
+|GithubActions| |Pypi| |Downloads| |ReadTheDocs| |Codecov|
 
-.. .. TODO: uncomment these after docs / pypi / coverage are online
-.. .. |ReadTheDocs| |Codecov| 
 
-A PYthon library for basic and eXtended COntinuous Change Detection algorithms
+A PYthon library for basic and eXtended COntinuous Change Detection
 =============================================================================================================================
-**Author**: Su Ye
+**Author: Su Ye (remotesensingsuy@gmail.com)**
 
 The Continuous Change Detection and Classification (CCDC) algorithm has been popular for processing satellite-based time series datasets, particularly for Landsat-based datasets. As a CCDC user, you may already be familiar with the existing CCDC tools such as `pyccd <https://github.com/repository-preservation/lcmap-pyccd>`_ and `gee ccdc <https://developers.google.com/earth-engine/apidocs/ee-algorithms-temporalsegmentation-ccdc>`_.
 
 **Wait.. so why does the pyxccd package still exist?**
 
-We developed pyxccd mainly for the below purposes:
+I developed pyxccd mainly for the below purposes:
    
 1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
 
@@ -131,5 +129,5 @@ hour; exporting maps needs 7 mins.
    :target: https://pypistats.org/packages/pyxccd
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/pyxccd/badge/?version=latest
     :target: http://pyxccd.readthedocs.io/en/latest/
-.. |GithubActions| image:: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/actions/workflows/tests.yml/badge.svg?branch=devel
+.. |GithubActions| image:: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/actions/workflows/main.yml/badge.svg?branch=devel
     :target: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/actions?query=branch%3Adevel
