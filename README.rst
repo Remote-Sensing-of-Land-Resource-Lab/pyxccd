@@ -18,20 +18,20 @@ I developed pyxccd mainly for the below purposes:
 
 2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
 
-3. **Large-scale time-series processing in the desktop environment**: the core of xccd was coded in C with the superior computing efficiency and small memory usage;
+3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C with the superior computing efficiency and small memory usage;
 
-4. **Using dataset other than Landsat (such as Sentinel-2, modis)**: pyxccd supports the use of any band combination from any sensor (the flexible mode);
+4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, modis);
 
-5. **Decomposing time-series signals to unveil inter-season/inter-annual variation (such as phenological shifts)**: S-CCD allows continuously outputting trend and seasonal signal components as "states";
+5. **Decomposing time-series signals to unveil inter-season/inter-annual variation**: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing detecting inter-segment variations such as yearly phenological shifts
 
 
 1. Installation
 ---------------
-It only supports windows and linux system so far. Please contact the author if you wish to install it in the macOS system.
-
 .. code:: console
 
    pip install pyxccd
+
+Note: it only supports windows and linux system so far. Please contact the author if you wish to install it in the macOS system.
 
 2. Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook/pyxccd_example.ipynb>`_)
 ----------------------------------------------------------------------------------------------------------------
@@ -71,6 +71,8 @@ S-CCD for outputting continuous seasonal and trend states:
 
 3. Documentation
 ----------------
+`API documents <https://pyxccd.readthedocs.io/en/latest>`_
+
 Tutorial: under development
 
 4. Citations
