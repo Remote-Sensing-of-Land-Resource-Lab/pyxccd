@@ -85,12 +85,12 @@ jobs:
     - name: Show files to upload
       shell: bash
       run: ls -la dist
-    - name: Publish package distributions to PyPI
+    - name: Publish package distributions to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
         # print-hash: true
-
+        verbose: true
   upload-to-pypi:
     needs: 
       - build_and_test_sdist
@@ -116,3 +116,4 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         print-hash: true
+        verbose: true

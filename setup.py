@@ -5,7 +5,9 @@ import sys
 import re
 from os.path import exists, dirname, join
 from setuptools import find_packages
-
+import os
+os.environ["SETUPTOOLS_SCM_DEBUG"] = "1"
+import setuptools_scm
 if exists("CMakeLists.txt"):
     try:
         import os
@@ -222,8 +224,13 @@ def parse_requirements(fname="requirements.txt", versions=False):
 
 
 NAME = "pyxccd"
-INIT_PATH = "src/python/pyxccd/__init__.py"
-VERSION = parse_version(INIT_PATH)
+# VERSION_PATH = "src/python/pyxccd/_version.py"
+# VERSION = parse_version(VERSION_PATH)
+VERSION = setuptools_scm.get_version(
+    relative_to=__file__,
+    version_file = "src/python/pyxccd/_version.py",
+    local_scheme="no-local-version", # for PEP 440 compatibility, otherwise TestPyPI fails
+) 
 
 if __name__ == "__main__":
     setupkw = {}
