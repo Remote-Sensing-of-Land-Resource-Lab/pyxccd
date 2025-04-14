@@ -1,7 +1,7 @@
 PYXCCD
 ======
 
-|GithubActions| |Pypi| |Downloads| |ReadTheDocs| |Codecov|
+|GithubActions| |Pypi| |Downloads| |ReadTheDocs|
 
 
 A PYthon library for basic and eXtended COntinuous Change Detection
@@ -16,13 +16,13 @@ I developed pyxccd mainly for the below purposes:
    
 1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
 
-2. **The latest version of CCDC (COLD) with the highest breakpoint detection accuracy**: The COLD algorithm has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
+2. **The latest version of CCDC (COLD)**: The COLD algorithm has the highest breakpoint detection accuracy than ever, and has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
 
-3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C with the superior computing efficiency and small memory usage;
+3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C language with the superior computing efficiency and small memory usage;
 
 4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, modis);
 
-5. **Decomposing time-series signals to unveil inter-season/inter-annual variation**: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing detecting inter-segment variations such as yearly phenological shifts
+5. **Decomposing time-series signals to unveil inter-annual variation**: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing detecting inter-segment variations such as yearly phenological shifts
 
 
 1. Installation
@@ -71,7 +71,7 @@ S-CCD for outputting continuous seasonal and trend states:
 
 3. Documentation
 ----------------
-`API documents <https://pyxccd.readthedocs.io/en/latest>`_
+API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
 
 Tutorial: under development
 

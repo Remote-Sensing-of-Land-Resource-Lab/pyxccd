@@ -3,8 +3,12 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 0.0.2] - Released 2025-04-14
 
-## [Version 0.1.0] - Released 2022-09-09
+### Added
+* Improved readme
+
+## [Version 0.0.1] - Released 2025-03-21
 
 ### Added
 * Initial version
