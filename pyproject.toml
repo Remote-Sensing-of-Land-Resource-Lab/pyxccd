@@ -4,9 +4,10 @@ requires = [
     "ninja>=1.10.2",
 
     # manual sync with requirements/build.txt
-    "scikit-build>=0.11.1",
-    "cmake>=3.21.2",
-    "cython>=0.29.24",
+    "scikit-build >= 0.11.1",
+    "cmake >= 3.21.2",
+    "cython >= 0.29.32",
+    "setuptools_scm >= 8.2.0",
 
     # manual sync numpy version with requirements/runtime.txt
     "numpy>=2.1.0      ; python_version < '4.0'  and python_version >= '3.13'",  # Python 3.13+
@@ -15,7 +16,8 @@ requires = [
     "numpy>=1.26.2,<2  ; python_version < '3.10' and python_version >= '3.9' ",  # Python 3.9
     "numpy>=1.24.4,<2  ; python_version < '3.9'  and python_version >= '3.8' ",  # Python 3.8
 ]
-
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
 [tool.xcookie]
 url = 'https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd'
 tags = [ "github", "binpy", "cv2"]

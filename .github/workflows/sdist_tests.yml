@@ -19,6 +19,8 @@ jobs:
     steps:
     - name: Checkout source
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # fetch all history for accurate version calculation
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:

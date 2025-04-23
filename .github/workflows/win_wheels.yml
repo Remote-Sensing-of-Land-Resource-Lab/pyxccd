@@ -27,14 +27,15 @@ jobs:
     steps:
     - name: Checkout source
       uses: actions/checkout@v4
-
+      with:
+        fetch-depth: 0 # fetch all history for accurate version calculation
     - name: Set up MSYS2
       if: ${{ runner.os == 'Windows' }}
       uses: msys2/setup-msys2@v2
       with:
         release: false
         msystem: ucrt64
-        install: make mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-gcc-libgfortran mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-zlib
+        install: git make mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-gcc-libgfortran mingw-w64-ucrt-x86_64-gsl mingw-w64-ucrt-x86_64-zlib
 
     - name: Set up Python
       id: setup-python
