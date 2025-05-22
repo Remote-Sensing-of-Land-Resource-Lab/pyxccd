@@ -58,7 +58,8 @@ int sccd_flex(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs)
+    bool b_fitting_coefs,
+    double lambda)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -241,10 +242,7 @@ int sccd_flex(
                 }
             }
 
-            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue,
-                                        obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint,
-                                        gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands,
-                                        tmask_b1, tmask_b2, b_fitting_coefs);
+            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, b_fitting_coefs, lambda);
         }
     }
     else
@@ -272,7 +270,7 @@ int sccd_flex(
             }
         }
 
-        result = sccd_snow_flex(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, nbands);
+        result = sccd_snow_flex(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, nbands, lambda);
     }
 
     days = clrx[0];
@@ -336,7 +334,8 @@ int step1_ssm_initialize_flex(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
-    int nbands)
+    int nbands,
+    double lambda)
 {
     char FUNC_NAME[] = "step1_ssm_initialize_flex";
     float *state_sum;
@@ -490,7 +489,8 @@ int step1_cold_initialize_flex(
     float *rmse,              /* I/O: Root Mean Squared Error array used for initialized kalman filter model    */
     int nbands,
     int tmask_b1,
-    int tmask_b2)
+    int tmask_b2,
+    double lambda)
 {
     int status;
     int k, m, b;
@@ -964,7 +964,7 @@ int step1_cold_initialize_flex(
         /**********************************************/
 
         status = auto_ts_fit_sccd(clrx, clry, b, b, *i_start, *cur_i,
-                                  update_num_c, fit_cft, &rmse[b], rec_v_dif);
+                                  update_num_c, fit_cft, &rmse[b], rec_v_dif, lambda);
 
         if (status != SUCCESS)
         {
@@ -1285,10 +1285,10 @@ int step1_cold_initialize_flex(
         {
             if (*num_curve == 0)
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, *i_dense, *i_start,
-                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif);
+                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif, lambda);
             else
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, *prev_i_break, *i_start,
-                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif); // SY 09182018
+                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif, lambda); // SY 09182018
             if (status != SUCCESS)
             {
                 RETURN_ERROR("Calling auto_ts_fit_sccd with enough observations\n",
@@ -1463,7 +1463,8 @@ int step2_KF_ChangeDetection_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    bool b_fitting_coefs)
+    bool b_fitting_coefs,
+    double lambda)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1740,10 +1741,10 @@ int step2_KF_ChangeDetection_flex(
             for (i_b = 0; i_b < nbands; i_b++)
             {
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_MAX_NUM_C,
-                                          fit_cft, &tmp_rmse, temp_v_dif);
+                                          fit_cft, &tmp_rmse, temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
-                    RETURN_ERROR("Calling auto_ts_fit_float for clear persistent pixels\n",
+                    RETURN_ERROR("Calling auto_ts_fit_float_sccd for clear persistent pixels\n",
                                  FUNC_NAME, FAILURE);
                 }
                 rec_cg[*num_curve].rmse[i_b] = tmp_rmse;
@@ -1910,7 +1911,8 @@ int step3_processing_end_flex(
     double gate_tcg,
     bool change_detected,
     double predictability_tcg,
-    int nbands)
+    int nbands,
+    double lambda)
 {
     int k, k1, k2;
     int i_b, b;
@@ -2350,7 +2352,8 @@ int sccd_standard_flex(
     int nbands,
     int tmask_b1,
     int tmask_b2,
-    bool b_fitting_coefs)
+    bool b_fitting_coefs,
+    double lambda)
 {
     int i_b;
     int status;
@@ -2563,7 +2566,7 @@ int sccd_standard_flex(
                 status = step1_cold_initialize_flex(conse, min_rmse, n_clr, tcg, max_t_cg, &i_dense,
                                                     num_fc, clrx, clry, &i, &i_start, rec_cg,
                                                     N_TIMES * MID_NUM_C, &prev_i_break, rmse_ini, nbands,
-                                                    tmask_b1, tmask_b2);
+                                                    tmask_b1, tmask_b2, lambda);
             }
 
             if (INCOMPLETE == status)
@@ -2582,7 +2585,7 @@ int sccd_standard_flex(
                 {
 
                     status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, i, SCCD_NUM_C,
-                                              fit_cft, &rmse_ini[i_b], rec_v_dif);
+                                              fit_cft, &rmse_ini[i_b], rec_v_dif, lambda);
                     //                    if (i_b == 3){
                     //                        printf("fit_cft[0][0]: %f\n", fit_cft[i_b][0]);
                     //                        printf("fit_cft[0][1]: %f\n", fit_cft[i_b][1]);
@@ -2610,7 +2613,7 @@ int sccd_standard_flex(
                     /**************************************************************/
                     step1_ssm_initialize_flex(&instance[i_b], clrx, clry[i_b], i_start, i, fit_cft,
                                               cov_p[i_b], i_b, &sum_square_vt[i_b], *n_clr,
-                                              b_coefs_records, n_coefs_records, coefs_records, nbands);
+                                              b_coefs_records, n_coefs_records, coefs_records, nbands, lambda);
                 }
                 num_obs_processed = i - i_start + 1;
                 t_start = clrx[i_start];
@@ -2637,7 +2640,7 @@ int sccd_standard_flex(
                                                    cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
                                                    t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
                                                    &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg,
-                                                   b_coefs_records, n_coefs_records, coefs_records, nbands, b_fitting_coefs);
+                                                   b_coefs_records, n_coefs_records, coefs_records, nbands, b_fitting_coefs, lambda);
 
             if (status == CHANGEDETECTED)
             {
@@ -2825,7 +2828,7 @@ int sccd_standard_flex(
     status = step3_processing_end_flex(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                        i_start, prev_i_break, nrt_model, num_obs_queue, obs_queue,
                                        sum_square_vt, num_obs_processed, t_start, conse, min_rmse,
-                                       gate_tcg, change_detected, predictability_tcg, nbands);
+                                       gate_tcg, change_detected, predictability_tcg, nbands, lambda);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))
@@ -2888,7 +2891,8 @@ int sccd_snow_flex(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
-    int nbands)
+    int nbands,
+    double lambda)
 {
     int k;
     int i_start = 0;    /* the first observation for TSFit */
@@ -3037,7 +3041,7 @@ int sccd_snow_flex(
         {
 
             status = auto_ts_fit_sccd(clrx, clry, k, k, 0, n_clr - 1, MIN_NUM_C,
-                                      fit_cft, &rmse[k], temp_v_dif);
+                                      fit_cft, &rmse[k], temp_v_dif, lambda);
 
             if (status != SUCCESS)
                 RETURN_ERROR("Calling auto_ts_fit_sccd\n",
@@ -3060,7 +3064,7 @@ int sccd_snow_flex(
             /**************************************************************/
             step1_ssm_initialize_flex(&instance[i_b], clrx, clry[i_b], i_start, n_clr - 1,
                                       fit_cft, cov_p[i_b], i_b, &sum_square_vt[i_b], n_clr,
-                                      b_coefs_records, n_coefs_records, coefs_records, nbands);
+                                      b_coefs_records, n_coefs_records, coefs_records, nbands, lambda);
             nrt_model[0].H[i_b] = instance[i_b].H;
         }
 

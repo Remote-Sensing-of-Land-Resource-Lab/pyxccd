@@ -1928,7 +1928,8 @@ int auto_ts_fit_sccd(
     int df,
     float **coefs,
     float *rmse,
-    float **v_dif)
+    float **v_dif,
+    float lam)
 {
     char FUNC_NAME[] = "auto_ts_fit_sccd";
     char errmsg[MAX_STR_LEN];
@@ -1950,7 +1951,7 @@ int auto_ts_fit_sccd(
     w = TWO_PI / 365.25;
 
     float ulam[1];
-    ulam[0] = DEFAULT_FITLAM; // SY lambda = 20
+    ulam[0] = lam;
 
     /* Allocate memory */
     if (df == 2 || df == 4 || df == 5 || df == 6 || df == 8)

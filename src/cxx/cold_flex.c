@@ -55,7 +55,7 @@ int cold_flex(
     short int *CM_outputs,      /* I/O: (optional) maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     short int *CM_outputs_date, /* I/O: (optional) dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     double gap_days,            /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
-    double fitlam)
+    double lambda)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -125,7 +125,7 @@ int cold_flex(
     {
         result = inefficientobs_procedure_flex(valid_num_scenes, valid_date_array, ts_data,
                                                fmask_buf, nbands, id_range, sn_pct, rec_cg,
-                                               num_fc, fitlam);
+                                               num_fc, lambda);
     }
     else
     {
@@ -136,7 +136,7 @@ int cold_flex(
         /*                                                            */
         /**************************************************************/
         result = stand_procedure_flex(valid_num_scenes, valid_date_array, ts_data, fmask_buf, nbands, id_range, t_cg, max_t_cg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
-                                      CM_outputs_date, gap_days, tmask_b1, tmask_b2, fitlam);
+                                      CM_outputs_date, gap_days, tmask_b1, tmask_b2, lambda);
         //        result = stand_procedure_fixeddays(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t, fmask_buf, id_range,
         //                                 tcg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
         //                                 CM_outputs_date, (conse - 1) * 16);
@@ -195,7 +195,7 @@ int stand_procedure_flex(
     double gap_days,
     int tmask_b1, /* I: the band id used for tmask */
     int tmask_b2, /* I: the band id used for tmask */
-    double fitlam)
+    double lambda)
 {
     int status;
     int i, j, k, k_new, b;
@@ -804,7 +804,7 @@ int stand_procedure_flex(
                     /**********************************************/
                     // printf("dd_step2 auto_ts_fit starts \n");
                     status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1,
-                                               MIN_NUM_C, fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                               MIN_NUM_C, fit_cft, &rmse[i_b], rec_v_dif, lambda);
                     // printf("dd_step2 first using auto_ts_fit successed \n");
                     //                        for (k = 0; k < MAX_NUM_C; k++)
                     //                        {
@@ -1027,8 +1027,7 @@ int stand_procedure_flex(
                                 // are important for change agent classification
                                 auto_ts_predict_float(clrx, fit_cft, MIN_NUM_C, i_b, i_ini - i_conse + 1,
                                                       i_ini - i_conse + 1, &ts_pred_temp);
-                                v_dif_mag[i_b][i_conse - 1] = (float)clry[i_b][i_ini - i_conse + 1] -
-                                                              ts_pred_temp; // SY 09192018
+                                v_dif_mag[i_b][i_conse - 1] = (float)clry[i_b][i_ini - i_conse + 1] - ts_pred_temp; // SY 09192018
                                 // printf("auto_ts_predict finished \n");
                                 /**********************************/
                                 /*                                */
@@ -1165,7 +1164,7 @@ int stand_procedure_flex(
                     {
 
                         status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_dense - 1, i_start - 2,
-                                                   MIN_NUM_C, fit_cft, &rmse[i_b], temp_v_dif, fitlam); // SY 02132019
+                                                   MIN_NUM_C, fit_cft, &rmse[i_b], temp_v_dif, lambda); // SY 02132019
                         if (status != SUCCESS)
                         {
                             RETURN_ERROR("Calling auto_ts_fit_float with enough observations\n",
@@ -1340,7 +1339,7 @@ int stand_procedure_flex(
                     {
 
                         status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                                   fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                                   fit_cft, &rmse[i_b], rec_v_dif, lambda);
                         if (status != SUCCESS)
                         {
                             RETURN_ERROR("Calling auto_ts_fit_float during continuous monitoring\n",
@@ -1502,7 +1501,7 @@ int stand_procedure_flex(
                         for (i_b = 0; i_b < nbands; i_b++)
                         {
                             status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                                       fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                                       fit_cft, &rmse[i_b], rec_v_dif, lambda);
                             // printf("auto_ts_fit2 finished \n", i);
                             if (status != SUCCESS)
                             {
@@ -1784,12 +1783,11 @@ int stand_procedure_flex(
                     //                        printf("Change Magnitude = %.2f\n", break_mag - adj_TCG);
                     //                    }
 
-                    if (fitlam != DEFAULT_FITLAM)
+                    if (lambda != lambda)
                     {
                         for (i_b = 0; i_b < nbands; i_b++)
                         {
-                            status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                                       fit_cft, &rmse[i_b], rec_v_dif, fitlam);
+                            status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c, fit_cft, &rmse[i_b], rec_v_dif, lambda);
                             // printf("auto_ts_fit2 finished \n", i);
                             if (status != SUCCESS)
                             {
@@ -1919,12 +1917,12 @@ int stand_procedure_flex(
     // printf("main part finished \n");
     if (bl_train == 1)
     {
-        if (fitlam != DEFAULT_FITLAM)
+        if (lambda != lambda)
         {
             for (i_b = 0; i_b < nbands; i_b++)
             {
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                           fit_cft, &rmse[i_b], rec_v_dif, fitlam);
+                                           fit_cft, &rmse[i_b], rec_v_dif, lambda);
                 // printf("auto_ts_fit2 finished \n", i);
                 if (status != SUCCESS)
                 {
@@ -2155,7 +2153,7 @@ int stand_procedure_flex(
                 //                        printf("clry %d: %f\n", k,clry[i_b][k]);
                 //                    }
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, end - 1, MIN_NUM_C,
-                                           fit_cft, &rmse[i_b], temp_v_dif, fitlam);
+                                           fit_cft, &rmse[i_b], temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
                     RETURN_ERROR("Calling auto_ts_fit_float at the end of time series\n",
@@ -2369,7 +2367,7 @@ int inefficientobs_procedure_flex(
     float sn_pct,
     Output_t_flex *rec_cg,
     int *num_fc,
-    double fitlam)
+    double lambda)
 {
     int n_sn = 0;
     int i, k;
@@ -2521,7 +2519,7 @@ int inefficientobs_procedure_flex(
             else
             {
                 status = auto_ts_fit_float(clrx, clry, k, k, 0, i_span - 1, MIN_NUM_C,
-                                           fit_cft, &rmse[k], temp_v_dif, fitlam);
+                                           fit_cft, &rmse[k], temp_v_dif, lambda);
 
                 if (status != SUCCESS)
                     RETURN_ERROR("Calling auto_ts_fit_float\n",
@@ -2688,7 +2686,7 @@ int inefficientobs_procedure_flex(
             for (i_b = 0; i_b < nbands; i_b++)
             {
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, 0, end - 1, MIN_NUM_C,
-                                           fit_cft, &rmse[i_b], temp_v_dif, fitlam);
+                                           fit_cft, &rmse[i_b], temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
                     RETURN_ERROR("Calling auto_ts_fit_float for clear persistent pixels\n",

@@ -140,25 +140,16 @@ cdef extern from "../../cxx/output.h":
         short int clrx_since1982
 
 cdef extern from "../../cxx/cold.h":
-    cdef int32_t cold(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2,
-                  int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, int32_t pos, 
-                  double tcg, int32_t conse, bool b_output_cm, int32_t starting_date, bool b_c2, Output_t *rec_cg,
-                  int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs,
-                  short int *cm_outputs_date, double gap_days, double fitlam);
+    cdef int32_t cold(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2,int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, int32_t pos, double tcg, int32_t conse, bool b_output_cm, int32_t starting_date, bool b_c2, Output_t *rec_cg,int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs, short int *cm_outputs_date, double gap_days, double lam);
 
 cdef extern from "../../cxx/cold_flex.h":
-    cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, 
-                           int tmask_b1, int tmask_b1, int32_t valid_num_scenes, int32_t pos, 
-                           double tcg, double max_tcg, int32_t conse, bool b_output_cm, 
-                           int32_t starting_date, Output_t_flex *rec_cg, int32_t *num_fc, 
-                           int32_t cm_output_interval, short int *cm_outputs, 
-                           short int *cm_outputs_date, double gap_days, double fitlam);
+    cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1, int tmask_b1, int32_t valid_num_scenes, int32_t pos,double tcg, double max_tcg, int32_t conse, bool b_output_cm, int32_t starting_date, Output_t_flex *rec_cg, int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs, short int *cm_outputs_date, double gap_days, double lam);
 
 
 cdef extern from "../../cxx/cold.h":
-    cdef int32_t obcold_reconstruction_procedure(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1,
+    cdef int32_t obcold_reconstruction_procedure(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r,  int64_t *buf_n, int64_t *buf_s1,
     int64_t *buf_s2, int64_t *buf_t,  int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, int64_t *break_dates,
-    int32_t break_date_len, int32_t pos, bool b_c2, int32_t conse, Output_t *rec_cg, int32_t *num_fc)
+    int32_t break_date_len, int32_t pos, bool b_c2, int32_t conse, Output_t *rec_cg, int32_t *num_fc, double lam);
 
 
 
@@ -168,18 +159,16 @@ cdef extern from "../../cxx/s_ccd.h":
                   Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue,
                   short int *min_rmse, int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint *rec_cg_pinpoint, 
                   int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg,  bool b_output_state, 
-                  double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool b_fitting_coefs);
+                  double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool b_fitting_coefs, double lam);
 
 
 cdef extern from "../../cxx/s_ccd_flex.h":
-    cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, 
-                           int tmask_b1, int tmask_b2, int valid_num_scenes, double tcg, double max_t_cg, 
-                           int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model,
-                           int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
-                           int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint_flex *rec_cg_pinpoint,
-                           int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg, bool b_output_state,
-                           double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,
-                           bool b_fitting_coefs);
+    cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1, int tmask_b2, int valid_num_scenes, double tcg, double max_t_cg, 
+    int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model,
+    int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
+    int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint_flex *rec_cg_pinpoint,
+    int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg, bool b_output_state,
+    double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool b_fitting_coefs, double lam);
 
 
 cdef Output_sccd t
@@ -216,7 +205,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_s2, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas, double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
                    bint b_output_cm=False, int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, bint b_c2=True,
-                   double gap_days=365.25, double fitlam=20):
+                   double gap_days=365.25, double lam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -284,7 +273,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
     result = cold(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0],
                  &qas_view[0], &dates_view[0], valid_num_scenes, pos, t_cg, conse, b_output_cm,
                  starting_date, b_c2, &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], &cm_outputs_date_view[0],
-                 gap_days, fitlam)
+                 gap_days, lam)
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:
@@ -308,7 +297,7 @@ cpdef _obcold_reconstruct(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                           np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                           np.ndarray[np.int64_t, ndim=1, mode='c'] qas,
                           np.ndarray[np.int64_t, ndim=1, mode='c'] break_dates, int32_t pos=1,
-                          int32_t conse=6, bint b_c2=True):
+                          int32_t conse=6, bint b_c2=True, double lam=20):
     """
     re-contructructing change records using break dates.
         Parameters
@@ -353,7 +342,7 @@ cpdef _obcold_reconstruct(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
 
     result = obcold_reconstruction_procedure(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0],
       &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, &break_dates_view[0], break_date_len,
-      pos, b_c2, conse, &rec_cg_view[0], &num_fc)
+      pos, b_c2, conse, &rec_cg_view[0], &num_fc, lam)
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:
@@ -375,7 +364,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
                    bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
                    double predictability_tcg=9.236, bint b_output_state=False, 
-                   double state_intervaldays=1, bint b_fitting_coefs=False):
+                   double state_intervaldays=1, bint b_fitting_coefs=False, double lam=20):
     """
     S-CCD processing. It is required to be done before near real time monitoring
 
@@ -473,7 +462,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                   &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                   &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, b_pinpoint,
                   &rec_cg_pinpoint_view[0], &num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
-                  &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs)
+                  &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
     
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -547,7 +536,7 @@ cpdef _sccd_update(sccd_pack,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, bint b_c2=True,
-                   double gate_tcg=9.236, double predictability_tcg=15.086):
+                   double gate_tcg=9.236, double predictability_tcg=15.086, double lam=20):
     """
     SCCD online update for new observations
 
@@ -636,7 +625,7 @@ cpdef _sccd_update(sccd_pack,
                   &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                   &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False,
                   rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, predictability_tcg, False, 1, &n_state, 
-                  &states_days_view[0], &states_ensemble_view[0], False)
+                  &states_days_view[0], &states_ensemble_view[0], False, lam)
 
     PyMem_Free(rec_cg_pinpoint)
     if result != 0:
@@ -665,7 +654,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands,
                         double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_output_cm=False, 
                         int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, 
-                        double gap_days=365.25, int32_t tmask_b1=1, int32_t tmask_b2=1, double fitlam=20):
+                        double gap_days=365.25, int32_t tmask_b1=1, int32_t tmask_b2=1, double lam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -722,7 +711,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
                         valid_num_scenes, pos, t_cg, max_t_cg, conse, b_output_cm, starting_date, 
                         &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], 
-                        &cm_outputs_date_view[0], gap_days, fitlam)
+                        &cm_outputs_date_view[0], gap_days, lam)
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:
@@ -742,7 +731,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1,
                         bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
                         double predictability_tcg=9.236, bint b_output_state=False, 
-                        double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1, bint b_fitting_coefs=False):
+                        double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1, bint b_fitting_coefs=False, double lam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -764,6 +753,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         gap_days: define the day number of the gap year for i_dense
         tmask_b1: the first band id for tmask
         tmask_b2: the second band id for tmask
+        lam: the lambda for lasso regression
 
         Returns
         ----------
@@ -822,7 +812,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
                         conse, b_c2, b_pinpoint, &rec_cg_pinpoint_view[0], &num_fc_pinpoint, 
                         gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
-                        &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs)
+                        &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
 
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -890,7 +880,7 @@ cpdef _sccd_update_flex(sccd_pack,
                         int32_t nbands, double t_cg, double max_t_cg, 
                         int32_t conse=6, int32_t pos=1, bint b_c2=True,
                         double gate_tcg=9.236, double predictability_tcg=15.086, 
-                        int32_t tmask_b1=1, int32_t tmask_b2=1):
+                        int32_t tmask_b1=1, int32_t tmask_b2=1, double lam=20):
     """
     SCCD online update for new observations
 
@@ -970,7 +960,7 @@ cpdef _sccd_update_flex(sccd_pack,
                     &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
                     conse, b_c2, False, rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, 
                     predictability_tcg, False, 1, &n_state, &states_days_view[0], 
-                    &states_ensemble_view[0], False)
+                    &states_ensemble_view[0], False, lam)
 
     PyMem_Free(rec_cg_pinpoint)
     if result != 0:

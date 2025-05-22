@@ -36,7 +36,8 @@ int sccd(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs);
+    bool b_fitting_coefs,
+    double lambda);
 
 int step1_cold_initialize(
     int conse,           /* I: adjusted consecutive observation number               */
@@ -52,8 +53,8 @@ int step1_cold_initialize(
     Output_sccd *rec_cg, /* I/O: records of change points info                    */
     int i_span_min,      /* I: the minimum value for i_span                    */
     int *prev_i_break,   /*I : the i_break of the last curve                    */
-    float *rmse          /* I/O: Root Mean Squared Error array used for initialized kalman filter model */
-);
+    float *rmse,         /* I/O: Root Mean Squared Error array used for initialized kalman filter model */
+    double lambda);
 
 int step1_ssm_initialize(
     ssmodel_constants *instance, /* I/O: the outputted initial SSM model, we will assign H     */
@@ -98,7 +99,8 @@ int step2_KF_ChangeDetection(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs);
+    bool b_fitting_coefs,
+    double lambda);
 
 /************************************************************************
 FUNCTION: step3_processingend
@@ -143,7 +145,8 @@ int sccd_snow(
     output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records);
+    nrt_coefs_records *coefs_records,
+    double lambda);
 
 int sccd_standard(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
@@ -166,5 +169,6 @@ int sccd_standard(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs);
+    bool b_fitting_coefs,
+    double lambda);
 #endif // CCD_STOCHASTIC_H

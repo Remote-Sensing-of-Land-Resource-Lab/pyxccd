@@ -6,7 +6,7 @@ development mode.
 
 if [[ "$VIRTUAL_ENV" == "" ]]; then
     echo "WARNING: NOT INSIDE OF A Python VIRTUAL_ENV. This script may not run correctly"
-fi 
+fi
 
 apt_ensure(){
     __doc__="

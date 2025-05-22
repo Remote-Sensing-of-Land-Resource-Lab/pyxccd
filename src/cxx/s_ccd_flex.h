@@ -34,7 +34,8 @@ int sccd_flex(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs);
+    bool b_fitting_coefs,
+    double lambda);
 
 int step1_ssm_initialize_flex(
     ssmodel_constants *instance, /* I/O: the outputted initial SSM model, we will assign H     */
@@ -50,7 +51,8 @@ int step1_ssm_initialize_flex(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
-    int nbands);
+    int nbands,
+    double lambda);
 
 int step1_cold_initialize_flex(
     int conse,           /* I: adjusted consecutive observation number               */
@@ -70,7 +72,8 @@ int step1_cold_initialize_flex(
     float *rmse,              /* I/O: Root Mean Squared Error array used for initialized kalman filter model    */
     int nbands,
     int tmask_b1,
-    int tmask_b2);
+    int tmask_b2,
+    double lambda);
 
 int step2_KF_ChangeDetection_flex(
     ssmodel_constants *instance, /* I: ssm constant structure */
@@ -101,7 +104,8 @@ int step2_KF_ChangeDetection_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    bool b_fitting_coefs);
+    bool b_fitting_coefs,
+    double lambda);
 
 /************************************************************************
 FUNCTION: step3_processingend
@@ -135,7 +139,8 @@ int step3_processing_end_flex(
     double gate_tcg,
     bool change_detected,
     double predictability_tcg,
-    int nbands);
+    int nbands,
+    double lambda);
 
 int sccd_snow_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
@@ -148,7 +153,8 @@ int sccd_snow_flex(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
-    int nbands);
+    int nbands,
+    double lambda);
 
 int sccd_standard_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
@@ -175,5 +181,6 @@ int sccd_standard_flex(
     int nbands,
     int tmask_b1,
     int tmask_b2,
-    bool b_fitting_coefs);
+    bool b_fitting_coefs,
+    double lambda);
 #endif // CCD_STOCHASTIC_F

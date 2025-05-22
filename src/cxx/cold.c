@@ -105,7 +105,7 @@ int cold(
     short int *CM_outputs,      /* I/O: (optional) maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     short int *CM_outputs_date, /* I/O: (optional) dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     double gap_days,            /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
-    double fitlam)
+    double lambda)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -175,8 +175,7 @@ int cold(
     // if ((clr_pct < T_CLR)||(clear_sum < N_TIMES * MAX_NUM_C)){
     if (clear_sum < N_TIMES * MAX_NUM_C)
     {
-        result = inefficientobs_procedure(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t,
-                                          fmask_buf, id_range, sn_pct, rec_cg, num_fc, b_c2, fitlam);
+        result = inefficientobs_procedure(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t, fmask_buf, id_range, sn_pct, rec_cg, num_fc, b_c2, lambda);
     }
     else
     {
@@ -188,7 +187,7 @@ int cold(
         /**************************************************************/
         result = stand_procedure(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t, fmask_buf, id_range,
                                  tcg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
-                                 CM_outputs_date, b_c2, gap_days, fitlam);
+                                 CM_outputs_date, b_c2, gap_days, lambda);
         //        result = stand_procedure_fixeddays(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t, fmask_buf, id_range,
         //                                 tcg, conse, b_outputCM, starting_date, rec_cg, num_fc, CM_OUTPUT_INTERVAL, CM_outputs,
         //                                 CM_outputs_date, (conse - 1) * 16);
@@ -2579,7 +2578,7 @@ int stand_procedure(
     short int *CM_outputs_date, /* I/O: dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     bool b_c2,
     double gap_days,
-    double fitlam)
+    double lambda)
 {
     int status;
     int i, j, k, k_new, b;
@@ -3209,7 +3208,7 @@ int stand_procedure(
                     /**********************************************/
                     // printf("dd_step2 auto_ts_fit starts \n");
                     status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1,
-                                               MIN_NUM_C, fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                               MIN_NUM_C, fit_cft, &rmse[i_b], rec_v_dif, lambda);
                     // printf("dd_step2 first using auto_ts_fit successed \n");
                     //                        for (k = 0; k < MAX_NUM_C; k++)
                     //                        {
@@ -3608,7 +3607,7 @@ int stand_procedure(
                     {
 
                         status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_dense - 1, i_start - 2,
-                                                   MIN_NUM_C, fit_cft, &rmse[i_b], temp_v_dif, fitlam); // SY 02132019
+                                                   MIN_NUM_C, fit_cft, &rmse[i_b], temp_v_dif, lambda); // SY 02132019
                         if (status != SUCCESS)
                         {
                             RETURN_ERROR("Calling auto_ts_fit_float with enough observations\n",
@@ -3783,7 +3782,7 @@ int stand_procedure(
                     {
 
                         status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                                   fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                                   fit_cft, &rmse[i_b], rec_v_dif, lambda);
                         if (status != SUCCESS)
                         {
                             RETURN_ERROR("Calling auto_ts_fit_float during continuous monitoring\n",
@@ -3952,7 +3951,7 @@ int stand_procedure(
                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                         {
                             status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                                       fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                                       fit_cft, &rmse[i_b], rec_v_dif, lambda);
                             // printf("auto_ts_fit2 finished \n", i);
                             if (status != SUCCESS)
                             {
@@ -4249,12 +4248,12 @@ int stand_procedure(
                     /* final fitting if not DEFAULT LAM is used   */
                     /*                                            */
                     /**********************************************/
-                    if (fitlam != DEFAULT_FITLAM)
+                    if (lambda != lambda)
                     {
                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
                         {
                             status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                                       fit_cft, &rmse[i_b], rec_v_dif, fitlam);
+                                                       fit_cft, &rmse[i_b], rec_v_dif, lambda);
                             // printf("auto_ts_fit2 finished \n", i);
                             if (status != SUCCESS)
                             {
@@ -4391,12 +4390,12 @@ int stand_procedure(
         /*                                                        */
         /**********************************************************/
 
-        if (fitlam != DEFAULT_FITLAM)
+        if (lambda != lambda)
         {
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
             {
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, i - 1, update_num_c,
-                                           fit_cft, &rmse[i_b], rec_v_dif, fitlam);
+                                           fit_cft, &rmse[i_b], rec_v_dif, lambda);
                 // printf("auto_ts_fit2 finished \n", i);
                 if (status != SUCCESS)
                 {
@@ -4619,7 +4618,7 @@ int stand_procedure(
                 //                        printf("clry %d: %f\n", k,clry[i_b][k]);
                 //                    }
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_start - 1, end - 1, MIN_NUM_C,
-                                           fit_cft, &rmse[i_b], temp_v_dif, fitlam);
+                                           fit_cft, &rmse[i_b], temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
                     RETURN_ERROR("Calling auto_ts_fit_float at the end of time series\n",
@@ -4837,7 +4836,7 @@ int inefficientobs_procedure(
     Output_t *rec_cg,
     int *num_fc,
     bool b_c2,
-    double fitlam)
+    double lambda)
 {
     int n_sn = 0;
     int i, k;
@@ -5012,7 +5011,7 @@ int inefficientobs_procedure(
                 else
                 {
                     status = auto_ts_fit_float(clrx, clry, k, k, 0, i_span - 1, MIN_NUM_C,
-                                               fit_cft, &rmse[k], temp_v_dif, fitlam);
+                                               fit_cft, &rmse[k], temp_v_dif, lambda);
 
                     if (status != SUCCESS)
                         RETURN_ERROR("Calling auto_ts_fit_float\n",
@@ -5042,7 +5041,7 @@ int inefficientobs_procedure(
                 else
                 {
                     status = auto_ts_fit_float(clrx, clry, k, k, 0, i_span - 1, MIN_NUM_C,
-                                               fit_cft, &rmse[k], temp_v_dif, fitlam);
+                                               fit_cft, &rmse[k], temp_v_dif, lambda);
 
                     if (status != SUCCESS)
                         RETURN_ERROR("Calling auto_ts_fit_float\n",
@@ -5232,7 +5231,7 @@ int inefficientobs_procedure(
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
             {
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, 0, end - 1, MIN_NUM_C,
-                                           fit_cft, &rmse[i_b], temp_v_dif, fitlam);
+                                           fit_cft, &rmse[i_b], temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
                     RETURN_ERROR("Calling auto_ts_fit_float for clear persistent pixels\n",
@@ -5363,7 +5362,8 @@ int obcold_reconstruction_procedure(
     bool b_c2,                 /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
     int conse,
     Output_t *rec_cg, /* O: Initialize NUM of Functional Curves    */
-    int *num_fc)
+    int *num_fc,
+    double lambda)
 {
     int status;
     int i, j, k, k_new, b;
@@ -5538,7 +5538,7 @@ int obcold_reconstruction_procedure(
     if (clear_sum < N_TIMES * MAX_NUM_C)
     {
         result = inefficientobs_procedure(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t,
-                                          fmask_buf, id_range, sn_pct, rec_cg, num_fc, b_c2, DEFAULT_FITLAM);
+                                          fmask_buf, id_range, sn_pct, rec_cg, num_fc, b_c2, lambda);
     }
     else
     {
@@ -5660,7 +5660,7 @@ int obcold_reconstruction_procedure(
                         {
                             status = auto_ts_fit_float(clrx_tmp, clry_tmp, lasso_blist[b], lasso_blist[b], i_last_break,
                                                        i_break_tmp - 1,
-                                                       update_num_c, fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                                       update_num_c, fit_cft, &rmse[i_b], rec_v_dif, lambda);
                             if (status != SUCCESS)
                             {
                                 RETURN_ERROR("Calling auto_ts_fit_float during model initilization\n",
@@ -5735,7 +5735,7 @@ int obcold_reconstruction_procedure(
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS; i_b++)
             {
                 status = auto_ts_fit_float(clrx, clry, i_b, i_b, i_last_break, i_break - 1, update_num_c,
-                                           fit_cft, &rmse[i_b], rec_v_dif, DEFAULT_FITLAM);
+                                           fit_cft, &rmse[i_b], rec_v_dif, lambda);
                 // printf("auto_ts_fit2 finished \n", i);
                 if (status != SUCCESS)
                 {
@@ -5847,7 +5847,7 @@ int obcold_reconstruction_procedure(
         if (*num_fc == 0)
         { // apply inefficient procedure to force to have a model
             result = inefficientobs_procedure(valid_num_scenes, valid_date_array, buf_b, buf_g, buf_r, buf_n, buf_s1, buf_s2, buf_t,
-                                              fmask_buf, id_range, sn_pct, rec_cg, num_fc, b_c2, DEFAULT_FITLAM);
+                                              fmask_buf, id_range, sn_pct, rec_cg, num_fc, b_c2, lambda);
         }
     }
 

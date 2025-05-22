@@ -28,7 +28,7 @@ int cold(
     short int *CM_outputs,      /* I/O: (optional) maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     short int *CM_outputs_date, /* I/O: (optional) dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     double gap_days,            /* I: the day number of gap to define i_dense; it is useful for the cases that gap is in the middle of time series      */
-    double fitlam);
+    double lambda);
 
 int stand_procedure(
     int valid_num_scenes,      /* I:  number of valid scenes  */
@@ -53,7 +53,7 @@ int stand_procedure(
     short int *CM_outputs_date, /* I/O: dates for maximum change magnitudes at every CM_OUTPUT_INTERVAL days, only for b_outputCM is True*/
     bool b_c2,
     double gap_days,
-    double fitlam);
+    double lambda);
 
 int inefficientobs_procedure(
     int valid_num_scenes,      /* I:  number of scenes  */
@@ -71,7 +71,7 @@ int inefficientobs_procedure(
     Output_t *rec_cg,
     int *num_fc,
     bool b_c2,
-    double fitlam);
+    double lambda);
 
 int obcold_reconstruction_procedure(
     int64_t *buf_b,            /* I:  Landsat blue spectral time series.The dimension is (n_obs, 7). Invalid (qa is filled value (255)) must be removed */
@@ -90,7 +90,8 @@ int obcold_reconstruction_procedure(
     bool b_c2,                 /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
     int conse,
     Output_t *rec_cg, /* O: Initialize NUM of Functional Curves    */
-    int *num_fc);
+    int *num_fc,
+    double lambda);
 
 double angle_decaying(
     double input,

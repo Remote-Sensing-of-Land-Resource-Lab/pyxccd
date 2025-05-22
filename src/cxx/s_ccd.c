@@ -62,7 +62,8 @@ int sccd(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs)
+    bool b_fitting_coefs,
+    double lambda)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -258,10 +259,7 @@ int sccd(
                 }
             }
 
-            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue,
-                                   obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint,
-                                   gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records,
-                                   b_fitting_coefs);
+            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, b_fitting_coefs, lambda);
         }
     }
     else
@@ -303,7 +301,7 @@ int sccd(
             }
         }
 
-        result = sccd_snow(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records);
+        result = sccd_snow(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, lambda);
     }
 
     days = clrx[0];
@@ -598,8 +596,8 @@ int step1_cold_initialize(
     Output_sccd *rec_cg, /* I/O: records of change points info                    */
     int i_span_min,      /* I: the minimum value for i_span                    */
     int *prev_i_break,   /*I : the i_break of the last curve                    */
-    float *rmse          /* I/O: Root Mean Squared Error array used for initialized kalman filter model    */
-)
+    float *rmse,         /* I/O: Root Mean Squared Error array used for initialized kalman filter model    */
+    double lambda)
 {
     int status;
     int k, m, b;
@@ -1073,7 +1071,7 @@ int step1_cold_initialize(
         /**********************************************/
 
         status = auto_ts_fit_sccd(clrx, clry, b, b, *i_start, *cur_i,
-                                  update_num_c, fit_cft, &rmse[b], rec_v_dif);
+                                  update_num_c, fit_cft, &rmse[b], rec_v_dif, lambda);
 
         if (status != SUCCESS)
         {
@@ -1411,10 +1409,10 @@ int step1_cold_initialize(
         {
             if (*num_curve == 0)
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, *i_dense, *i_start,
-                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif);
+                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif, lambda);
             else
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, *prev_i_break, *i_start,
-                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif); // SY 09182018
+                                          MIN_NUM_C, fit_cft_tmp, &rmse[i_b], tmp_v_dif, lambda); // SY 09182018
             if (status != SUCCESS)
             {
                 RETURN_ERROR("Calling auto_ts_fit_sccd with enough observations\n",
@@ -1588,7 +1586,8 @@ int step2_KF_ChangeDetection(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs)
+    bool b_fitting_coefs,
+    double lambda)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1890,7 +1889,7 @@ int step2_KF_ChangeDetection(
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
             {
                 status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_MAX_NUM_C,
-                                          fit_cft, &tmp_rmse, temp_v_dif);
+                                          fit_cft, &tmp_rmse, temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
                     RETURN_ERROR("Calling auto_ts_fit_float for clear persistent pixels\n",
@@ -2509,7 +2508,8 @@ int sccd_standard(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs)
+    bool b_fitting_coefs,
+    double lambda)
 {
     int i_b;
     int status;
@@ -2727,7 +2727,7 @@ int sccd_standard(
                 /**************************************************************/
                 status = step1_cold_initialize(conse, min_rmse, n_clr, tcg, &i_dense, num_fc, clrx,
                                                clry, &i, &i_start, rec_cg, N_TIMES * MID_NUM_C,
-                                               &prev_i_break, rmse_ini);
+                                               &prev_i_break, rmse_ini, lambda);
             }
 
             if (INCOMPLETE == status)
@@ -2746,7 +2746,7 @@ int sccd_standard(
                 {
 
                     status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, i, SCCD_NUM_C,
-                                              fit_cft, &rmse_ini[i_b], rec_v_dif);
+                                              fit_cft, &rmse_ini[i_b], rec_v_dif, lambda);
                     if (status != SUCCESS)
                     {
                         RETURN_ERROR("Calling auto_ts_fit_sccd during continuous monitoring\n",
@@ -2792,7 +2792,7 @@ int sccd_standard(
                                               cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
                                               t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
                                               &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD,
-                                              b_coefs_records, n_coefs_records, coefs_records, b_fitting_coefs);
+                                              b_coefs_records, n_coefs_records, coefs_records, b_fitting_coefs, lambda);
 
             if (status == CHANGEDETECTED)
             {
@@ -3041,7 +3041,8 @@ int sccd_snow(
     output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
     bool b_coefs_records,
     int *n_coefs_records,
-    nrt_coefs_records *coefs_records)
+    nrt_coefs_records *coefs_records,
+    double lambda)
 {
     int k;
     int i_start = 0;    /* the first observation for TSFit */
@@ -3188,7 +3189,7 @@ int sccd_snow(
         {
 
             status = auto_ts_fit_sccd(clrx, clry, k, k, 0, n_clr - 1, MIN_NUM_C,
-                                      fit_cft, &rmse[k], temp_v_dif);
+                                      fit_cft, &rmse[k], temp_v_dif, lambda);
 
             if (status != SUCCESS)
                 RETURN_ERROR("Calling auto_ts_fit_sccd\n",

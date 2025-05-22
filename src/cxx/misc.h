@@ -473,7 +473,8 @@ int auto_ts_fit_sccd(
     int df,
     float **coefs,
     float *rmse,
-    float **v_dif);
+    float **v_dif,
+    float lam);
 
 void usage();
 

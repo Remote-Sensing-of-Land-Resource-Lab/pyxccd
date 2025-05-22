@@ -21,4 +21,5 @@ from .ccd import (
     sccd_identify,
     calculate_sccd_cm,
     sccd_detect_flex,
+    sccd_update_flex
 )

@@ -5,6 +5,7 @@ from ._ccd_cython import (
     _cold_detect,
     _cold_detect_flex,
     _sccd_detect_flex,
+    _sccd_update_flex
 )
 import numpy
 from .common import SccdOutput, rec_cg
@@ -39,7 +40,7 @@ _parameter_constraints: dict = {
     "t_angle": [Interval(Integral, 0, 180, closed="neither")],
     "transform_mode": ["boolean"],
     "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
-    "fitlam": [Interval(Real, 0.0, 100, closed="left")],
+    "lam": [Interval(Real, 0.0, None, closed="left")],
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
@@ -156,7 +157,7 @@ def cold_detect(
     cm_output_interval=0,
     b_c2=True,
     gap_days=365.25,
-    fitlam=20,
+    lam=20
 ):
     """running pixel-based COLD algorithm.
 
@@ -198,8 +199,8 @@ def cold_detect(
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     gap_days: int
         define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
-    fitlam: float
-        between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
+    lam: float
+        the lambda used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
     Returns
     -------
@@ -229,7 +230,7 @@ def cold_detect(
         cm_output_interval=cm_output_interval,
         b_c2=b_c2,
         gap_days=gap_days,
-        fitlam=fitlam,
+        lam=lam,
     )
 
     # make sure it is c contiguous array and 64 bit
@@ -257,7 +258,7 @@ def cold_detect(
         cm_output_interval,
         b_c2,
         gap_days,
-        fitlam,
+        lam
     )
 
 
@@ -275,6 +276,7 @@ def obcold_reconstruct(
     conse=6,
     pos=1,
     b_c2=True,
+    lam=20
 ):
     """re-contructructing change records using break dates.
 
@@ -306,6 +308,8 @@ def obcold_reconstruct(
         position id of the pixel, by default 1
     b_c2: bool
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
+    lam: float
+        the lambda used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
     Returns
     -------
@@ -355,6 +359,7 @@ def sccd_detect(
     gate_pcg=0.90,
     state_intervaldays=0.0,
     b_fitting_coefs=False,
+    lam=20
 ):
     """Offline SCCD algorithm for processing historical time series.
 
@@ -396,6 +401,8 @@ def sccd_detect(
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
+    lam: float
+        between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
     Returns
     -------
@@ -478,6 +485,7 @@ def sccd_update(
     pos=1,
     gate_pcg=0.90,
     predictability_pcg=0.90,
+    lam=20
 ):
     """
     SCCD online update for new observations
@@ -554,6 +562,7 @@ def sccd_update(
         True,
         gate_tcg,
         predictability_tcg,
+        lam
     )
 
 
@@ -642,6 +651,7 @@ def cold_detect_flex(
     dates,
     ts_stack,
     qas,
+    lam,
     p_cg=0.99,
     conse=6,
     pos=1,
@@ -652,7 +662,6 @@ def cold_detect_flex(
     gap_days=365.25,
     tmask_b1=1,
     tmask_b2=1,
-    fitlam=20,
 ):
     """running pixel-based COLD algorithm for any band combination (flexible mode).
 
@@ -664,6 +673,8 @@ def cold_detect_flex(
         2d array of shape (n_obs, nbands), horizontally stacked multispectral time series.
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    lam: float
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
     p_cg: float
         Probability threshold of change magnitude, by default 0.99
     conse: int
@@ -683,8 +694,6 @@ def cold_detect_flex(
         Indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     gap_days: int
         Define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
-    fitlam: float
-        Between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
 
     Returns
     -------
@@ -713,7 +722,7 @@ def cold_detect_flex(
         n_cm=n_cm,
         cm_output_interval=cm_output_interval,
         gap_days=gap_days,
-        fitlam=fitlam,
+        lam=lam,
     )
 
     # make sure it is c contiguous array and 64 bit
@@ -745,7 +754,7 @@ def cold_detect_flex(
         gap_days,
         tmask_b1,
         tmask_b2,
-        fitlam,
+        lam
     )
     # dt = numpy.dtype([('t_start', numpy.int32), ('t_end', numpy.int32), ('t_break', numpy.int32), ('pos', numpy.int32),
     #                ('nm_obs', numpy.int32), ('category', numpy.int16), ('change_prob', numpy.int16), ('change_prob', numpy.int16)])
@@ -756,6 +765,7 @@ def sccd_detect_flex(
     dates,
     ts_stack,
     qas,
+    lam,
     p_cg=0.99,
     conse=6,
     pos=1,
@@ -765,7 +775,7 @@ def sccd_detect_flex(
     state_intervaldays=0.0,
     tmask_b1=1,
     tmask_b2=1,
-    b_fitting_coefs=False,
+    b_fitting_coefs=False
 ):
     """
     Offline SCCD algorithm for processing historical time series for any band combination.
@@ -779,6 +789,8 @@ def sccd_detect_flex(
         2d array of shape (n_obs, nbands), horizontally stacked multispectral time series. The maximum band number is 10..
     qas: numpy.ndarray
         1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    lam: float
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
     p_cg: float
         Probability threshold of change magnitude, by default 0.99
     conse: int
@@ -865,6 +877,7 @@ def sccd_detect_flex(
         tmask_b1,
         tmask_b2,
         b_fitting_coefs,
+        lam
     )
 
 
@@ -873,6 +886,7 @@ def sccd_update_flex(
     dates,
     ts_stack,
     qas,
+    lam,
     p_cg=0.99,
     conse=6,
     pos=1,
@@ -880,7 +894,7 @@ def sccd_update_flex(
     gate_pcg=0.90,
     predictability_pcg=0.90,
     tmask_b1=1,
-    tmask_b2=1,
+    tmask_b2=1
 ):
     """
     SCCD online update for new observations for any band combination
@@ -894,6 +908,8 @@ def sccd_update_flex(
         2d array of shape (n_obs,), horizontally stacked multispectral time series. The maximum band number is 10.
     qas: numpy.ndarray
         1d new time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
+    lam: float
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
     p_cg: float
         Probability threshold of change magnitude, by default 0.99
     conse: int
@@ -922,6 +938,7 @@ def sccd_update_flex(
         b_pinpoint=False,
         gate_pcg=gate_pcg,
         predictability_pcg=predictability_pcg,
+        lam=lam
     )
 
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -939,7 +956,7 @@ def sccd_update_flex(
     gate_tcg = chi2.ppf(gate_pcg, nbands)
     predictability_tcg = chi2.ppf(predictability_pcg, nbands)
 
-    return _sccd_detect_flex(
+    return _sccd_update_flex(
         sccd_pack,
         dates,
         ts_stack.flatten(),
@@ -951,11 +968,9 @@ def sccd_update_flex(
         conse,
         pos,
         b_c2,
-        False,
         gate_tcg,
         predictability_tcg,
-        False,
-        0,
         tmask_b1,
         tmask_b2,
+        lam
     )

@@ -12,11 +12,11 @@ The Continuous Change Detection and Classification (CCDC) algorithm has been pop
 
 **Wait.. so why does the pyxccd package still exist?**
 
-I developed pyxccd mainly for the below purposes:
+We developed pyxccd mainly for the below purposes:
    
 1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
 
-2. **The latest version of CCDC (COLD)**: The COLD algorithm has the highest breakpoint detection accuracy than ever, and has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
+2. **The latest version of CCDC (COLD)**: The COLD algorithm has the highest breakpoint detection accuracy than the ever, and has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
 
 3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C language with the superior computing efficiency and small memory usage;
 
@@ -47,9 +47,9 @@ COLD algorithm for any combination of band inputs from any sensor:
 
 .. code:: python
 
-   from pyxccd import cold_detect
+   from pyxccd import cold_detect_flex
    # input a user-defined array instead of multiple lists
-   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, tmask_b1=1, tmask_b2=2)
+   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, lambda=20,tmask_b1=1, tmask_b2=2)
 
 S-CCD:
 
@@ -66,7 +66,7 @@ S-CCD for outputting continuous seasonal and trend states:
 
 .. code:: python
    
-   # open state output by setting state_intervaldays as a non-zero value
+   # open state output (state_ensemble) by setting state_intervaldays as a non-zero value
    sccd_result, state_ensemble = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, qas, state_intervaldays=1)
 
 3. Documentation

@@ -186,7 +186,7 @@ def single_image_stacking_hls(
     """
     try:
         QA_band = rio_loaddata(join(source_dir, folder, f"{folder}.Fmask.tif"))
-    except ValueError as e:
+    except Exception as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
         logger.error(f"Cannot open QA band for {folder}: {e}")
         return False
@@ -512,7 +512,7 @@ def single_image_stacking(
                     "{}_QA_PIXEL.TIF".format(folder[0 : len(folder) - 3]),
                 )
             )
-    except ValueError as e:
+    except Exception as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
         logger.error("Cannot open QA band for {}: {}".format(folder, e))
         return
@@ -592,7 +592,7 @@ def single_image_stacking(
                             "{}_BTB6.tif".format(folder[0 : len(folder) - 3]),
                         )
                     )
-                except ValueError as e:
+                except Exception as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                     logger.error(
                         "Cannot open Landsat bands for {}: {}".format(folder, e)
@@ -624,7 +624,7 @@ def single_image_stacking(
                             "{}_BTB10.tif".format(folder[0 : len(folder) - 3]),
                         )
                     )
-                except ValueError as e:
+                except Exception as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                     logger.error(
                         "Cannot open Landsat bands for {}: {}".format(folder, e)
@@ -657,7 +657,7 @@ def single_image_stacking(
                             "{}_BT_B6.TIF".format(folder[0 : len(folder) - 3]),
                         )
                     )
-                except ValueError as e:
+                except Exception as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                     logger.error(
                         "Cannot open Landsat bands for {}: {}".format(folder, e)
@@ -690,7 +690,7 @@ def single_image_stacking(
                             "{}_BT_B10.TIF".format(folder[0 : len(folder) - 3]),
                         )
                     )
-                except ValueError as e:
+                except Exception as e:
                     # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                     logger.error(
                         "Cannot open Landsat bands for {}: {}".format(folder, e)
@@ -981,7 +981,7 @@ def single_image_stacking_collection2(
             reference_path,
         )
         QA_band = rio_loaddata(join(tmp_path, folder, f"{folder}_QA_PIXEL.TIF"))
-    except ValueError as e:
+    except Exception as e:
         # logger.error('Cannot open QA band for {}: {}'.format(folder, e))
         logger.error("Cannot open QA band for {}: {}".format(folder, e))
         return
@@ -1077,7 +1077,7 @@ def single_image_stacking_collection2(
                     reference_path,
                 )
                 b7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-            except ValueError as e:
+            except Exception as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                 logger.error("Cannot open Landsat bands for {}: {}".format(folder, e))
                 return
@@ -1126,7 +1126,7 @@ def single_image_stacking_collection2(
                     reference_path,
                 )
                 b7 = rio_loaddata(join(tmp_path, folder, "_tmp_img.tif"))
-            except ValueError as e:
+            except Exception as e:
                 # logger.error('Cannot open spectral bands for {}: {}'.format(folder, e))
                 logger.error(f"Cannot open Landsat bands for {folder}: {e}")
                 return
