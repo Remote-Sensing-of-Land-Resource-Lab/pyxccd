@@ -6,3 +6,4 @@ sphinx-autoapi >= 1.8.4
 Pygments >= 2.9.0
 myst_parser >= 0.18.0
 sphinx-reredirects >= 0.0.1
+setuptools_scm >= 8.0.0
