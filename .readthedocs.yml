@@ -19,6 +19,7 @@ build:
   - libgsl-dev
   jobs:
       post_create_environment:
+        - pip install setuptools_scm>=8.2.0
         - pip install --no-build-isolation --verbose -e .
         # - pip install -r ./requirements/docs.txt
 
@@ -31,7 +32,4 @@ python:
   - requirements: requirements/docs.txt
   - method: pip
     path: .
-  - method: pip
-    packages:
-      - setuptools_scm
   # pip install --no-build-isolation --verbose -e . 
