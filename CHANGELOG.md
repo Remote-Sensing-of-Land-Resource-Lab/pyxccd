@@ -3,6 +3,12 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 0.0.4] - Released 2025-05-24
+
+### Added
+* Fix the bug for version of readthedoc
+
+
 ## [Version 0.0.3] - Released 2025-05-23
 
 ### Added
