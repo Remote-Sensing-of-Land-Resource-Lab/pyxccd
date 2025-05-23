@@ -111,11 +111,8 @@ modpath = join(
 )
 # release = parse_version(modpath)
 # version = ".".join(release.split(".")[0:2])
-version = setuptools_scm.get_version(
-    relative_to=__file__,
-    version_file="src/python/pyxccd/_version.py",
-    local_scheme="no-local-version",  # for PEP 440 compatibility, otherwise TestPyPI fails
-)
+
+version = 0.0.3 # hard coded as no git environment in readthedocs
 
 # -- General configuration ---------------------------------------------------
 
