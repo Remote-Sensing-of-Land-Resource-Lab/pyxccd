@@ -71,6 +71,7 @@ import sphinx_rtd_theme
 from os.path import exists
 from os.path import dirname
 from os.path import join
+import setuptools_scm
 
 # import sys, os
 
@@ -108,9 +109,13 @@ modname = "pyxccd"
 modpath = join(
     dirname(dirname(dirname(__file__))), "src", "python", modname, "__init__.py"
 )
-release = parse_version(modpath)
-version = ".".join(release.split(".")[0:2])
-
+# release = parse_version(modpath)
+# version = ".".join(release.split(".")[0:2])
+version = setuptools_scm.get_version(
+    relative_to=__file__,
+    version_file="src/python/pyxccd/_version.py",
+    local_scheme="no-local-version",  # for PEP 440 compatibility, otherwise TestPyPI fails
+)
 
 # -- General configuration ---------------------------------------------------
 
