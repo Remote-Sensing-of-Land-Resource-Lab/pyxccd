@@ -5,7 +5,7 @@ from ._ccd_cython import (
     _cold_detect,
     _cold_detect_flex,
     _sccd_detect_flex,
-    _sccd_update_flex
+    _sccd_update_flex,
 )
 import numpy
 from .common import SccdOutput, rec_cg
@@ -157,7 +157,7 @@ def cold_detect(
     cm_output_interval=0,
     b_c2=True,
     gap_days=365.25,
-    lam=20
+    lam=20,
 ):
     """running pixel-based COLD algorithm.
 
@@ -200,7 +200,7 @@ def cold_detect(
     gap_days: int
         define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
     lam: float
-        the lambda used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
 
     Returns
     -------
@@ -258,7 +258,7 @@ def cold_detect(
         cm_output_interval,
         b_c2,
         gap_days,
-        lam
+        lam,
     )
 
 
@@ -276,7 +276,7 @@ def obcold_reconstruct(
     conse=6,
     pos=1,
     b_c2=True,
-    lam=20
+    lam=20,
 ):
     """re-contructructing change records using break dates.
 
@@ -309,7 +309,7 @@ def obcold_reconstruct(
     b_c2: bool
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     lam: float
-        the lambda used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
 
     Returns
     -------
@@ -318,7 +318,7 @@ def obcold_reconstruct(
         cold_results: numpy.ndarray
             A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
     """
-    _validate_params(func_name="sccd_detect", pos=pos, conse=conse, b_c2=b_c2)
+    _validate_params(func_name="obcold_construct", pos=pos, conse=conse, b_c2=b_c2)
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates = (
         _validate_data(
             dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, break_dates
@@ -339,6 +339,7 @@ def obcold_reconstruct(
         pos,
         conse,
         b_c2,
+        lam,
     )
 
 
@@ -359,7 +360,7 @@ def sccd_detect(
     gate_pcg=0.90,
     state_intervaldays=0.0,
     b_fitting_coefs=False,
-    lam=20
+    lam=20,
 ):
     """Offline SCCD algorithm for processing historical time series.
 
@@ -402,8 +403,7 @@ def sccd_detect(
     b_fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
     lam: float
-        between 0 and 100, the lamba used for the final fitting. Won't change the detection accuracy, but will affect the outputted harmonic model
-
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
     Returns
     -------
     :py:type:`~pyxccd.common.SccdOutput` | (:py:type:`~pyxccd.common.SccdOutput`, pd.DataFrame) | (:py:type:`~pyxccd.common.SccdOutput`, numpy.ndarray)
@@ -431,6 +431,7 @@ def sccd_detect(
         b_pinpoint=b_pinpoint,
         gate_pcg=gate_pcg,
         state_intervaldays=state_intervaldays,
+        lam=lam,
     )
     ts_t = numpy.zeros(ts_b.shape)
     # make sure it is c contiguous array and 64 bit
@@ -467,6 +468,7 @@ def sccd_detect(
         b_output_state,
         state_intervaldays,
         b_fitting_coefs,
+        lam,
     )
 
 
@@ -485,7 +487,7 @@ def sccd_update(
     pos=1,
     gate_pcg=0.90,
     predictability_pcg=0.90,
-    lam=20
+    lam=20,
 ):
     """
     SCCD online update for new observations
@@ -520,6 +522,8 @@ def sccd_update(
         change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
     predictability_pcg: float
         probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
+    lam: float
+        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
     Returns
     ----------
     :py:type:`~pyxccd.common.SccdOutput`
@@ -537,6 +541,7 @@ def sccd_update(
         b_pinpoint=False,
         gate_pcg=gate_pcg,
         predictability_pcg=predictability_pcg,
+        lam=lam,
     )
     ts_t = numpy.zeros(ts_b.shape)
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
@@ -562,7 +567,7 @@ def sccd_update(
         True,
         gate_tcg,
         predictability_tcg,
-        lam
+        lam,
     )
 
 
@@ -754,7 +759,7 @@ def cold_detect_flex(
         gap_days,
         tmask_b1,
         tmask_b2,
-        lam
+        lam,
     )
     # dt = numpy.dtype([('t_start', numpy.int32), ('t_end', numpy.int32), ('t_break', numpy.int32), ('pos', numpy.int32),
     #                ('nm_obs', numpy.int32), ('category', numpy.int16), ('change_prob', numpy.int16), ('change_prob', numpy.int16)])
@@ -775,7 +780,7 @@ def sccd_detect_flex(
     state_intervaldays=0.0,
     tmask_b1=1,
     tmask_b2=1,
-    b_fitting_coefs=False
+    b_fitting_coefs=False,
 ):
     """
     Offline SCCD algorithm for processing historical time series for any band combination.
@@ -837,6 +842,7 @@ def sccd_detect_flex(
         b_pinpoint=b_pinpoint,
         gate_pcg=gate_pcg,
         state_intervaldays=state_intervaldays,
+        lam=lam,
     )
     # make sure it is c contiguous array and 64 bit
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -877,7 +883,7 @@ def sccd_detect_flex(
         tmask_b1,
         tmask_b2,
         b_fitting_coefs,
-        lam
+        lam,
     )
 
 
@@ -894,7 +900,7 @@ def sccd_update_flex(
     gate_pcg=0.90,
     predictability_pcg=0.90,
     tmask_b1=1,
-    tmask_b2=1
+    tmask_b2=1,
 ):
     """
     SCCD online update for new observations for any band combination
@@ -938,7 +944,7 @@ def sccd_update_flex(
         b_pinpoint=False,
         gate_pcg=gate_pcg,
         predictability_pcg=predictability_pcg,
-        lam=lam
+        lam=lam,
     )
 
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -972,5 +978,5 @@ def sccd_update_flex(
         predictability_tcg,
         tmask_b1,
         tmask_b2,
-        lam
+        lam,
     )
