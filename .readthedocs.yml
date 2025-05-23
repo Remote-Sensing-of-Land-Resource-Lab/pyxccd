@@ -31,5 +31,7 @@ python:
   - requirements: requirements/docs.txt
   - method: pip
     path: .
-
-    # pip install --no-build-isolation --verbose -e . 
+  - method: pip
+    packages:
+      - setuptools_scm
+  # pip install --no-build-isolation --verbose -e . 
