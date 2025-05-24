@@ -97,6 +97,10 @@ jobs:
       with:
         name: wheels-${{ matrix.cibw-only }}
         path: wheelhouse
+
+    - name: Display structure of downloaded files
+      run: ls -R wheelhouse
+
     - name: Install wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
       shell: bash
       env:

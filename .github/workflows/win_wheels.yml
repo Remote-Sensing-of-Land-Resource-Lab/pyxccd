@@ -25,6 +25,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    # - run: git config --global core.autocrlf input # https://github.com/msys2/setup-msys2/tree/v2/?tab=readme-ov-file#known-problems avoid dirty repo
+    #   shell: cmd
     - name: Checkout source
       uses: actions/checkout@v4
       with:
@@ -50,7 +52,12 @@ jobs:
 
     - name: install cibuildwheel # cannot use pypa/cibuildwheel because we need to use msys2
       run: |
-        ${{ steps.replace-path.outputs.py_path }} -m pip install cibuildwheel
+        ${{ steps.replace-path.outputs.py_path }} -m pip install cibuildwheel setuptools_scm
+    
+    - name: check git status
+      run: |
+        git status
+        ${{ steps.replace-path.outputs.py_path }} -m setuptools_scm
 
     - name: Build binary wheels
       run: |
@@ -106,6 +113,10 @@ jobs:
       with:
         name: wheels-${{ matrix.cibw-only }}
         path: wheelhouse
+
+    - name: Display structure of downloaded files
+      run: ls -R wheelhouse
+
     - name: Install wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
       shell: powershell
       env:
