@@ -6,6 +6,10 @@ on:
   #   branches: [ devel, main ]
   # tags: [ '*' ]
   workflow_call:
+    inputs:
+      scm_version:
+        type: string
+        required: true
   workflow_dispatch:
 
 jobs:
@@ -87,7 +91,9 @@ jobs:
         platforms: all
     - name: Extract python version from cibw-only
       id: extract-python-version
-      run: echo python-version=$(echo "${{ matrix.cibw-only }}" | sed -n 's/^cp\([0-9]\)\([0-9]\{1,2\}\).*/\1.\2/p' ) >> $GITHUB_OUTPUT
+      run: |
+        echo cp-version=$(echo "${{ matrix.cibw-only }}" | sed -En 's/^(cp[0-9]{2,3}).*/\1/p') >> $GITHUB_OUTPUT
+        echo python-version=$(echo "${{ matrix.cibw-only }}" | sed -n 's/^cp\([0-9]\)\([0-9]\{1,2\}\).*/\1.\2/p' ) >> $GITHUB_OUTPUT
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
@@ -98,14 +104,19 @@ jobs:
         name: wheels-${{ matrix.cibw-only }}
         path: wheelhouse
 
-    - name: Display structure of downloaded files
-      run: ls -R wheelhouse
+    - name: Display structure of downloaded files, output unique filename
+      id: show-wheel-files
+      run: |
+        ls -R wheelhouse
+        WHEEL_FPATH=$(ls wheelhouse/pyxccd-${{inputs.scm_version}}-${{steps.extract-python-version.outputs.cp-version}}*.whl) 
+        echo "wheel_fpath=$WHEEL_FPATH"
+        echo wheel_fpath="$WHEEL_FPATH" >> $GITHUB_OUTPUT
 
     - name: Install wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
       shell: bash
       env:
         INSTALL_EXTRAS: ${{ matrix.install-extras }}
-      run: pip install --prefer-binary "pyxccd[$INSTALL_EXTRAS]" -f wheelhouse # there should be only one wheel in the wheelhouse directory
+      run: pip install --prefer-binary "${{ steps.show-wheel-files.outputs.wheel_fpath }}[$INSTALL_EXTRAS]" -f wheelhouse # there should be only one wheel in the wheelhouse directory
 
     - name: Test wheel ${{ matrix.cibw-only }} with extras ${{ matrix.install-extras }}
       shell: bash
