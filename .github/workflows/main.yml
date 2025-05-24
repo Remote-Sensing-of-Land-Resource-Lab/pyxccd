@@ -54,7 +54,8 @@ jobs:
         SCM_VERSION=$(python -m setuptools_scm)
         echo "scm_version=$SCM_VERSION"
         echo scm_version=$SCM_VERSION >> $GITHUB_OUTPUT
-
+      env:
+        SETUPTOOLS_SCM_DEBUG: "1"
     - name: Lint with flake8
       run: |-
         # stop the build if there are Python syntax errors or undefined names
@@ -128,6 +129,16 @@ jobs:
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
+    - name: ensure no "dev" in scm_version
+      if: contains(needs.lint_job.outputs.scm_version, 'dev')
+      run: |
+        echo "Error: scm_version=${{ needs.lint_job.outputs.scm_version }} is a 'dev' version. This is not allowed for a release tag."
+        exit 1
+    - name: ensure scm_version match the tag name
+      if: needs.lint_job.outputs.scm_version !=  github.ref_name
+      run: |
+        echo "Error: scm_version=${{ needs.lint_job.outputs.scm_version }} does not match the tag name ${{ github.ref_name }}."
+        exit 1
     - uses: actions/download-artifact@v4
       with:
         pattern: wheels-*
