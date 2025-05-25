@@ -6,6 +6,10 @@ on:
   #   branches: [ devel, main ]
   # tags: [ '*' ]
   workflow_call:
+    inputs:
+      scm_version:
+        type: string
+        required: true
   workflow_dispatch:
 
 jobs:
@@ -47,7 +51,7 @@ jobs:
     - name: Install sdist
       run: |-
         ls -al ./wheelhouse
-        pip install --prefer-binary wheelhouse/pyxccd*.tar.gz -v
+        pip install --prefer-binary wheelhouse/pyxccd-${{ inputs.scm_version }}.tar.gz -v
     - name: Test minimal loose sdist
       run: |-
         pwd
