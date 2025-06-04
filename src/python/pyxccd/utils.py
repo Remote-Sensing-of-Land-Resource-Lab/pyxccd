@@ -15,6 +15,322 @@ from rasterio.plot import reshape_as_image
 from .app import defaults
 from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
+import seaborn as sns
+import matplotlib.pyplot as plt
+from datetime import date
+from typing import List, Tuple, Dict, Union, Optional
+import pyxccd
+from pyxccd import sccd_detect_flex
+from pyxccd.app import defaults
+
+
+def display_ccd_result(
+    data: np.ndarray,
+    band_names: List[str],
+    band_index: int,
+    start_date: date,
+    end_date: date,
+    figsize: Tuple[int, int] = (12, 6),
+    plot_kwargs: Optional[Dict] = None
+) -> Tuple[plt.Figure, List[plt.Axes]]:
+    """
+    Compare COLD and SCCD change detection algorithms by plotting their results side by side.
+    
+    This function takes time series remote sensing data, applies both COLD and SCCD algorithms,
+    and visualizes the results for comparison. The top subplot shows COLD results and the bottom
+    shows SCCD results for the specified spectral band.
+    
+    Parameters:
+    -----------
+    data : np.ndarray
+        Input data array with shape (n_observations, n_bands + 2) where:
+        - First column: ordinal dates (days since January 1, AD 1)
+        - Next n_bands columns: spectral band values
+        - Last column: QA flags (0-clear, 1-water, 2-shadow, 3-snow, 4-cloud)
+        
+    band_names : List[str]
+        List of band names corresponding to the spectral bands in the data (e.g., ['red', 'nir'])
+        
+    band_index : int
+        1-based index of the band to plot (e.g., 1 for first band, 2 for second band)
+        
+    start_date : date
+        Start date for x-axis limits (default: 2018-01-01)
+        
+    end_date : date
+        End date for x-axis limits (default: 2024-12-31)
+        
+    figsize : Tuple[int, int], optional
+        Figure size in inches (width, height) (default: (12, 6))
+        
+    plot_kwargs : Dict, optional
+        Additional keyword arguments to pass to the display function. Possible keys:
+        - 'marker_size': size of observation markers (default: 5)
+        - 'marker_alpha': transparency of markers (default: 0.7)
+        - 'line_color': color of model fit lines (default: 'orange')
+        - 'font_size': base font size (default: 14)
+        
+    Returns:
+    --------
+    Tuple[plt.Figure, List[plt.Axes]]
+        A tuple containing the matplotlib Figure object and a list of Axes objects
+        (top axis is COLD results, bottom axis is SCCD results)
+    
+    Example:
+    --------
+    >>> data = np.load('timeseries_data.npy')  # shape: (n_obs, n_bands+2)
+    >>> fig, axes = display_ccd_result(
+    ...     data=data,
+    ...     band_names=['red', 'nir', 'swir1'],
+    ...     band_index=1,  # plot red band
+    ...     start_date=date(2017, 1, 1),
+    ...     end_date=date(2023, 12, 31)
+    ... )
+    >>> plt.show()
+    """
+    # Set default plot parameters
+    default_plot_kwargs = {
+        'marker_size': 5,
+        'marker_alpha': 0.7,
+        'line_color': 'orange',
+        'font_size': 14
+    }
+    if plot_kwargs is not None:
+        default_plot_kwargs.update(plot_kwargs)
+    
+    # Set up plotting style
+    sns.set(style="darkgrid")
+    sns.set_context("notebook")
+    
+    # Create figure and axes
+    fig, axes = plt.subplots(2, 1, figsize=figsize, sharex=True)
+    plt.subplots_adjust(left=0.08, right=0.98, top=0.92, bottom=0.1)
+    
+    # Clean and prepare data
+    data = data[np.all(np.isfinite(data), axis=1)]
+    data_df = pd.DataFrame(data, columns=['dates'] + band_names + ['qa'])
+    
+    # Run change detection algorithms
+    sccd_result = sccd_detect_flex(
+        data[:, 0],  # dates
+        data[:, 1:-1],  # band values
+        data[:, -1],  # QA flags
+        lam=20,
+        tmask_b1=1,
+        tmask_b2=2,
+        b_fitting_coefs=True,
+        p_cg=0.95
+    )
+    
+    cold_result = pyxccd.cold_detect_flex(
+        data[:, 0],
+        data[:, 1:-1],
+        data[:, -1],
+        lam=20,
+        tmask_b1=1,
+        tmask_b2=2,
+    )
+    
+    # Calculate y-axis limits
+    band_name = band_names[band_index - 1]
+    band_values = data_df[data_df['qa'] == 0][band_name]
+    q01, q99 = np.quantile(band_values, [0.01, 0.99])
+    extra = (q99 - q01) * 0.4
+    ylim_low = q01 - extra
+    ylim_high = q99 + extra
+    
+    # Plot results
+    _display_ccd_result(
+        data_df, cold_result, axes[0], band_name, band_index,
+        start_date, end_date, ylim_low, ylim_high,
+        **default_plot_kwargs
+    )
+    
+    _display_ccd_result(
+        data_df, sccd_result, axes[1], band_name, band_index,
+        start_date, end_date, ylim_low, ylim_high,
+        sccd=True, **default_plot_kwargs
+    )
+    
+    # Add titles
+    axes[0].set_title('COLD', fontweight="bold", size=default_plot_kwargs['font_size']+2, pad=2)
+    axes[1].set_title('SCCD', fontweight="bold", size=default_plot_kwargs['font_size']+2, pad=3)
+    
+    return fig, axes
+
+
+def _display_ccd_result(
+    data: pd.DataFrame,
+    ccd_result: Union[Dict, object],
+    ax: plt.Axes,
+    bandname: str,
+    band: int,
+    xlim_low: date,
+    xlim_upper: date,
+    ylim_low:  float ,
+    ylim_upper: float ,
+    sccd: bool = False,
+    **plot_kwargs
+) -> None:
+    """
+    Display COLD or SCCD model results on a matplotlib axis.
+    
+    Parameters:
+    -----------
+    data : pd.DataFrame
+        DataFrame containing the observation data with columns:
+        - 'dates': ordinal dates
+        - band columns: spectral band values
+        - 'qa': quality assessment flags
+        
+    ccd_result : Union[Dict, object]
+        Results from either COLD or SCCD algorithm
+        
+    ax : plt.Axes
+        Matplotlib axis to plot on
+        
+    bandname : str
+        Name of the band being plotted
+        
+    band : int
+        1-based index of the band being plotted
+        
+    xlim_low : date
+        Lower limit for x-axis
+        
+    xlim_upper : date
+        Upper limit for x-axis
+        
+    ylim_low : float
+        Lower limit for y-axis
+        
+    ylim_upper : float
+        Upper limit for y-axis
+        
+    sccd : bool, optional
+        Whether the results are from SCCD algorithm (default: False)
+        
+    **plot_kwargs
+        Additional plotting parameters:
+        - marker_size: size of observation markers (default: 5)
+        - marker_alpha: transparency of markers (default: 0.7)
+        - line_color: color of model fit lines (default: 'orange')
+        - font_size: base font size (default: 14)
+    """
+    # Set default plot parameters
+    default_kwargs = {
+        'marker_size': 5,
+        'marker_alpha': 0.7,
+        'line_color': 'orange',
+        'font_size': 14
+    }
+    default_kwargs.update(plot_kwargs)
+    
+    w = np.pi * 2 / 365.25
+    slope_scale = 10000
+    
+    # Prepare clean data (good quality observations)
+    data_clean = data[(data['qa'] == 0) | (data['qa'] == 1)].copy()
+    calendar_dates = [pd.Timestamp.fromordinal(int(row)) for row in data_clean["dates"]]
+    data_clean.loc[:, 'dates'] = calendar_dates
+
+    # Plot observations
+    ax.plot(
+        'dates', bandname, 'go',
+        markersize=default_kwargs['marker_size'],
+        alpha=default_kwargs['marker_alpha'],
+        data=data_clean
+    )
+    
+    # Initialize DataFrame for model components
+    plot_cold = pd.DataFrame(columns=['Trend', 'Annual', 'Semiannual', 'Trimodel', 'predicted'])
+    
+    # Select segments to plot
+    toplot = ccd_result.rec_cg if sccd else ccd_result
+        
+    # Plot each segment
+    for segment in toplot:
+        if not sccd:
+            # COLD model components
+            j = np.arange(segment['t_start'], segment['t_end'] + 1, 1)
+            plot_cold_sub = pd.DataFrame({
+                'dates': j,
+                'trend': j * segment['coefs'][band - 1][1] / slope_scale + segment['coefs'][band - 1][0],
+                'annual': np.cos(w * j) * segment['coefs'][band - 1][2] + np.sin(w * j) * segment['coefs'][band - 1][3],
+                'semiannual': np.cos(2 * w * j) * segment['coefs'][band - 1][4] + np.sin(2 * w * j) * segment['coefs'][band - 1][5],
+                'trimodel': np.cos(3 * w * j) * segment['coefs'][band - 1][6] + np.sin(3 * w * j) * segment['coefs'][band - 1][7]
+            })
+            plot_cold_sub['predicted'] = (
+                plot_cold_sub['trend'] + 
+                plot_cold_sub['annual'] + 
+                plot_cold_sub['semiannual'] + 
+                plot_cold_sub['trimodel']
+            )
+        else:
+            # SCCD model components
+            j = np.arange(segment['t_start'], segment['t_break'] + 1, 1)
+            plot_cold_sub = pd.DataFrame({
+                'dates': j,
+                'trend': j * segment['coefs'][band - 1][1] / slope_scale + segment['coefs'][band - 1][0],
+                'annual': np.cos(w * j) * segment['coefs'][band - 1][2] + np.sin(w * j) * segment['coefs'][band - 1][3],
+                'semiannual': np.cos(2 * w * j) * segment['coefs'][band - 1][4] + np.sin(2 * w * j) * segment['coefs'][band - 1][5]
+            })
+            plot_cold_sub['predicted'] = (
+                plot_cold_sub['trend'] + 
+                plot_cold_sub['annual'] + 
+                plot_cold_sub['semiannual']
+            )
+
+        # Convert dates and plot model fit
+        calendar_dates = [pd.Timestamp.fromordinal(int(row)) for row in plot_cold_sub["dates"]]
+        plot_cold_sub.loc[:, 'dates'] = calendar_dates
+        g = sns.lineplot(
+            x="dates", y="predicted",
+            data=plot_cold_sub,
+            label="Model fit",
+            ax=ax,
+            color=default_kwargs['line_color']
+        )
+        g.legend_.remove()
+        plot_cold = pd.concat([plot_cold, plot_cold_sub], sort=True)
+
+    # Plot near-real-time projection for SCCD
+    if sccd and hasattr(ccd_result, 'nrt_mode') and (ccd_result.nrt_mode == 1 or ccd_result.nrt_mode == 3):
+        j = np.arange(
+            ccd_result.nrt_model['t_start_since1982'] + defaults['COMMON']['JULIAN_LANDSAT4_LAUNCH'], 
+            pd.Timestamp(xlim_upper).toordinal(), 
+            1
+        )
+        
+        plot_cold_sub = pd.DataFrame({
+            'dates': j,
+            'trend': j * ccd_result.nrt_model['nrt_coefs'][0][band - 1][1] / slope_scale + ccd_result.nrt_model['nrt_coefs'][0][band - 1][0],
+            'annual': np.cos(w * j) * ccd_result.nrt_model['nrt_coefs'][0][band - 1][2] + np.sin(w * j) * ccd_result.nrt_model['nrt_coefs'][0][band - 1][3],
+            'semiannual': np.cos(2 * w * j) * ccd_result.nrt_model['nrt_coefs'][0][band - 1][4] + np.sin(2 * w * j) * ccd_result.nrt_model['nrt_coefs'][0][band - 1][5]
+        })
+        plot_cold_sub['predicted'] = plot_cold_sub['trend'] + plot_cold_sub['annual'] + plot_cold_sub['semiannual']
+        calendar_dates = [pd.Timestamp.fromordinal(int(row)) for row in plot_cold_sub["dates"]]
+        plot_cold_sub.loc[:, 'dates'] = calendar_dates
+        g = sns.lineplot(
+            x="dates", y="predicted",
+            data=plot_cold_sub,
+            label="Model fit",
+            ax=ax,
+            color=default_kwargs['line_color']
+        )
+        g.legend_.remove()
+        plot_cold = pd.concat([plot_cold, plot_cold_sub], sort=True)
+
+    # Set axis properties
+    ax.set_ylabel(f"{bandname} * 10000", fontsize=default_kwargs['font_size'])
+    ax.tick_params(axis='x', labelsize=default_kwargs['font_size']-1)
+    ax.set(ylim=(ylim_low, ylim_upper))
+    ax.set(xlim=(xlim_low, xlim_upper))
+    ax.set_xlabel("", fontsize=6)
+
+    # Format spines
+    for spine in ax.spines.values():
+        spine.set_edgecolor('black')
 
 def rio_loaddata(path: str) -> np.ndarray:
     """load raster dataset as numpy array
