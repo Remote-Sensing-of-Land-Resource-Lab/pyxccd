@@ -15,8 +15,7 @@ from rasterio.plot import reshape_as_image
 from .app import defaults
 from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
-import seaborn as sns
-import matplotlib.pyplot as plt
+
 from datetime import date
 from typing import List, Tuple, Dict, Union, Optional
 
@@ -88,6 +87,8 @@ def display_ccd_result(
     import pyxccd 
     from pyxccd import sccd_detect_flex
     from pyxccd.app import defaults 
+    import seaborn as sns
+    import matplotlib.pyplot as plt
     # Set default plot parameters
     default_plot_kwargs: Dict[str, Union[int, float, str]] = {
         'marker_size': 5,
