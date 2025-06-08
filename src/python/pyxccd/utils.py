@@ -17,6 +17,8 @@ from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
 from datetime import date
 from typing import List, Tuple, Dict, Union, Optional
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 def display_ccd_result(
     data: np.ndarray,
@@ -85,8 +87,7 @@ def display_ccd_result(
     import pyxccd 
     from pyxccd import sccd_detect_flex
     from pyxccd.app import defaults 
-    import seaborn as sns
-    import matplotlib.pyplot as plt
+
     # Set default plot parameters
     default_plot_kwargs: Dict[str, Union[int, float, str]] = {
         'marker_size': 5,
