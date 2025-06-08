@@ -19,9 +19,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from datetime import date
 from typing import List, Tuple, Dict, Union, Optional
-import pyxccd # type: ignore
-from pyxccd import sccd_detect_flex
-from pyxccd.app import defaults # type: ignore
+
 
 def display_ccd_result(
     data: np.ndarray,
@@ -87,6 +85,9 @@ def display_ccd_result(
     ... )
     >>> plt.show()
     """
+    import pyxccd 
+    from pyxccd import sccd_detect_flex
+    from pyxccd.app import defaults 
     # Set default plot parameters
     default_plot_kwargs: Dict[str, Union[int, float, str]] = {
         'marker_size': 5,
