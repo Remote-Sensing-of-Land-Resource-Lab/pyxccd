@@ -439,7 +439,7 @@ def sccd_detect(
     
     # Check whether the dates are arranged in ascending order
     if not numpy.all(numpy.diff(dates) >= 0):
-        data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas))
+        data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, qas))
         sorted_data = data[data[:, 0].argsort()]
         dates = sorted_data[:, 0]
         ts_b = sorted_data[:, 1]
@@ -448,8 +448,7 @@ def sccd_detect(
         ts_n = sorted_data[:, 4]
         ts_s1 = sorted_data[:, 5]
         ts_s2 = sorted_data[:, 6]
-        ts_t = sorted_data[:, 7]
-        qas = sorted_data[:, 8]
+        qas = sorted_data[:, 7]
     
     _validate_params(
         func_name="sccd_detect",
