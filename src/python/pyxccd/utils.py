@@ -15,7 +15,6 @@ from rasterio.plot import reshape_as_image
 from .app import defaults
 from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
-
 def rio_loaddata(path: str) -> np.ndarray:
     """load raster dataset as numpy array
 
