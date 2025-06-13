@@ -219,6 +219,20 @@ def cold_detect(
                 Change magnitude date list, shape (n_cm,)
     """
 
+    # Check whether the dates are arranged in ascending order
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas))
+        sorted_data = data[data[:, 0].argsort()]
+        dates = sorted_data[:, 0]
+        ts_b = sorted_data[:, 1]
+        ts_g = sorted_data[:, 2]
+        ts_r = sorted_data[:, 3]
+        ts_n = sorted_data[:, 4]
+        ts_s1 = sorted_data[:, 5]
+        ts_s2 = sorted_data[:, 6]
+        ts_t = sorted_data[:, 7]
+        qas = sorted_data[:, 8]
+    
     _validate_params(
         func_name="cold_detect",
         p_cg=p_cg,
@@ -422,6 +436,20 @@ def sccd_detect(
                 A structured array of dtype = :py:type:`~pyxccd.common.pinpoint`
 
     """
+    
+    # Check whether the dates are arranged in ascending order
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, qas))
+        sorted_data = data[data[:, 0].argsort()]
+        dates = sorted_data[:, 0]
+        ts_b = sorted_data[:, 1]
+        ts_g = sorted_data[:, 2]
+        ts_r = sorted_data[:, 3]
+        ts_n = sorted_data[:, 4]
+        ts_s1 = sorted_data[:, 5]
+        ts_s2 = sorted_data[:, 6]
+        qas = sorted_data[:, 7]
+    
     _validate_params(
         func_name="sccd_detect",
         p_cg=p_cg,
@@ -716,6 +744,14 @@ def cold_detect_flex(
             cm_outputs_date: numpy.ndarray
                 Change magnitude date list, shape (n_cm,)
     """
+    
+    # Check whether the dates are arranged in ascending order
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_stack, qas))
+        sorted_data = data[data[:, 0].argsort()]
+        dates = sorted_data[:, 0]
+        ts_stack = sorted_data[:, 1:-1]
+        qas = sorted_data[:, -1]
 
     _validate_params(
         func_name="cold_detect_flex",
@@ -833,6 +869,15 @@ def sccd_detect_flex(
         states_info: pd.DataFrame
             A table of three state time series (trend, annual, semiannual) for nbands inputted spectral bands
     """
+    
+    # Check whether the dates are arranged in ascending order
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_stack, qas))
+        sorted_data = data[data[:, 0].argsort()]
+        dates = sorted_data[:, 0]
+        ts_stack = sorted_data[:, 1:-1]
+        qas = sorted_data[:, -1]
+        
     _validate_params(
         func_name="sccd_detect_flex",
         p_cg=p_cg,
