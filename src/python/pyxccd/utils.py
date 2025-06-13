@@ -15,6 +15,24 @@ from rasterio.plot import reshape_as_image
 from .app import defaults
 from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
+from datetime import date
+
+def convert_short_date_to_calendar_date(short_date: int) -> date:
+    """Convert a short date (number of days since a base date) to a calendar date.
+
+    Parameters
+    ----------
+    short_date: int
+        The number of days added to a base date (723742) to calculate the calendar date.
+
+    Returns
+    -------
+    date
+        The corresponding calendar date.
+    """
+    calendar_date = date.fromordinal(723742 + short_date)
+    return calendar_date
+
 def rio_loaddata(path: str) -> np.ndarray:
     """load raster dataset as numpy array
 
