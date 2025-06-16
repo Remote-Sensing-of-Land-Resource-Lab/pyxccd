@@ -342,13 +342,13 @@ int main(int argc, char *argv[])
     bool b_c2 = FALSE;
     bool b_header_csv = FALSE;
     int headline = -1;
-    bool b_pinpoint = TRUE;
-    Output_sccd_pinpoint *rec_cg_pinpoint;
-    Output_sccd_pinpoint_flex *rec_cg_pinpoint_flex;
-    int num_fc_pinpoint = 0;
+    bool b_anomaly = TRUE;
+    Output_sccd_anomaly *rec_cg_anomaly;
+    Output_sccd_anomaly_flex *rec_cg_anomaly_flex;
+    int num_fc_anomaly = 0;
     if (b_header_csv == TRUE)
         headline = 0; // skip the head line of csv
-    double gate_tcg = 9.236;
+    double anomaly_tcg = 9.236;
     double gap_days = NUM_YEARS;
     bool b_coefs_records = TRUE;
     int n_coefs_records = 0;
@@ -581,17 +581,17 @@ int main(int argc, char *argv[])
                      FUNC_NAME, FAILURE);
     }
 
-    rec_cg_pinpoint = malloc(NUM_FC * sizeof(Output_sccd_pinpoint));
-    if (rec_cg_pinpoint == NULL)
+    rec_cg_anomaly = malloc(NUM_FC * sizeof(Output_sccd_anomaly));
+    if (rec_cg_anomaly == NULL)
     {
-        RETURN_ERROR("ERROR allocating rec_cg_pinpoint",
+        RETURN_ERROR("ERROR allocating rec_cg_anomaly",
                      FUNC_NAME, FAILURE);
     }
 
-    rec_cg_pinpoint_flex = malloc(NUM_FC * sizeof(Output_sccd_pinpoint_flex));
-    if (rec_cg_pinpoint_flex == NULL)
+    rec_cg_anomaly_flex = malloc(NUM_FC * sizeof(Output_sccd_anomaly_flex));
+    if (rec_cg_anomaly_flex == NULL)
     {
-        RETURN_ERROR("ERROR allocating rec_cg_pinpoint_flex",
+        RETURN_ERROR("ERROR allocating rec_cg_anomaly_flex",
                      FUNC_NAME, FAILURE);
     }
 
@@ -853,8 +853,8 @@ int main(int argc, char *argv[])
 
                 result = sccd_flex(buf_stack, fmask_buf, sdate, nbands, 1, 4, valid_scene_count, tcg,
                                    max_t_cg, &num_fc, &nrt_mode, s_rec_cg_flex, nrt_model_flex, &num_obs_queue,
-                                   obs_queue_flex, min_rmse, conse, b_c2, b_pinpoint, rec_cg_pinpoint_flex,
-                                   &num_fc_pinpoint, gate_tcg, t_cg, b_coefs_records,
+                                   obs_queue_flex, min_rmse, conse, b_c2, b_anomaly, rec_cg_anomaly_flex,
+                                   &num_fc_anomaly, anomaly_tcg, t_cg, b_coefs_records,
                                    state_intervaldays, &n_state, state_days, state_ensemble);
 
                 // snprintf (msg_str, sizeof(msg_str), "pixel %d COLD calculation finished\n", i_col+1);
@@ -870,8 +870,8 @@ int main(int argc, char *argv[])
                 }
                 result = sccd(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], fmask_buf,
                               sdate, valid_scene_count, tcg, &num_fc, &nrt_mode, s_rec_cg, nrt_model,
-                              &num_obs_queue, obs_queue, min_rmse, conse, b_c2, b_pinpoint,
-                              rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, 15.086, b_coefs_records,
+                              &num_obs_queue, obs_queue, min_rmse, conse, b_c2, b_anomaly,
+                              rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 15.086, b_coefs_records,
                               state_intervaldays, &n_state, state_days, state_ensemble);
 
                 // printf("free stage 9 \n");
@@ -939,8 +939,8 @@ int main(int argc, char *argv[])
     }
 
     free(s_rec_cg);
-    free(rec_cg_pinpoint);
-    free(rec_cg_pinpoint_flex);
+    free(rec_cg_anomaly);
+    free(rec_cg_anomaly_flex);
     free(obs_queue);
     free(nrt_model);
     free(nrt_model_flex);

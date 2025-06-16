@@ -30,28 +30,29 @@ Date        Programmer       Reason
 08/31/2024   Su Ye         original development
 ******************************************************************************/
 int sccd_flex(
-    int64_t *ts_data,                           /* I:  multispectral time series reshaped into 1 column. Invalid (qa is filled value (255)) must be removed */
-    int64_t *fmask_buf,                         /* I:  mask-based time series              */
-    int64_t *valid_date_array,                  /* I: valid date time series               */
-    int nbands,                                 /* I: input band number */
-    int tmask_b1,                               /* I: the band id used for tmask */
-    int tmask_b2,                               /* I: the band id used for tmask */
-    int valid_num_scenes,                       /* I: number of valid scenes under cfmask fill counts  */
-    double tcg,                                 /* I: the change threshold  */
-    double max_t_cg,                            /* I: threshold for identfying outliers */
-    int *num_fc,                                /* O: number of fitting curves                       */
-    int *nrt_mode,                              /* O: 2nd digit: 0 - void; 1 - monitor mode for standard; 2 - queue mode for standard; 3 - monitor mode for snow; 4 - queue mode for snow; 1st digit: 1 - predictability untest */
-    Output_sccd_flex *rec_cg,                   /* O: historical change records for SCCD results    */
-    output_nrtmodel_flex *nrt_model,            /* O: nrt model structure for SCCD results    */
-    int *num_obs_queue,                         /* O: the number of multispectral observations    */
-    output_nrtqueue_flex *obs_queue,            /* O: multispectral observations in queue    */
-    short int *min_rmse,                        /* O: adjusted rmse for the pixel    */
-    int conse,                                  /* I: consecutive observation number for change detection   */
-    bool b_c2,                                  /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
-    bool b_pinpoint,                            /* I: output pinpoint break for training purpose  */
-    Output_sccd_pinpoint_flex *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
-    int *num_fc_pinpoint,
-    double gate_tcg,
+    int64_t *ts_data,                         /* I:  multispectral time series reshaped into 1 column. Invalid (qa is filled value (255)) must be removed */
+    int64_t *fmask_buf,                       /* I:  mask-based time series              */
+    int64_t *valid_date_array,                /* I: valid date time series               */
+    int nbands,                               /* I: input band number */
+    int tmask_b1,                             /* I: the band id used for tmask */
+    int tmask_b2,                             /* I: the band id used for tmask */
+    int valid_num_scenes,                     /* I: number of valid scenes under cfmask fill counts  */
+    double tcg,                               /* I: the change threshold  */
+    double max_t_cg,                          /* I: threshold for identfying outliers */
+    int *num_fc,                              /* O: number of fitting curves                       */
+    int *nrt_mode,                            /* O: 2nd digit: 0 - void; 1 - monitor mode for standard; 2 - queue mode for standard; 3 - monitor mode for snow; 4 - queue mode for snow; 1st digit: 1 - predictability untest */
+    Output_sccd_flex *rec_cg,                 /* O: historical change records for SCCD results    */
+    output_nrtmodel_flex *nrt_model,          /* O: nrt model structure for SCCD results    */
+    int *num_obs_queue,                       /* O: the number of multispectral observations    */
+    output_nrtqueue_flex *obs_queue,          /* O: multispectral observations in queue    */
+    short int *min_rmse,                      /* O: adjusted rmse for the pixel    */
+    int conse,                                /* I: consecutive observation number for change detection   */
+    bool b_c2,                                /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
+    bool b_anomaly,                           /* I: output anomaly break for training purpose  */
+    Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
+    int *num_fc_anomaly,
+    double anomaly_tcg,
+    int anomaly_conse,
     double predictability_tcg,
     bool b_output_state, /* I: indicate whether to output state  */
     double state_intervaldays,
@@ -242,7 +243,7 @@ int sccd_flex(
                 }
             }
 
-            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, b_fitting_coefs, lambda);
+            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, b_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, b_fitting_coefs, lambda);
         }
     }
     else
@@ -1451,10 +1452,10 @@ int step2_KF_ChangeDetection_flex(
     unsigned int *sum_square_vt, /* I/O:  the sum of predicted square of residuals  */
     int *num_obs_processed,      /* I/O:  the number of current non-noise observations being processed */
     int t_start,
-    bool b_pinpoint,
-    Output_sccd_pinpoint_flex *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
-    int *num_fc_pinpoint,
-    double gate_tcg,
+    bool b_anomaly,
+    Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
+    int *num_fc_anomaly,
+    double anomaly_tcg,
     short int *norm_cm_scale100,
     short int *mean_angle_scale100,
     float *CM_outputs,
@@ -1464,7 +1465,8 @@ int step2_KF_ChangeDetection_flex(
     nrt_coefs_records_flex *coefs_records,
     int nbands,
     bool b_fitting_coefs,
-    double lambda)
+    double lambda,
+    int anomaly_conse)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1493,7 +1495,7 @@ int step2_KF_ChangeDetection_flex(
     float **v_diff_tmp;
     float **v_dif_mag_tmp;
     int current_CM_n;
-    int current_pinpoint;
+    int current_anomaly;
     float tmp_rmse;
     float **temp_v_dif; /* temperory residual for per-pixel      */
 
@@ -1550,9 +1552,9 @@ int step2_KF_ChangeDetection_flex(
             break_mag = v_dif_mag_norm[i_conse];
         }
 
-        if (b_pinpoint == TRUE)
+        if (b_anomaly == TRUE)
         {
-            if ((break_mag < gate_tcg) & (i_conse < PINPOINT_CONSE))
+            if ((break_mag < anomaly_tcg) & (i_conse < anomaly_conse))
             {
                 change_flag = FALSE;
                 break;
@@ -1577,7 +1579,7 @@ int step2_KF_ChangeDetection_flex(
         //        }
         //        else
         //        {
-        //            // if(v_dif_mag_norm[i_conse] < T_MIN_CG_SCCD)   // put it back if pinpoint is reused
+        //            // if(v_dif_mag_norm[i_conse] < T_MIN_CG_SCCD)   // put it back if anomaly is reused
         //            if(v_dif_mag_norm[i_conse] < tcg)   // smaller than minimum threshold, it is impossible to be
         //            {
         //                change_flag = FALSE;
@@ -1586,22 +1588,22 @@ int step2_KF_ChangeDetection_flex(
         //        }
     }
 
-    if (b_pinpoint == TRUE)
+    if (b_anomaly == TRUE)
     {
-        if (i_conse >= PINPOINT_CONSE)
+        if (i_conse >= anomaly_conse)
         { // meaning that over 3 anomaly pixel
             current_CM_n = (clrx[cur_i] - ORDINAL_DATE_1982_1_1) / AVE_DAYS_IN_A_YEAR;
             if (CM_outputs[current_CM_n] == 0)
-            { // meaning that hasn't been assigned with pinpoint
-                current_pinpoint = *num_fc_pinpoint;
+            { // meaning that hasn't been assigned with anomaly
+                current_anomaly = *num_fc_anomaly;
             }
             else
             {
-                current_pinpoint = *num_fc_pinpoint - 1;
+                current_anomaly = *num_fc_anomaly - 1;
             }
 
             if (break_mag > CM_outputs[current_CM_n])
-            // if ((*num_fc_pinpoint == 0) | (clrx[cur_i] - rec_cg_pinpoint[*num_fc_pinpoint - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last pinpoint break
+            // if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[*num_fc_anomaly - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last anomaly break
             {
                 for (conse_last = 1; conse_last <= conse; conse_last++)
                 {
@@ -1618,9 +1620,9 @@ int step2_KF_ChangeDetection_flex(
                     }
 
                     float min_cm = 999999;
-                    float mean_angle_pinpoint;
+                    float mean_angle_anomaly;
                     // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, conse_last, lasso_blist_sccd);
-                    mean_angle_pinpoint = MeanAngl_float(v_diff_tmp, nbands, conse_last) * 100;
+                    mean_angle_anomaly = MeanAngl_float(v_diff_tmp, nbands, conse_last) * 100;
 
                     for (j = 0; j < conse_last; j++)
                         if (v_dif_mag_norm[j] * 100 < min_cm)
@@ -1628,17 +1630,17 @@ int step2_KF_ChangeDetection_flex(
 
                     if (min_cm > MAX_SHORT)
                         min_cm = MAX_SHORT;
-                    if (mean_angle_pinpoint > MAX_SHORT)
-                        mean_angle_pinpoint = MAX_SHORT;
-                    rec_cg_pinpoint[current_pinpoint].cm_angle[conse_last - 1] = (short int)mean_angle_pinpoint;
-                    rec_cg_pinpoint[current_pinpoint].norm_cm[conse_last - 1] = (short int)min_cm;
+                    if (mean_angle_anomaly > MAX_SHORT)
+                        mean_angle_anomaly = MAX_SHORT;
+                    rec_cg_anomaly[current_anomaly].cm_angle[conse_last - 1] = (short int)mean_angle_anomaly;
+                    rec_cg_anomaly[current_anomaly].norm_cm[conse_last - 1] = (short int)min_cm;
                     for (k = 0; k < DEFAULT_CONSE_SCCD; k++)
                     {
                         for (i_b = 0; i_b < nbands; i_b++)
                         {
-                            rec_cg_pinpoint[current_pinpoint].obs[i_b][k] = (short int)clry[i_b][cur_i + k];
+                            rec_cg_anomaly[current_anomaly].obs[i_b][k] = (short int)clry[i_b][cur_i + k];
                         }
-                        rec_cg_pinpoint[current_pinpoint].obs_date_since1982[k] = (short int)(clrx[cur_i + k] - ORDINAL_LANDSAT4_LAUNCH);
+                        rec_cg_anomaly[current_anomaly].obs_date_since1982[k] = (short int)(clrx[cur_i + k] - ORDINAL_LANDSAT4_LAUNCH);
                     }
                     for (i_b = 0; i_b < nbands; i_b++)
                     {
@@ -1649,7 +1651,7 @@ int step2_KF_ChangeDetection_flex(
                             /* Record fitted coefficients.    */
                             /*                                */
                             /**********************************/
-                            rec_cg_pinpoint[current_pinpoint].coefs[i_b][k] = fit_cft[i_b][k];
+                            rec_cg_anomaly[current_anomaly].coefs[i_b][k] = fit_cft[i_b][k];
                         }
                     } // for(i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
 
@@ -1665,10 +1667,10 @@ int step2_KF_ChangeDetection_flex(
                     //                        quick_sort_float(v_dif_mag_tmp[i_b], 0, conse_last - 1);
                     //                        matlab_2d_float_median(v_dif_mag_tmp, i_b, conse_last,
                     //                                               &tmp);
-                    //                        rec_cg_pinpoint[*num_fc_pinpoint].cm_bands[conse_last-1][i_b] = tmp;
+                    //                        rec_cg_anomaly[*num_fc_anomaly].cm_bands[conse_last-1][i_b] = tmp;
 
                     //                    }
-                    rec_cg_pinpoint[current_pinpoint].t_break = clrx[cur_i];
+                    rec_cg_anomaly[current_anomaly].t_break = clrx[cur_i];
 
                     status = free_2d_array((void **)v_diff_tmp);
                     if (status != SUCCESS)
@@ -1685,8 +1687,8 @@ int step2_KF_ChangeDetection_flex(
                 } // for (conse_last = 1; conse_last <= conse; conse_last++)
 
                 if (CM_outputs[current_CM_n] == 0)
-                { // meaning that hasn't been assigned with pinpoint
-                    *num_fc_pinpoint = *num_fc_pinpoint + 1;
+                { // meaning that hasn't been assigned with anomaly
+                    *num_fc_anomaly = *num_fc_anomaly + 1;
                 }
                 CM_outputs[current_CM_n] = break_mag;
             }
@@ -1908,7 +1910,7 @@ int step3_processing_end_flex(
     int t_start,
     int conse,
     short int *min_rmse,
-    double gate_tcg,
+    double anomaly_tcg,
     bool change_detected,
     double predictability_tcg,
     int nbands,
@@ -2113,7 +2115,7 @@ int step3_processing_end_flex(
 
         nrt_model->norm_cm = NA_VALUE;
         nrt_model->cm_angle = NA_VALUE;
-        nrt_model->conse_last = 0;
+        nrt_model->anomaly_conse = 0;
 
         // num_obs_processed == 0 meaning that the observation number is smaller than 6, no model could be fitted
         if (num_obs_processed > 0)
@@ -2186,7 +2188,7 @@ int step3_processing_end_flex(
                 }
 
                 // NOTE THAT USE THE DEFAULT CHANGE THRESHOLD (0.99) TO CALCULATE PROBABILITY
-                if (v_dif_mag_norm[conse_last - 1] <= gate_tcg)
+                if (v_dif_mag_norm[conse_last - 1] <= anomaly_tcg)
                 // if (v_dif_mag_norm[conse_last - 1] <= DEFAULT_COLD_TCG)
                 {
                     /**************************************************/
@@ -2217,7 +2219,7 @@ int step3_processing_end_flex(
                         //                                                   &tmp);
                         //                            nrt_model->cm_bands[i_b] = (short int) (tmp);
                         //                        }
-                        nrt_model->conse_last = conse_last - 1; // meaning change happens in the last obs, so conse_last - 1
+                        nrt_model->anomaly_conse = conse_last - 1; // meaning change happens in the last obs, so conse_last - 1
                         nrt_model->cm_angle = (short int)mean_angle_scale100;
                     }
 
@@ -2258,7 +2260,7 @@ int step3_processing_end_flex(
                         //                                                   &tmp);
                         //                            nrt_model->cm_bands[i_b] = (short int) (tmp);
                         //                        }
-                        nrt_model->conse_last = conse_last; // for new change, at last conse
+                        nrt_model->anomaly_conse = conse_last; // for new change, at last conse
                     }
                 }
 
@@ -2341,10 +2343,11 @@ int sccd_standard_flex(
     output_nrtqueue_flex *obs_queue, /* O: multispectral observations in queue    */
     short int *min_rmse,             /* O: adjusted rmse for the pixel    */
     int conse,
-    bool b_pinpoint,
-    Output_sccd_pinpoint_flex *rec_cg_pinpoint, /* O: historical change records for SCCD results    */
-    int *num_fc_pinpoint,
-    double gate_tcg,
+    bool b_anomaly,
+    Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
+    int *num_fc_anomaly,
+    double anomaly_tcg,
+    int anomaly_conse,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,
@@ -2636,11 +2639,7 @@ int sccd_standard_flex(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr,
-                                                   cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed,
-                                                   t_start, b_pinpoint, rec_cg_pinpoint, num_fc_pinpoint, gate_tcg,
-                                                   &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg,
-                                                   b_coefs_records, n_coefs_records, coefs_records, nbands, b_fitting_coefs, lambda);
+            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, b_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg, b_coefs_records, n_coefs_records, coefs_records, nbands, b_fitting_coefs, lambda, anomaly_conse);
 
             if (status == CHANGEDETECTED)
             {
@@ -2716,7 +2715,7 @@ int sccd_standard_flex(
                 /*     7. square adjust rmse, H, sum       */
                 nrt_model->norm_cm = (short int)norm_cm_scale100;
                 nrt_model->cm_angle = (short int)cm_angle_scale100;
-                nrt_model->conse_last = (unsigned char)conse; // for new change, at last conse
+                nrt_model->anomaly_conse = (unsigned char)conse; // for new change, at last conse
                 if (*nrt_mode != NRT_VOID)
                     change_detected = TRUE;
             }
@@ -2828,7 +2827,7 @@ int sccd_standard_flex(
     status = step3_processing_end_flex(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                        i_start, prev_i_break, nrt_model, num_obs_queue, obs_queue,
                                        sum_square_vt, num_obs_processed, t_start, conse, min_rmse,
-                                       gate_tcg, change_detected, predictability_tcg, nbands, lambda);
+                                       anomaly_tcg, change_detected, predictability_tcg, nbands, lambda);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))
@@ -3153,7 +3152,7 @@ int sccd_snow_flex(
 
     nrt_model[0].norm_cm = NA_VALUE;
     nrt_model[0].cm_angle = NA_VALUE;
-    nrt_model[0].conse_last = 0;
+    nrt_model[0].anomaly_conse = 0;
 
     /* monitor mode */
     *nrt_status = NRT_MONITOR_SNOW;

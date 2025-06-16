@@ -22,6 +22,9 @@ from .app import defaults
 from scipy.stats import chi2
 import pandas as pd
 
+DEFAULT_ANOMALY_CONSE = 3
+DEFAULT_PRED_TCG = 9.236
+
 _parameter_constraints: dict = {
     "t_cg": [Interval(Real, 0.0, None, closed="neither")],
     "p_cg": [Interval(Real, 0.0, 1, closed="neither")],
@@ -31,8 +34,10 @@ _parameter_constraints: dict = {
     "conse": [Interval(Integral, 0, 12, closed="neither")],
     "b_output_cm": ["boolean"],
     "gap_days": [Interval(Real, 0.0, None, closed="left")],
-    "b_pinpoint": ["boolean"],
-    "gate_pcg": [Interval(Real, 0.0, 1, closed="neither")],
+    "b_anomaly": ["boolean"],
+    "anomaly_pcg": [Interval(Real, 0.0, 1, closed="neither")],
+    "anomaly_conse": [Interval(Integral, 0, 8, closed="right")],
+    "sccd_conse": [Interval(Integral, 0, 8, closed="right")],
     "predictability_pcg": [Interval(Real, 0.0, 1, closed="neither")],
     "dist_conse": [Interval(Integral, 0, 6, closed="right")],
     "t_cg_scale100": [Interval(Real, 0.0, None, closed="neither")],
@@ -221,7 +226,9 @@ def cold_detect(
 
     # Check whether the dates are arranged in ascending order
     if not numpy.all(numpy.diff(dates) >= 0):
-        data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas))
+        data = numpy.column_stack(
+            (dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas)
+        )
         sorted_data = data[data[:, 0].argsort()]
         dates = sorted_data[:, 0]
         ts_b = sorted_data[:, 1]
@@ -232,7 +239,7 @@ def cold_detect(
         ts_s2 = sorted_data[:, 6]
         ts_t = sorted_data[:, 7]
         qas = sorted_data[:, 8]
-    
+
     _validate_params(
         func_name="cold_detect",
         p_cg=p_cg,
@@ -370,8 +377,9 @@ def sccd_detect(
     conse=6,
     pos=1,
     b_c2=True,
-    b_pinpoint=False,
-    gate_pcg=0.90,
+    b_anomaly=False,
+    anomaly_pcg=0.90,
+    anomaly_conse=3,
     state_intervaldays=0.0,
     b_fitting_coefs=False,
     lam=20,
@@ -400,18 +408,20 @@ def sccd_detect(
     p_cg: float
         Probability threshold of change magnitude, by default 0.99
     conse: int
-        Consecutive observation number, by default 6
+        Consecutive observation number, by default 6. No more than 8.
     pos: int
         Position id of the pixel, by default 1
     b_c2: bool
         A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
         pixel test due to the current low quality. by default True
-    b_pinpoint: bool
-        If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg,
+    b_anomaly: bool
+        If true, output anomaly breaks where a anomaly is an overdetection of break using conse 3 and threshold = anomaly_tcg,
         which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
-        Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
-    gate_pcg: float
-        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
+        Note that anomalys is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
+    anomaly_pcg: float
+        Change probability threshold for defining spectral anomalies, by default 0.90.
+    anomaly_conse: int
+        Consecutive observation number to determine anomaly identification, by default 3. No more than 8.
     state_intervaldays: float
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
@@ -422,9 +432,9 @@ def sccd_detect(
     -------
     :py:type:`~pyxccd.common.SccdOutput` | (:py:type:`~pyxccd.common.SccdOutput`, pd.DataFrame) | (:py:type:`~pyxccd.common.SccdOutput`, numpy.ndarray)
 
-        If b_pinpoint is False and b_output_state is False, sccdoutput will be returned (by default);
-        if b_pinpoint is False and b_output_state is True,  (sccdoutput, states_info) will be returned;
-        if b_pinpoint is True, (sccdoutput, pinpoints) will be returned
+        If b_anomaly is False and b_output_state is False, sccdoutput will be returned (by default);
+        if b_anomaly is False and b_output_state is True,  (sccdoutput, states_info) will be returned;
+        if b_anomaly is True, (sccdoutput, anomalys) will be returned
 
             sccdoutput: :py:type:`~pyxccd.common.SccdOutput`
                 A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
@@ -432,11 +442,11 @@ def sccd_detect(
             states_info: pd.DataFrame
                 A table of three state time series (trend, annual, semiannual) for six inputted spectral bands
 
-            pinpoints: numpy.ndarray
-                A structured array of dtype = :py:type:`~pyxccd.common.pinpoint`
+            anomalys: numpy.ndarray
+                A structured array of dtype = :py:type:`~pyxccd.common.anomaly`
 
     """
-    
+
     # Check whether the dates are arranged in ascending order
     if not numpy.all(numpy.diff(dates) >= 0):
         data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, qas))
@@ -449,15 +459,16 @@ def sccd_detect(
         ts_s1 = sorted_data[:, 5]
         ts_s2 = sorted_data[:, 6]
         qas = sorted_data[:, 7]
-    
+
     _validate_params(
         func_name="sccd_detect",
         p_cg=p_cg,
         pos=pos,
-        conse=conse,
+        sccd_conse=conse,
         b_c2=b_c2,
-        b_pinpoint=b_pinpoint,
-        gate_pcg=gate_pcg,
+        b_anomaly=b_anomaly,
+        anomaly_pcg=anomaly_pcg,
+        anomaly_conse=anomaly_conse,
         state_intervaldays=state_intervaldays,
         lam=lam,
     )
@@ -467,10 +478,10 @@ def sccd_detect(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
     )
     t_cg = chi2.ppf(p_cg, DEFAULT_BANDS)
-    gate_tcg = chi2.ppf(gate_pcg, DEFAULT_BANDS)
+    anomaly_tcg = chi2.ppf(anomaly_pcg, DEFAULT_BANDS)
     # sccd_wrapper = SccdDetectWrapper()
     # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
-    #                                 pos, conse, b_c2, b_pinpoint, gate_tcg, b_monitor_init))
+    #                                 pos, conse, b_c2, b_anomaly, anomaly_tcg, b_monitor_init))
     # return tmp
     if state_intervaldays == 0:
         b_output_state = False
@@ -490,9 +501,10 @@ def sccd_detect(
         conse,
         pos,
         b_c2,
-        b_pinpoint,
-        gate_tcg,
-        9.236,
+        b_anomaly,
+        anomaly_tcg,
+        anomaly_conse,
+        DEFAULT_PRED_TCG,
         b_output_state,
         state_intervaldays,
         b_fitting_coefs,
@@ -513,7 +525,7 @@ def sccd_update(
     p_cg=0.99,
     conse=6,
     pos=1,
-    gate_pcg=0.90,
+    anomaly_pcg=0.90,
     predictability_pcg=0.90,
     lam=20,
 ):
@@ -546,8 +558,8 @@ def sccd_update(
         consecutive observation number, by default 6
     pos: int
         position id of the pixel, by default 1
-    gate_pcg: float
-        change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
+    anomaly_pcg: float
+        change probability threshold for defining spectral anomalies, by default 0.90.
     predictability_pcg: float
         probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     lam: float
@@ -565,9 +577,9 @@ def sccd_update(
         func_name="sccd_update",
         p_cg=p_cg,
         pos=pos,
-        conse=conse,
-        b_pinpoint=False,
-        gate_pcg=gate_pcg,
+        sccd_conse=conse,
+        b_anomaly=False,
+        anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
         lam=lam,
     )
@@ -576,7 +588,7 @@ def sccd_update(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
     )
     t_cg = chi2.ppf(p_cg, DEFAULT_BANDS)
-    gate_tcg = chi2.ppf(gate_pcg, DEFAULT_BANDS)
+    anomaly_tcg = chi2.ppf(anomaly_pcg, DEFAULT_BANDS)
     predictability_tcg = chi2.ppf(predictability_pcg, DEFAULT_BANDS)
     return _sccd_update(
         sccd_pack,
@@ -593,7 +605,7 @@ def sccd_update(
         conse,
         pos,
         True,
-        gate_tcg,
+        anomaly_tcg,
         predictability_tcg,
         lam,
     )
@@ -649,7 +661,7 @@ def sccd_identify(
         return sccd_pack, 0
 
     if (
-        sccd_pack.nrt_model[0]["conse_last"] >= dist_conse
+        sccd_pack.nrt_model[0]["anomaly_conse"] >= dist_conse
         and sccd_pack.nrt_model[0]["norm_cm"] > t_cg_scale100
         and sccd_pack.nrt_model[0]["cm_angle"] < t_angle_scale100
     ):
@@ -672,7 +684,7 @@ def sccd_identify(
                 sccd_pack,
                 sccd_pack.nrt_model[0]["obs_date_since1982"][
                     defaults["SCCD"]["DEFAULT_CONSE"]
-                    - sccd_pack.nrt_model[0]["conse_last"]
+                    - sccd_pack.nrt_model[0]["anomaly_conse"]
                 ]
                 + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"],
             )
@@ -723,10 +735,12 @@ def cold_detect_flex(
         Length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
     cm_output_interval: int
         Temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
-    b_c2: bool
-        Indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     gap_days: int
         Define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
+    tmask_b1: int
+        The first band id for tmask. Started from 1. The default CCDC is 2 (green)
+    tmask_b2: int
+        The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
 
     Returns
     -------
@@ -744,7 +758,7 @@ def cold_detect_flex(
             cm_outputs_date: numpy.ndarray
                 Change magnitude date list, shape (n_cm,)
     """
-    
+
     # Check whether the dates are arranged in ascending order
     if not numpy.all(numpy.diff(dates) >= 0):
         data = numpy.column_stack((dates, ts_stack, qas))
@@ -811,8 +825,9 @@ def sccd_detect_flex(
     conse=6,
     pos=1,
     b_c2=True,
-    b_pinpoint=False,
-    gate_pcg=0.90,
+    b_anomaly=False,
+    anomaly_pcg=0.90,
+    anomaly_conse=3,
     state_intervaldays=0.0,
     tmask_b1=1,
     tmask_b2=1,
@@ -841,19 +856,21 @@ def sccd_detect_flex(
     b_c2: bool
         A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
         pixel test due to the current low quality. by default True
-    b_pinpoint: bool
-        If true, output pinpoint breaks where a pinpoint is an overdetection of break using conse 3 and threshold = gate_tcg, which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
-        Note that pinpoints is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
-    gate_pcg: float
-        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
+    b_anomaly: bool
+        If true, output anomaly breaks where a anomaly is an overdetection of break using conse 3 and threshold = anomaly_tcg, which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
+        Note that anomalys is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
+    anomaly_pcg: float
+        Change probability threshold for defining spectral anomalies anomalys, by default 0.90.
+    anomaly_conse: int
+        Consecutive observation number to determine anomaly identification, by default 3
     state_intervaldays: float
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     b_fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
     tmask_b1: int
-        The first band id for tmask. Started from 1.
+        The first band id for tmask. Started from 1. The default CCDC is 2 (green)
     tmask_b2: int
-        The second band id for tmask. Started from 1.
+        The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
     b_fitting_coefs: bool
         True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients. Default it False.
 
@@ -869,7 +886,7 @@ def sccd_detect_flex(
         states_info: pd.DataFrame
             A table of three state time series (trend, annual, semiannual) for nbands inputted spectral bands
     """
-    
+
     # Check whether the dates are arranged in ascending order
     if not numpy.all(numpy.diff(dates) >= 0):
         data = numpy.column_stack((dates, ts_stack, qas))
@@ -877,15 +894,16 @@ def sccd_detect_flex(
         dates = sorted_data[:, 0]
         ts_stack = sorted_data[:, 1:-1]
         qas = sorted_data[:, -1]
-        
+
     _validate_params(
         func_name="sccd_detect_flex",
         p_cg=p_cg,
         pos=pos,
-        conse=conse,
+        sccd_conse=conse,
         b_c2=b_c2,
-        b_pinpoint=b_pinpoint,
-        gate_pcg=gate_pcg,
+        b_anomaly=b_anomaly,
+        anomaly_pcg=anomaly_pcg,
+        anomaly_conse=anomaly_conse,
         state_intervaldays=state_intervaldays,
         lam=lam,
     )
@@ -902,10 +920,10 @@ def sccd_detect_flex(
 
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
-    gate_tcg = chi2.ppf(gate_pcg, nbands)
+    anomaly_tcg = chi2.ppf(anomaly_pcg, nbands)
     # sccd_wrapper = SccdDetectWrapper()
     # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
-    #                                 pos, conse, b_c2, b_pinpoint, gate_tcg, b_monitor_init))
+    #                                 pos, conse, b_c2, b_anomaly, anomaly_tcg, b_monitor_init))
     # return tmp
     b_output_state = False if state_intervaldays == 0 else True
 
@@ -920,9 +938,10 @@ def sccd_detect_flex(
         conse,
         pos,
         b_c2,
-        b_pinpoint,
-        gate_tcg,
-        0,
+        b_anomaly,
+        anomaly_tcg,
+        anomaly_conse,
+        DEFAULT_PRED_TCG,
         b_output_state,
         state_intervaldays,
         tmask_b1,
@@ -942,7 +961,7 @@ def sccd_update_flex(
     conse=6,
     pos=1,
     b_c2=True,
-    gate_pcg=0.90,
+    anomaly_pcg=0.90,
     predictability_pcg=0.90,
     tmask_b1=1,
     tmask_b2=1,
@@ -967,8 +986,11 @@ def sccd_update_flex(
         Consecutive observation number, by default 6
     pos: int
         Position id of the pixel, by default 1
-    gate_pcg: float
-        Change probability threshold for defining spectral anomalies (for NRT)/pinpoints, by default 0.90.
+    b_c2: bool
+        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
+        pixel test due to the current low quality. by default True
+    anomaly_pcg: float
+        Change probability threshold for defining spectral anomalies /anomaly, by default 0.90.
     predictability_pcg: float
         Probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
     Returns
@@ -984,10 +1006,10 @@ def sccd_update_flex(
         func_name="sccd_update_flex",
         p_cg=p_cg,
         pos=pos,
-        conse=conse,
+        sccd_conse=conse,
         b_c2=b_c2,
-        b_pinpoint=False,
-        gate_pcg=gate_pcg,
+        b_anomaly=False,
+        anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
         lam=lam,
     )
@@ -1004,7 +1026,7 @@ def sccd_update_flex(
 
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
-    gate_tcg = chi2.ppf(gate_pcg, nbands)
+    anomaly_tcg = chi2.ppf(anomaly_pcg, nbands)
     predictability_tcg = chi2.ppf(predictability_pcg, nbands)
 
     return _sccd_update_flex(
@@ -1019,7 +1041,7 @@ def sccd_update_flex(
         conse,
         pos,
         b_c2,
-        gate_tcg,
+        anomaly_tcg,
         predictability_tcg,
         tmask_b1,
         tmask_b2,

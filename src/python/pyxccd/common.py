@@ -3,7 +3,7 @@ from dataclasses import dataclass, field, make_dataclass
 from typing import Any
 import numpy
 
-SCCD_CONSE_OUTPUT = 8  # the default outputted observation number once S-CCD detects breakpoint or pinpoint, note it is not the conse for identifying breakpoints/pinpoints
+SCCD_CONSE_OUTPUT = 8  # the default outputted observation number once S-CCD detects breakpoint or anomaly, note it is not the conse for identifying breakpoints/anomalys
 NRT_BAND = 6  # the default S-CCD band number
 SCCD_NUM_C = 6  # the S-CCD harmonic model coefficient number
 TOTAL_BAND_FLEX = 10  # the maximum band input for flexible mode of COLD
@@ -98,13 +98,13 @@ nrtmodel_dt = numpy.dtype(
         ("rmse_sum", numpy.uint32, NRT_BAND),
         ("norm_cm", numpy.short),
         ("cm_angle", numpy.short),
-        ("conse_last", numpy.ubyte),
+        ("anomaly_conse", numpy.ubyte),
     ],
     align=True,
 )
 
 
-pinpoint_dt = numpy.dtype(
+anomaly_dt = numpy.dtype(
     [
         ("t_break", numpy.int32),
         ("coefs", numpy.float32, (NRT_BAND, SCCD_NUM_C)),
@@ -161,13 +161,13 @@ nrtmodel_dt_flex = numpy.dtype(
         ("rmse_sum", numpy.uint32, TOTAL_BAND_FLEX_NRT),
         ("norm_cm", numpy.short),
         ("cm_angle", numpy.short),
-        ("conse_last", numpy.ubyte),
+        ("anomaly_conse", numpy.ubyte),
     ],
     align=True,
 )
 
 
-pinpoint_dt_flex = numpy.dtype(
+anomaly_dt_flex = numpy.dtype(
     [
         ("t_break", numpy.int32),
         ("coefs", numpy.float32, (TOTAL_BAND_FLEX_NRT, SCCD_NUM_C)),
@@ -345,21 +345,21 @@ class nrtmodel:
     rmse_sum: numpy.ndarray
     """1-d array of shape (nbands,). RMSE for six bands (blue, green, red, nir, swir1, swir2). """
     norm_cm: numpy.short
-    """The current normalized change magnitude for the last conse_last spectral anomalies, multiplied by 100 and rounded. """
+    """The current normalized change magnitude for the last anomaly_conse spectral anomalies, multiplied by 100 and rounded. """
     cm_angle: numpy.short
-    """The included angle for the last conse_last spectral anomalies, multiplied by 100 and rounded. """
-    conse_last: numpy.byte
-    """The current anomaly number at the tail of the time series. between 1 and 8. The anomalies were defined as the obs that are larger than gate_pcg. """
+    """The included angle for the last anomaly_conse spectral anomalies, multiplied by 100 and rounded. """
+    anomaly_conse: numpy.byte
+    """The current anomaly number at the tail of the time series. between 1 and 8. The anomalies were defined as the obs that are larger than anomaly_pcg. """
 
 
 @dataclass
-class pinpoint:
-    """pinpoint segments as a structured array. S-CCD overdetected the spectral anomalies as "pinpoints"
-    using conse =3 and threshold=gate_pcg, which is used to trained a retrospective machine learning
+class anomaly:
+    """anomaly segments as a structured array. S-CCD overdetected the spectral anomalies as "anomalys"
+    using conse =3 and threshold=anomaly_pcg, which is used to trained a retrospective machine learning
     model for NRT scenario."""
 
     t_break: numpy.int32
-    """ordinal date when the pinpoint break is detected"""
+    """ordinal date when the anomaly break is detected"""
     coefs: numpy.ndarray
     """2-d array of shape (nbands, ncoefs) to keep multispectral harmonic coefficients from the last lasso regression. Spectral bands include blue, green, red, nir, swir1, swir2, thermal (from row 1 to 7); eight harmonic coefficients include intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodel, sin_trimodel (from col 1 to 8). Note the slope has been multiplied by 10000."""
     obs: numpy.ndarray
@@ -367,6 +367,6 @@ class pinpoint:
     obs_date_since1982: numpy.ndarray
     """1-d array of shape (nobs,). The date number since 1982/7/16 for the last 8 observations. """
     norm_cm: numpy.short
-    """Normalized change magnitude for the last conse_last spectral anomalies, multiplied by 100 and rounded. """
+    """Normalized change magnitude for the last anomaly_conse spectral anomalies, multiplied by 100 and rounded. """
     cm_angle: numpy.short
-    """included angale fot the last conse_last spectral anomalies, multiplied by 100 and rounded. """
+    """included angale fot the last anomaly_conse spectral anomalies, multiplied by 100 and rounded. """

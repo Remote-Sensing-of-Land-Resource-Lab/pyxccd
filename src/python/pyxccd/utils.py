@@ -17,6 +17,7 @@ from .common import SccdOutput, nrtqueue_dt, sccd_dt, nrtmodel_dt, DatasetInfo
 
 from datetime import date
 
+
 def convert_short_date_to_calendar_date(short_date: int) -> date:
     """Convert a short date (number of days since a base date) to a calendar date.
 
@@ -32,6 +33,7 @@ def convert_short_date_to_calendar_date(short_date: int) -> date:
     """
     calendar_date = date.fromordinal(723742 + short_date)
     return calendar_date
+
 
 def rio_loaddata(path: str) -> np.ndarray:
     """load raster dataset as numpy array
@@ -740,9 +742,9 @@ def calculate_sccd_cm(sccd_pack: SccdOutput) -> float:
     Returns
     -------
     float
-        computed as the median values for the current conse_last change magnitudes
+        computed as the median values for the current anomaly_conse change magnitudes
     """
-    start_index = defaults["SCCD"]["NRT_BAND"] - sccd_pack.nrt_model[0]["conse_last"]
+    start_index = defaults["SCCD"]["NRT_BAND"] - sccd_pack.nrt_model[0]["anomaly_conse"]
     pred_ref = np.asarray(
         [
             [
@@ -751,7 +753,7 @@ def calculate_sccd_cm(sccd_pack: SccdOutput) -> float:
                     sccd_pack.nrt_model[0]["obs_date_since1982"][i_conse + start_index]
                     + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"],
                 )
-                for i_conse in range(sccd_pack.nrt_model[0]["conse_last"])
+                for i_conse in range(sccd_pack.nrt_model[0]["anomaly_conse"])
             ]
             for b in range(defaults["SCCD"]["NRT_BAND"])
         ]

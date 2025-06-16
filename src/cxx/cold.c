@@ -23,16 +23,6 @@
 
 int lasso_blist[NUM_LASSO_BANDS] = {1, 2, 3, 4, 5};
 
-#define safe_xgboost(call)                                                                             \
-    {                                                                                                  \
-        int err = (call);                                                                              \
-        if (err != 0)                                                                                  \
-        {                                                                                              \
-            fprintf(stderr, "%s:%d: error in %s: %s\n", __FILE__, __LINE__, #call, XGBGetLastError()); \
-            exit(1);                                                                                   \
-        }                                                                                              \
-    }
-
 // convert NLCD category index for grand county study
 int getlabelfromNLCD(int maskval)
 {

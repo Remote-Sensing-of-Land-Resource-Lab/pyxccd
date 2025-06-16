@@ -14,7 +14,7 @@ cimport cython
 from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 # instead of int32_t and int64_t for cross-platform compatibility,see https://github.com/ansys/pymapdl/issues/14
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
-from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, pinpoint_dt, reccg_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, pinpoint_dt_flex
+from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, reccg_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex
 np.import_array()
 from scipy.stats import chi2
 
@@ -73,10 +73,10 @@ cdef extern from "../../cxx/output.h":
         uint32_t rmse_sum[NRT_BAND]
         short int norm_cm;
         short int cm_angle;
-        unsigned char conse_last;
+        unsigned char anomaly_conse;
 
 cdef extern from "../../cxx/output.h":
-    ctypedef struct Output_sccd_pinpoint:
+    ctypedef struct Output_sccd_anomaly:
         int32_t t_break
         float coefs[NRT_BAND][SCCD_NUM_C]
         short int obs[NRT_BAND][DEFAULT_CONSE]
@@ -112,7 +112,7 @@ cdef extern from "../../cxx/output.h":
         float magnitude[TOTAL_BAND_FLEX_NRT]
 
 cdef extern from "../../cxx/output.h":
-    ctypedef struct Output_sccd_pinpoint_flex:
+    ctypedef struct Output_sccd_anomaly_flex:
         int32_t t_break
         float coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
         short int obs[TOTAL_BAND_FLEX_NRT][DEFAULT_CONSE]
@@ -132,7 +132,7 @@ cdef extern from "../../cxx/output.h":
         uint32_t rmse_sum[TOTAL_BAND_FLEX_NRT]
         short int norm_cm;
         short int cm_angle;
-        unsigned char conse_last;
+        unsigned char anomaly_conse;
 
 cdef extern from "../../cxx/output.h":
     ctypedef struct output_nrtqueue_flex:
@@ -154,27 +154,21 @@ cdef extern from "../../cxx/cold.h":
 
 
 cdef extern from "../../cxx/s_ccd.h":
-    cdef int32_t sccd(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2, int64_t *buf_t,
-                  int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, double tcg, int32_t *num_fc, int32_t *nrt_mode,
-                  Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue,
-                  short int *min_rmse, int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint *rec_cg_pinpoint, 
-                  int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg,  bool b_output_state, 
-                  double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool b_fitting_coefs, double lam);
+    cdef int32_t sccd(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2, int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, double tcg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue, short int *min_rmse, int32_t conse, bool b_c2, bool b_anomaly, Output_sccd_anomaly *rec_cg_anomaly, int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg,  bool b_output_state, double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool b_fitting_coefs, double lam);
 
 
 cdef extern from "../../cxx/s_ccd_flex.h":
     cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1, int tmask_b2, int valid_num_scenes, double tcg, double max_t_cg, 
     int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model,
     int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
-    int32_t conse, bool b_c2, bool b_pinpoint, Output_sccd_pinpoint_flex *rec_cg_pinpoint,
-    int32_t *num_fc_pinpoint, double gate_tcg, double predictability_tcg, bool b_output_state,
-    double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool b_fitting_coefs, double lam);
+    int32_t conse, bool b_c2, bool b_anomaly, Output_sccd_anomaly_flex *rec_cg_anomaly,
+    int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg, bool b_output_state,double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool b_fitting_coefs, double lam);
 
 
 cdef Output_sccd t
 cdef output_nrtqueue t2
 cdef output_nrtmodel t3
-cdef Output_sccd_pinpoint t4
+cdef Output_sccd_anomaly t4
 
 
 #cdef class SccdOutput:
@@ -190,7 +184,7 @@ cdef Output_sccd_pinpoint t4
 #        self.nrt_model = nrt_model
 #        self.nrt_queue = nrt_queue
 SccdOutput = namedtuple("SccdOutput", "position rec_cg min_rmse nrt_mode nrt_model nrt_queue")
-SccdReccgPinpoint = namedtuple("SccdReccgPinpoint", "position rec_cg_pinpoint")
+SccdReccganomaly = namedtuple("SccdReccganomaly", "position rec_cg_anomaly")
 
 def test_func():
     """
@@ -362,9 +356,9 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
-                   bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
-                   double predictability_tcg=9.236, bint b_output_state=False, 
-                   double state_intervaldays=1, bint b_fitting_coefs=False, double lam=20):
+                   bint b_c2=True, bint b_anomaly=False, double anomaly_tcg=9.236, 
+                   int anomaly_conse=3, double predictability_tcg=9.236, 
+                   bint b_output_state=False, double state_intervaldays=1, bint b_fitting_coefs=False, double lam=20):
     """
     S-CCD processing. It is required to be done before near real time monitoring
 
@@ -383,8 +377,9 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
        pos: position id of the pixel
        conse: consecutive observation number
        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
-       b_pinpoint: bool, output pinpoint break
-       gate_tcg: the gate change magnitude threshold for defining anomaly
+       b_anomaly: bool, output anomaly break
+       anomaly_tcg: the gate change magnitude threshold for defining anomaly
+       anomaly_conse: the consecutive observation number for defining anomalies
        predictability_tcg: threshold for predicability test
        b_output_state: bool, if output intermediate state variables
        state_intervaldays: bool, what is the interval for outputting state
@@ -408,17 +403,17 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     # allocate memory for rec_cg
     cdef int32_t num_fc = 0
     cdef int32_t num_nrt_queue = 0
-    cdef int32_t num_fc_pinpoint = 0
+    cdef int32_t num_fc_anomaly = 0
     rec_cg = np.zeros(NUM_FC_SCCD, dtype=sccd_dt)
     nrt_queue = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt)
     nrt_model = np.zeros(1, dtype=nrtmodel_dt)
-    rec_cg_pinpoint = np.zeros(NUM_FC_SCCD, dtype=pinpoint_dt)
+    rec_cg_anomaly = np.zeros(NUM_FC_SCCD, dtype=anomaly_dt)
     cdef int32_t nrt_mode = 0
     cdef int32_t n_state = 0
     
     # cdef int64_t ** state_ensemble = <int64_t **>malloc(max_n_states * NRT_BAND * 3)
-    if b_pinpoint == True and b_output_state == True:
-        raise RuntimeError("b_pinpoint and b_output_state cannot be set both True")
+    if b_anomaly == True and b_output_state == True:
+        raise RuntimeError("b_anomaly and b_output_state cannot be set both True")
 
     if b_output_state == True:
         max_n_states = math.ceil((dates[-1] - dates[0]) / state_intervaldays)
@@ -452,17 +447,13 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     cdef Output_sccd [:] rec_cg_view = rec_cg
     cdef output_nrtqueue [:] nrt_queue_view = nrt_queue
     cdef output_nrtmodel [:] nrt_model_view = nrt_model
-    cdef Output_sccd_pinpoint [:] rec_cg_pinpoint_view = rec_cg_pinpoint
+    cdef Output_sccd_anomaly [:] rec_cg_anomaly_view = rec_cg_anomaly
 
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
 
 
-    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0],
-                  &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
-                  &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, b_pinpoint,
-                  &rec_cg_pinpoint_view[0], &num_fc_pinpoint, gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
-                  &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
+    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, b_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
     
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -472,7 +463,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
         else:
             output_rec_cg = np.array([])
 
-        if b_pinpoint == False:
+        if b_anomaly == False:
             if b_output_state == False:
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
@@ -503,24 +494,24 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
         else:
-            if num_fc_pinpoint > 0:
-                output_rec_cg_pinpoint = rec_cg_pinpoint[:num_fc_pinpoint]
+            if num_fc_anomaly > 0:
+                output_rec_cg_anomaly = rec_cg_anomaly[:num_fc_anomaly]
             else:
-                output_rec_cg_pinpoint = np.array([])
+                output_rec_cg_anomaly = np.array([])
 
             if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
                                    nrt_model, np.array([])),
-                                   SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+                                   SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 2 or nrt_mode == 4:
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]),
-                                    SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+                                    SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 5:  # queue mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]),
-                                   SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+                                   SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode == 0:  # void mode
                 return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
-                                   np.array([])), output_rec_cg_pinpoint]
+                                   np.array([])), output_rec_cg_anomaly]
             else:
                 raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
 
@@ -536,7 +527,7 @@ cpdef _sccd_update(sccd_pack,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, bint b_c2=True,
-                   double gate_tcg=9.236, double predictability_tcg=15.086, double lam=20):
+                   double anomaly_tcg=9.236, double predictability_tcg=15.086, double lam=20):
     """
     SCCD online update for new observations
 
@@ -556,7 +547,7 @@ cpdef _sccd_update(sccd_pack,
        pos: position id of the pixel
        conse: consecutive observation number
        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
-       gate_tcg: the gate change magnitude threshold for defining anomaly
+       anomaly_tcg: the gate change magnitude threshold for defining anomaly
        Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
        Returns
        ----------
@@ -580,8 +571,8 @@ cpdef _sccd_update(sccd_pack,
 
     cdef int32_t num_fc = len(sccd_pack.rec_cg)
     cdef int32_t num_nrt_queue = len(sccd_pack.nrt_queue)
-    cdef int32_t num_fc_pinpoint = 0
-    cdef Output_sccd_pinpoint* rec_cg_pinpoint = <Output_sccd_pinpoint*> PyMem_Malloc(sizeof(t4))
+    cdef int32_t num_fc_anomaly = 0
+    cdef Output_sccd_anomaly* rec_cg_anomaly = <Output_sccd_anomaly*> PyMem_Malloc(sizeof(t4))
     state_ensemble = np.zeros(1, dtype=np.double)
     state_days = np.zeros(1, dtype=np.int64)
     cdef int32_t n_state = 0
@@ -621,13 +612,9 @@ cpdef _sccd_update(sccd_pack,
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
 
-    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0],
-                  &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
-                  &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False,
-                  rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, predictability_tcg, False, 1, &n_state, 
-                  &states_days_view[0], &states_ensemble_view[0], False, lam)
+    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0],&ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],&nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False,rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 3, predictability_tcg, False, 1, &n_state, &states_days_view[0], &states_ensemble_view[0], False, lam)
 
-    PyMem_Free(rec_cg_pinpoint)
+    PyMem_Free(rec_cg_anomaly)
     if result != 0:
         raise RuntimeError("sccd_update function fails for pos = {} ".format(pos))
     else:
@@ -726,12 +713,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
 
 
 
-cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,
-                        np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands,
-                        double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1,
-                        bint b_c2=True, bint b_pinpoint=False, double gate_tcg=9.236, 
-                        double predictability_tcg=9.236, bint b_output_state=False, 
-                        double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1, bint b_fitting_coefs=False, double lam=20):
+cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t,      ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint b_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1, bint b_fitting_coefs=False, double lam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -746,7 +728,10 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         max_t_cg: threshold for identifying outliers
         conse: consecutive observation number
         pos: position id of the pixel
-        
+        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
+        b_anomaly: indicate whether to output anomalies
+        anomaly_tcg: the gate change magnitude threshold for defining anomalies
+        anomaly_conse: the consecutive observation number for defining anomalies
         starting_date: the starting date of the whole dataset to enable reconstruct CM_date,
                     all pixels for a tile should have the same date, only for b_output_cm is True
         cm_output_interval: the temporal interval of outputting change magnitudes
@@ -768,13 +753,13 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     # allocate memory for rec_cg
     cdef int32_t num_fc = 0
     cdef int32_t num_nrt_queue = 0
-    cdef int32_t num_fc_pinpoint = 0
+    cdef int32_t num_fc_anomaly = 0
     cdef int32_t nrt_mode = 0
     cdef int32_t n_state = 0
     rec_cg = np.zeros(NUM_FC_SCCD, dtype=sccd_dt_flex)
     nrt_queue = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
     nrt_model = np.zeros(1, dtype=nrtmodel_dt_flex)
-    rec_cg_pinpoint = np.zeros(NUM_FC_SCCD, dtype=pinpoint_dt_flex)
+    rec_cg_anomaly = np.zeros(NUM_FC_SCCD, dtype=anomaly_dt_flex)
 
     if b_output_state == True:
         max_n_states = math.ceil((dates[-1] - dates[0]) / state_intervaldays)
@@ -801,7 +786,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     cdef Output_sccd_flex [:] rec_cg_view = rec_cg
     cdef output_nrtqueue_flex [:] nrt_queue_view = nrt_queue
     cdef output_nrtmodel_flex [:] nrt_model_view = nrt_model
-    cdef Output_sccd_pinpoint_flex [:] rec_cg_pinpoint_view = rec_cg_pinpoint
+    cdef Output_sccd_anomaly_flex [:] rec_cg_anomaly_view = rec_cg_anomaly
 
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
@@ -810,9 +795,8 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
                         valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                        conse, b_c2, b_pinpoint, &rec_cg_pinpoint_view[0], &num_fc_pinpoint, 
-                        gate_tcg, predictability_tcg, b_output_state, state_intervaldays, &n_state, 
-                        &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
+                        conse, b_c2, b_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, 
+                        anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
 
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -822,7 +806,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         else:
             output_rec_cg = np.array([])
 
-        if b_pinpoint == False:
+        if b_anomaly == False:
             if b_output_state == False:
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
@@ -851,24 +835,24 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
         else:
-            if num_fc_pinpoint > 0:
-                output_rec_cg_pinpoint = rec_cg_pinpoint[:num_fc_pinpoint]
+            if num_fc_anomaly > 0:
+                output_rec_cg_anomaly = rec_cg_anomaly[:num_fc_anomaly]
             else:
-                output_rec_cg_pinpoint = np.array([])
+                output_rec_cg_anomaly = np.array([])
 
             if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
                                    nrt_model, np.array([])),
-                                   SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+                                   SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 2 or nrt_mode == 4:
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]),
-                                    SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+                                    SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 5:  # queue mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]),
-                                   SccdReccgPinpoint(pos, output_rec_cg_pinpoint)]
+                                   SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode == 0:  # void mode
                 return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
-                                   np.array([])), output_rec_cg_pinpoint]
+                                   np.array([])), output_rec_cg_anomaly]
             else:
                 raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
 
@@ -879,7 +863,8 @@ cpdef _sccd_update_flex(sccd_pack,
                         np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, 
                         int32_t nbands, double t_cg, double max_t_cg, 
                         int32_t conse=6, int32_t pos=1, bint b_c2=True,
-                        double gate_tcg=9.236, double predictability_tcg=15.086, 
+                        double anomaly_tcg=9.236, int anomaly_conse=3, 
+                        double predictability_tcg=15.086, 
                         int32_t tmask_b1=1, int32_t tmask_b2=1, double lam=20):
     """
     SCCD online update for new observations
@@ -896,7 +881,9 @@ cpdef _sccd_update_flex(sccd_pack,
        pos: position id of the pixel
        conse: consecutive observation number
        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
-       gate_tcg: the gate change magnitude threshold for defining anomaly
+       b_anomaly: indicate whether to output anomalies
+       anomaly_tcg: the gate change magnitude threshold for defining anomalies
+       anomaly_conse: the consecutive observations for defining anomalies
        tmask_b1: the first band id for tmask
        tmask_b2: the second band id for tmask
        Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
@@ -921,8 +908,8 @@ cpdef _sccd_update_flex(sccd_pack,
 
     cdef int32_t num_fc = len(sccd_pack.rec_cg)
     cdef int32_t num_nrt_queue = len(sccd_pack.nrt_queue)
-    cdef int32_t num_fc_pinpoint = 0
-    cdef Output_sccd_pinpoint_flex* rec_cg_pinpoint = <Output_sccd_pinpoint_flex*> PyMem_Malloc(sizeof(t4))
+    cdef int32_t num_fc_anomaly = 0
+    cdef Output_sccd_anomaly_flex* rec_cg_anomaly = <Output_sccd_anomaly_flex*> PyMem_Malloc(sizeof(t4))
     state_ensemble = np.zeros(1, dtype=np.double)
     state_days = np.zeros(1, dtype=np.int64)
     cdef int32_t n_state = 0
@@ -958,11 +945,11 @@ cpdef _sccd_update_flex(sccd_pack,
     result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
                     valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                     &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                    conse, b_c2, False, rec_cg_pinpoint, &num_fc_pinpoint, gate_tcg, 
+                    conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, anomaly_conse,
                     predictability_tcg, False, 1, &n_state, &states_days_view[0], 
                     &states_ensemble_view[0], False, lam)
 
-    PyMem_Free(rec_cg_pinpoint)
+    PyMem_Free(rec_cg_anomaly)
     if result != 0:
         raise RuntimeError("sccd_update function fails for pos = {} ".format(pos))
     else:

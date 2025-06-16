@@ -111,7 +111,7 @@ typedef struct
     short int obs_date_since1982[DEFAULT_CONSE_SCCD];
     short int norm_cm[DEFAULT_CONSE_SCCD];
     short int cm_angle[DEFAULT_CONSE_SCCD];
-} Output_sccd_pinpoint;
+} Output_sccd_anomaly;
 
 typedef struct
 {
@@ -125,7 +125,7 @@ typedef struct
     unsigned int rmse_sum[TOTAL_IMAGE_BANDS_SCCD];
     short int norm_cm;
     short int cm_angle;
-    unsigned char conse_last;
+    unsigned char anomaly_conse;
 } output_nrtmodel;
 
 typedef struct
@@ -173,7 +173,7 @@ typedef struct
     short int obs_date_since1982[DEFAULT_CONSE_SCCD];
     short int norm_cm[DEFAULT_CONSE_SCCD];
     short int cm_angle[DEFAULT_CONSE_SCCD];
-} Output_sccd_pinpoint_flex;
+} Output_sccd_anomaly_flex;
 
 typedef struct
 {
@@ -187,7 +187,7 @@ typedef struct
     unsigned int rmse_sum[TOTAL_IMAGE_BANDS_FLEX_SCCD];
     short int norm_cm;
     short int cm_angle;
-    unsigned char conse_last;
+    unsigned char anomaly_conse;
 } output_nrtmodel_flex;
 
 typedef struct
