@@ -1614,7 +1614,7 @@ int step2_KF_ChangeDetection(
     bool steady = FALSE;
     float break_mag = 9999.0;
     short int tmp_CM = -9999;
-    int conse_last;
+    int anomaly_conse;
     float **v_diff_tmp;
     float **v_dif_mag_tmp;
     int current_CM_n;
@@ -1747,10 +1747,10 @@ int step2_KF_ChangeDetection(
             if (break_mag > CM_outputs[current_CM_n])
             // if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[*num_fc_anomaly - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last anomaly break
             {
-                for (conse_last = 1; conse_last <= conse; conse_last++)
+                for (anomaly_conse = 1; anomaly_conse <= conse; anomaly_conse++)
                 {
-                    v_diff_tmp = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse_last, sizeof(float)); // used to calculate angle
-                    v_dif_mag_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse_last,
+                    v_diff_tmp = (float **)allocate_2d_array(NUM_LASSO_BANDS, anomaly_conse, sizeof(float)); // used to calculate angle
+                    v_dif_mag_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, anomaly_conse,
                                                                 sizeof(float));
                     for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
                     {
@@ -1758,20 +1758,20 @@ int step2_KF_ChangeDetection(
                         {
                             if (i_b == lasso_blist_sccd[b])
                             {
-                                for (j = 0; j < conse_last; j++)
+                                for (j = 0; j < anomaly_conse; j++)
                                     v_diff_tmp[b][j] = v_dif[b][j];
                             }
                         }
-                        for (j = 0; j < conse_last; j++)
+                        for (j = 0; j < anomaly_conse; j++)
                             v_dif_mag_tmp[i_b][j] = v_dif_mag[i_b][j];
                     }
 
                     float min_cm = 999999;
                     float mean_angle_anomaly;
-                    // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, conse_last, lasso_blist_sccd);
-                    mean_angle_anomaly = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, conse_last) * 100;
+                    // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, anomaly_conse, lasso_blist_sccd);
+                    mean_angle_anomaly = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, anomaly_conse) * 100;
 
-                    for (j = 0; j < conse_last; j++)
+                    for (j = 0; j < anomaly_conse; j++)
                         if (v_dif_mag_norm[j] * 100 < min_cm)
                             min_cm = v_dif_mag_norm[j] * 100;
 
@@ -1779,8 +1779,8 @@ int step2_KF_ChangeDetection(
                         min_cm = MAX_SHORT;
                     if (mean_angle_anomaly > MAX_SHORT)
                         mean_angle_anomaly = MAX_SHORT;
-                    rec_cg_anomaly[current_anomaly].cm_angle[conse_last - 1] = (short int)mean_angle_anomaly;
-                    rec_cg_anomaly[current_anomaly].norm_cm[conse_last - 1] = (short int)min_cm;
+                    rec_cg_anomaly[current_anomaly].cm_angle[anomaly_conse - 1] = (short int)mean_angle_anomaly;
+                    rec_cg_anomaly[current_anomaly].norm_cm[anomaly_conse - 1] = (short int)min_cm;
                     for (k = 0; k < DEFAULT_CONSE_SCCD; k++)
                     {
                         for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
@@ -1807,14 +1807,14 @@ int step2_KF_ChangeDetection(
                     //                        {
                     //                            if (i_b == lasso_blist_sccd[b])
                     //                            {
-                    //                                for(j = 0; j < conse_last; j++)
+                    //                                for(j = 0; j < anomaly_conse; j++)
                     //                                    v_diff_tmp[b][j] = v_dif[b][j];
                     //                            }
                     //                        }
-                    //                        quick_sort_float(v_dif_mag_tmp[i_b], 0, conse_last - 1);
-                    //                        matlab_2d_float_median(v_dif_mag_tmp, i_b, conse_last,
+                    //                        quick_sort_float(v_dif_mag_tmp[i_b], 0, anomaly_conse - 1);
+                    //                        matlab_2d_float_median(v_dif_mag_tmp, i_b, anomaly_conse,
                     //                                               &tmp);
-                    //                        rec_cg_anomaly[*num_fc_anomaly].cm_bands[conse_last-1][i_b] = tmp;
+                    //                        rec_cg_anomaly[*num_fc_anomaly].cm_bands[anomaly_conse-1][i_b] = tmp;
 
                     //                    }
                     rec_cg_anomaly[current_anomaly].t_break = clrx[cur_i];
@@ -1831,7 +1831,7 @@ int step2_KF_ChangeDetection(
                         RETURN_ERROR("Freeing memory: v_dif_mag_tmp\n",
                                      FUNC_NAME, FAILURE);
                     }
-                } // for (conse_last = 1; conse_last <= conse; conse_last++)
+                } // for (anomaly_conse = 1; anomaly_conse <= conse; anomaly_conse++)
 
                 if (CM_outputs[current_CM_n] == 0)
                 { // meaning that hasn't been assigned with anomaly
@@ -2089,8 +2089,8 @@ int step3_processing_end(
 
     // double time_taken;
     t_time = clock();
-    int conse_last;
-    int valid_conse_last; // valid conse number after excluding the observations included in the model fitting
+    int anomaly_conse;
+    int valid_anomaly_conse; // valid conse number after excluding the observations included in the model fitting
     int stable_count = 0;
 
     w = TWO_PI / AVE_DAYS_IN_A_YEAR;
@@ -2284,14 +2284,14 @@ int step3_processing_end(
             /**********************************************************/
             if (*nrt_mode % 10 == NRT_MONITOR_STANDARD) // for bi status, but not for the change just detected
             {
-                valid_conse_last = conse;
+                valid_anomaly_conse = conse;
             }
             else
             {
-                valid_conse_last = *n_clr - num_obs_processed - prev_i_break;
-                if (valid_conse_last > conse)
+                valid_anomaly_conse = *n_clr - num_obs_processed - prev_i_break;
+                if (valid_anomaly_conse > conse)
                 {
-                    valid_conse_last = conse;
+                    valid_anomaly_conse = conse;
                 }
             }
 
@@ -2302,9 +2302,9 @@ int step3_processing_end(
             /**********************************************************/
             if (*nrt_mode / 10 == 1)
             {
-                if (valid_conse_last > 1)
+                if (valid_anomaly_conse > 1)
                 {
-                    for (i = 0; i < valid_conse_last; i++)
+                    for (i = 0; i < valid_anomaly_conse; i++)
                     {
                         if (v_dif_mag_norm[i] < predictability_tcg)
                         {
@@ -2316,7 +2316,7 @@ int step3_processing_end(
                     if (*nrt_mode % 10 == 1)
                     {
                         // if pass the predictability test, change the first digit to zero
-                        if ((float)stable_count / valid_conse_last > CORRECT_RATIO_PREDICTABILITY)
+                        if ((float)stable_count / valid_anomaly_conse > CORRECT_RATIO_PREDICTABILITY)
                         {
                             *nrt_mode = *nrt_mode - 10;
                         }
@@ -2326,13 +2326,13 @@ int step3_processing_end(
 
             /**********************************************************/
             /*                                                        */
-            /*      Assign norm_cm, cm_angle, conse_last              */
+            /*      Assign norm_cm, cm_angle, anomaly_conse              */
             /*                                                        */
             /**********************************************************/
-            for (conse_last = 1; conse_last <= valid_conse_last; conse_last++) // equal to *n_clr - 1 to *n_clr - 1 - conse + 1
+            for (anomaly_conse = 1; anomaly_conse <= valid_anomaly_conse; anomaly_conse++) // equal to *n_clr - 1 to *n_clr - 1 - conse + 1
             {
-                v_diff_tmp = (float **)allocate_2d_array(NUM_LASSO_BANDS, conse_last, sizeof(float));
-                v_dif_mag_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, conse_last,
+                v_diff_tmp = (float **)allocate_2d_array(NUM_LASSO_BANDS, anomaly_conse, sizeof(float));
+                v_dif_mag_tmp = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, anomaly_conse,
                                                             sizeof(float));
                 for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
                 {
@@ -2340,17 +2340,17 @@ int step3_processing_end(
                     {
                         if (i_b == lasso_blist_sccd[b])
                         {
-                            for (j = 0; j < conse_last; j++)
+                            for (j = 0; j < anomaly_conse; j++)
                                 v_diff_tmp[b][j] = v_dif[b][j];
                         }
                     }
-                    for (j = 0; j < conse_last; j++)
+                    for (j = 0; j < anomaly_conse; j++)
                         v_dif_mag_tmp[i_b][j] = v_dif_mag[i_b][j];
                 }
 
                 // NOTE THAT USE THE DEFAULT CHANGE THRESHOLD (0.99) TO CALCULATE PROBABILITY
-                if (v_dif_mag_norm[conse_last - 1] <= anomaly_tcg)
-                // if (v_dif_mag_norm[conse_last - 1] <= DEFAULT_COLD_TCG)
+                if (v_dif_mag_norm[anomaly_conse - 1] <= anomaly_tcg)
+                // if (v_dif_mag_norm[anomaly_conse - 1] <= DEFAULT_COLD_TCG)
                 {
                     /**************************************************/
                     /*                                                */
@@ -2358,29 +2358,29 @@ int step3_processing_end(
                     /*                                                */
                     /**************************************************/
 
-                    if (conse_last > 1)
+                    if (anomaly_conse > 1)
                     {
                         float min_cm = 999999;
-                        for (j = 0; j < conse_last - 1; j++)
+                        for (j = 0; j < anomaly_conse - 1; j++)
                             if (v_dif_mag_norm[j] * 100 < min_cm)
                                 min_cm = v_dif_mag_norm[j] * 100;
 
                         if (min_cm > MAX_SHORT)
                             min_cm = MAX_SHORT;
-                        // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, conse_last, lasso_blist_sccd);
-                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, conse_last - 1) * 100;
+                        // mean_angle = angl_scatter_measure(medium_v_dif, v_diff_tmp, NUM_LASSO_BANDS, anomaly_conse, lasso_blist_sccd);
+                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, anomaly_conse - 1) * 100;
                         if (mean_angle_scale100 > MAX_SHORT)
                             mean_angle_scale100 = MAX_SHORT;
 
                         nrt_model->norm_cm = (short int)(min_cm);
                         //                        for(i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
                         //                        {
-                        //                            quick_sort_float(v_dif_mag_tmp[i_b], 0, conse_last - 1);
-                        //                            matlab_2d_float_median(v_dif_mag_tmp, i_b, conse_last,
+                        //                            quick_sort_float(v_dif_mag_tmp[i_b], 0, anomaly_conse - 1);
+                        //                            matlab_2d_float_median(v_dif_mag_tmp, i_b, anomaly_conse,
                         //                                                   &tmp);
                         //                            nrt_model->cm_bands[i_b] = (short int) (tmp);
                         //                        }
-                        nrt_model->anomaly_conse = conse_last - 1; // meaning change happens in the last obs, so conse_last - 1
+                        nrt_model->anomaly_conse = anomaly_conse - 1; // meaning change happens in the last obs, so anomaly_conse - 1
                         nrt_model->cm_angle = (short int)mean_angle_scale100;
                     }
 
@@ -2400,15 +2400,15 @@ int step3_processing_end(
                 }
                 else
                 {
-                    if (conse_last == valid_conse_last)
+                    if (anomaly_conse == valid_anomaly_conse)
                     { // all observation in the last conse passed T_MIN_CG_SCCD
                         float min_cm = 999999;
-                        for (j = 0; j < conse_last; j++)
+                        for (j = 0; j < anomaly_conse; j++)
                             if (v_dif_mag_norm[j] * 100 < min_cm)
                                 min_cm = v_dif_mag_norm[j] * 100;
                         if (min_cm > MAX_SHORT)
                             min_cm = MAX_SHORT;
-                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, conse_last) * 100;
+                        mean_angle_scale100 = MeanAngl_float(v_diff_tmp, NUM_LASSO_BANDS, anomaly_conse) * 100;
                         if (mean_angle_scale100 > MAX_SHORT)
                             mean_angle_scale100 = MAX_SHORT;
 
@@ -2416,12 +2416,12 @@ int step3_processing_end(
                         nrt_model->cm_angle = (short int)mean_angle_scale100;
                         //                        for(i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
                         //                        {
-                        //                            quick_sort_float(v_dif_mag_tmp[i_b], 0, conse_last - 1);
-                        //                            matlab_2d_float_median(v_dif_mag_tmp, i_b, conse_last,
+                        //                            quick_sort_float(v_dif_mag_tmp[i_b], 0, anomaly_conse - 1);
+                        //                            matlab_2d_float_median(v_dif_mag_tmp, i_b, anomaly_conse,
                         //                                                   &tmp);
                         //                            nrt_model->cm_bands[i_b] = (short int) (tmp);
                         //                        }
-                        nrt_model->anomaly_conse = conse_last; // for new change, at last conse
+                        nrt_model->anomaly_conse = anomaly_conse; // for new change, at last conse
                     }
                 }
 
