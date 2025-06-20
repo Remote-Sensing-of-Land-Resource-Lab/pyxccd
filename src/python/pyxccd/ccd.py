@@ -583,6 +583,19 @@ def sccd_update(
         predictability_pcg=predictability_pcg,
         lam=lam,
     )
+
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, qas))
+        sorted_data = data[data[:, 0].argsort()]
+        dates = sorted_data[:, 0]
+        ts_b = sorted_data[:, 1]
+        ts_g = sorted_data[:, 2]
+        ts_r = sorted_data[:, 3]
+        ts_n = sorted_data[:, 4]
+        ts_s1 = sorted_data[:, 5]
+        ts_s2 = sorted_data[:, 6]
+        qas = sorted_data[:, 7]
+
     ts_t = numpy.zeros(ts_b.shape)
     dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas = _validate_data(
         dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas
@@ -871,8 +884,6 @@ def sccd_detect_flex(
         The first band id for tmask. Started from 1. The default CCDC is 2 (green)
     tmask_b2: int
         The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
-    b_fitting_coefs: bool
-        True indicates using curve fitting to get global harmonic coefficients, otherwise use the local coefficients. Default it False.
 
     Returns
     ----------
@@ -1015,6 +1026,13 @@ def sccd_update_flex(
     )
 
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_stack, qas))
+        sorted_data = data[data[:, 0].argsort()]
+        dates = sorted_data[:, 0]
+        ts_stack = sorted_data[:, 1:-1]
+        qas = sorted_data[:, -1]
+
     valid_num_scenes = ts_stack.shape[0]
     nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
     if nbands > MAX_FLEX_BAND_SCCD:
