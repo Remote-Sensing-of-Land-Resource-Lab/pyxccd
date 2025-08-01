@@ -24,7 +24,7 @@ int sccd_flex(
     short int *min_rmse,                      /* O: adjusted rmse for the pixel    */
     int conse,                                /* I: consecutive observation number for change detection   */
     bool b_c2,                                /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
-    bool b_anomaly,                           /* I: output anomaly break for training purpose  */
+    bool output_anomaly,                      /* I: output anomaly break for training purpose  */
     Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -35,8 +35,9 @@ int sccd_flex(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs,
-    double lambda);
+    bool fitting_coefs,
+    double lambda,
+    int n_coefs);
 
 int step1_ssm_initialize_flex(
     ssmodel_constants *instance, /* I/O: the outputted initial SSM model, we will assign H     */
@@ -53,7 +54,8 @@ int step1_ssm_initialize_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    double lambda);
+    double lambda,
+    int n_coefs);
 
 int step1_cold_initialize_flex(
     int conse,           /* I: adjusted consecutive observation number               */
@@ -93,7 +95,7 @@ int step2_KF_ChangeDetection_flex(
     unsigned int *sum_square_vt, /* I/O:  the sum of predicted square of residuals  */
     int *num_obs_processed,      /* I/O:  the number of current non-noise observations being processed */
     int t_start,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -105,9 +107,10 @@ int step2_KF_ChangeDetection_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda,
-    int anomaly_conse);
+    int anomaly_conse,
+    int n_coefs);
 
 /************************************************************************
 FUNCTION: step3_processingend
@@ -142,7 +145,9 @@ int step3_processing_end_flex(
     bool change_detected,
     double predictability_tcg,
     int nbands,
-    double lambda);
+    double lambda,
+    bool fitting_coefs,
+    int n_coefs);
 
 int sccd_snow_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
@@ -156,7 +161,8 @@ int sccd_snow_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    double lambda);
+    double lambda,
+    int n_coefs);
 
 int sccd_standard_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
@@ -172,7 +178,7 @@ int sccd_standard_flex(
     output_nrtqueue_flex *obs_queue, /* O: multispectral observations in queue    */
     short int *min_rmse,             /* O: adjusted rmse for the pixel    */
     int conse,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -184,6 +190,7 @@ int sccd_standard_flex(
     int nbands,
     int tmask_b1,
     int tmask_b2,
-    bool b_fitting_coefs,
-    double lambda);
+    bool fitting_coefs,
+    double lambda,
+    int n_coefs);
 #endif // CCD_STOCHASTIC_F

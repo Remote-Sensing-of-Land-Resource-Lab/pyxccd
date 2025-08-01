@@ -39,7 +39,7 @@ int sccd_flex(
     int valid_num_scenes,                     /* I: number of valid scenes under cfmask fill counts  */
     double tcg,                               /* I: the change threshold  */
     double max_t_cg,                          /* I: threshold for identfying outliers */
-    int *num_fc,                              /* O: number of fitting curves                       */
+    int *num_fc,                              /* O: number of fitting curves           */
     int *nrt_mode,                            /* O: 2nd digit: 0 - void; 1 - monitor mode for standard; 2 - queue mode for standard; 3 - monitor mode for snow; 4 - queue mode for snow; 1st digit: 1 - predictability untest */
     Output_sccd_flex *rec_cg,                 /* O: historical change records for SCCD results    */
     output_nrtmodel_flex *nrt_model,          /* O: nrt model structure for SCCD results    */
@@ -48,7 +48,7 @@ int sccd_flex(
     short int *min_rmse,                      /* O: adjusted rmse for the pixel    */
     int conse,                                /* I: consecutive observation number for change detection   */
     bool b_c2,                                /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
-    bool b_anomaly,                           /* I: output anomaly break for training purpose  */
+    bool output_anomaly,                      /* I: output anomaly break for training purpose  */
     Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -59,8 +59,9 @@ int sccd_flex(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs,
-    double lambda)
+    bool fitting_coefs,
+    double lambda,
+    int n_coefs)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
     int water_sum = 0;  /* counter for cfmask water pixels.             */
@@ -243,7 +244,7 @@ int sccd_flex(
                 }
             }
 
-            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, b_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, b_fitting_coefs, lambda);
+            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, fitting_coefs, lambda, n_coefs);
         }
     }
     else
@@ -271,7 +272,7 @@ int sccd_flex(
             }
         }
 
-        result = sccd_snow_flex(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, nbands, lambda);
+        result = sccd_snow_flex(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, nbands, lambda, n_coefs);
     }
 
     days = clrx[0];
@@ -283,15 +284,22 @@ int sccd_flex(
 
             for (i = 0; i < nbands; i++)
             {
-                states_ensemble[*n_state * 3 * nbands + i] = (double)coefs_records[cur_coefs].nrt_coefs[i][0] + (double)coefs_records[cur_coefs].nrt_coefs[i][1] * days / SLOPE_SCALE;
+                states_ensemble[*n_state * n_coefs * nbands / 2 + i] = (double)coefs_records[cur_coefs].nrt_coefs[i][0] + (double)coefs_records[cur_coefs].nrt_coefs[i][1] * days / SLOPE_SCALE;
             }
             for (i = 0; i < nbands; i++)
             {
-                states_ensemble[*n_state * 3 * nbands + nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][2] * cos((double)days * w) + coefs_records[cur_coefs].nrt_coefs[i][3] * sin((double)days * w));
+                states_ensemble[*n_state * n_coefs * nbands / 2 + nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][2] * cos((double)days * w) + coefs_records[cur_coefs].nrt_coefs[i][3] * sin((double)days * w));
             }
             for (i = 0; i < nbands; i++)
             {
-                states_ensemble[*n_state * 3 * nbands + 2 * nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][4] * cos((double)days * w * 2) + coefs_records[cur_coefs].nrt_coefs[i][5] * sin((double)days * w * 2));
+                states_ensemble[*n_state * n_coefs * nbands / 2 + 2 * nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][4] * cos((double)days * w * 2) + coefs_records[cur_coefs].nrt_coefs[i][5] * sin((double)days * w * 2));
+            }
+            if (n_coefs == 8)
+            {
+                for (i = 0; i < nbands; i++)
+                {
+                    states_ensemble[*n_state * n_coefs * nbands / 2 + 3 * nbands + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][6] * cos((double)days * w * 3) + coefs_records[cur_coefs].nrt_coefs[i][7] * sin((double)days * w * 3));
+                }
             }
             *n_state = *n_state + 1;
             days = days + state_intervaldays;
@@ -336,7 +344,8 @@ int step1_ssm_initialize_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    double lambda)
+    double lambda,
+    int n_coefs)
 {
     char FUNC_NAME[] = "step1_ssm_initialize_flex";
     float *state_sum;
@@ -432,11 +441,10 @@ int step1_ssm_initialize_flex(
         *sum_square_vt = *sum_square_vt + (unsigned int)(vt * vt);
         if (i > stable_nobs - 1)
         {
-
             if (b_coefs_records == TRUE)
             {
                 coefs_records[n_coefs_records_cp].clrx = clrx_extend[i];
-                for (k = 0; k < SCCD_NUM_C; k++)
+                for (k = 0; k < instance->m; k++)
                 {
                     coefs_records[n_coefs_records_cp].nrt_coefs[i_b][k] = fit_cft[i_b][k];
                 }
@@ -533,7 +541,7 @@ int step1_cold_initialize_flex(
     int tmp_end;
     // i_dense = *i_start;
 
-    if (*cur_i < N_TIMES * MID_NUM_C - 1)
+    if (*cur_i < i_span_min - 1)
     {
         return INCOMPLETE;
     }
@@ -607,7 +615,7 @@ int step1_cold_initialize_flex(
                      FUNC_NAME, FAILURE);
     }
 
-    fit_cft = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
+    fit_cft = (float **)allocate_2d_array(nbands, MAX_NUM_C, sizeof(float));
     if (fit_cft == NULL)
     {
         RETURN_ERROR("Allocating fit_cft memory", FUNC_NAME, FAILURE);
@@ -1277,7 +1285,7 @@ int step1_cold_initialize_flex(
         /*                                            */
         /**********************************************/
         // printf("%d\n", conse);
-        fit_cft_tmp = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
+        fit_cft_tmp = (float **)allocate_2d_array(nbands, FLEX_SCCD_NUM_C, sizeof(float));
         if (fit_cft_tmp == NULL)
         {
             RETURN_ERROR("Allocating fit_cft_tmp memory", FUNC_NAME, FAILURE);
@@ -1344,7 +1352,7 @@ int step1_cold_initialize_flex(
 
         for (i_b = 0; i_b < nbands; i_b++)
         {
-            for (k = 0; k < SCCD_NUM_C; k++)
+            for (k = 0; k < FLEX_SCCD_NUM_C; k++)
             {
                 /**************************************/
                 /*                                    */
@@ -1452,7 +1460,7 @@ int step2_KF_ChangeDetection_flex(
     unsigned int *sum_square_vt, /* I/O:  the sum of predicted square of residuals  */
     int *num_obs_processed,      /* I/O:  the number of current non-noise observations being processed */
     int t_start,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -1464,9 +1472,10 @@ int step2_KF_ChangeDetection_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda,
-    int anomaly_conse)
+    int anomaly_conse,
+    int n_coefs)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1526,7 +1535,7 @@ int step2_KF_ChangeDetection_flex(
     }
 
     for (i_b = 0; i_b < nbands; i_b++)
-        rmse_band[i_b] = (float)sum_square_vt[i_b] / (*num_obs_processed - SCCD_NUM_C);
+        rmse_band[i_b] = (float)sum_square_vt[i_b] / (*num_obs_processed - n_coefs);
 
     /* sccd examine i to be break or not so current obs is included in conse windw, while cold is not */
     // we do reverse to facilitate probability calculate
@@ -1552,7 +1561,7 @@ int step2_KF_ChangeDetection_flex(
             break_mag = v_dif_mag_norm[i_conse];
         }
 
-        if (b_anomaly == TRUE)
+        if (output_anomaly == TRUE)
         {
             if ((break_mag < anomaly_tcg) & (i_conse < anomaly_conse))
             {
@@ -1588,7 +1597,7 @@ int step2_KF_ChangeDetection_flex(
         //        }
     }
 
-    if (b_anomaly == TRUE)
+    if (output_anomaly == TRUE)
     {
         if (i_conse >= anomaly_conse)
         { // meaning that over 3 anomaly pixel
@@ -1644,7 +1653,7 @@ int step2_KF_ChangeDetection_flex(
                     }
                     for (i_b = 0; i_b < nbands; i_b++)
                     {
-                        for (k = 0; k < SCCD_NUM_C; k++)
+                        for (k = 0; k < n_coefs; k++)
                         {
                             /**********************************/
                             /*                                */
@@ -1738,11 +1747,11 @@ int step2_KF_ChangeDetection_flex(
 
         rec_cg[*num_curve].num_obs = *num_obs_processed;
         rec_cg[*num_curve].t_start = t_start;
-        if (b_fitting_coefs == TRUE)
+        if (fitting_coefs == TRUE)
         {
             for (i_b = 0; i_b < nbands; i_b++)
             {
-                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_MAX_NUM_C,
+                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, n_coefs,
                                           fit_cft, &tmp_rmse, temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
@@ -1759,7 +1768,7 @@ int step2_KF_ChangeDetection_flex(
             matlab_2d_float_median(v_dif_mag, i_b, conse,
                                    &tmp);
             rec_cg[*num_curve].magnitude[i_b] = (float)tmp;
-            for (k = 0; k < SCCD_NUM_C; k++)
+            for (k = 0; k < n_coefs; k++)
             {
                 /**********************************/
                 /*                                */
@@ -1828,7 +1837,7 @@ int step2_KF_ChangeDetection_flex(
             if (b_coefs_records == TRUE)
             {
                 coefs_records[*n_coefs_records].clrx = clrx[cur_i];
-                for (k = 0; k < SCCD_NUM_C; k++)
+                for (k = 0; k < n_coefs; k++)
                 {
                     coefs_records[*n_coefs_records].nrt_coefs[i_b][k] = fit_cft[i_b][k];
                 }
@@ -1914,7 +1923,9 @@ int step3_processing_end_flex(
     bool change_detected,
     double predictability_tcg,
     int nbands,
-    double lambda)
+    double lambda,
+    bool fitting_coefs,
+    int n_coefs)
 {
     int k, k1, k2;
     int i_b, b;
@@ -1924,7 +1935,6 @@ int step3_processing_end_flex(
     int *rm_ids;
     // double rmse_sqrt_tmp;
     float *rmse; /* Root Mean Squared Error array.        */
-    double w, w2;
     // double tmp_q;
     float **temp_v_dif;
     int istart_queue;
@@ -1948,9 +1958,7 @@ int step3_processing_end_flex(
     int conse_last;
     int valid_conse_last; // valid conse number after excluding the observations included in the model fitting
     int stable_count = 0;
-
-    w = TWO_PI / AVE_DAYS_IN_A_YEAR;
-    w2 = 2.0 * w;
+    float tmp_rmse;
 
     temp_v_dif = (float **)allocate_2d_array(nbands, *n_clr - i_start,
                                              sizeof(float));
@@ -2015,19 +2023,30 @@ int step3_processing_end_flex(
         for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
-            for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
+            for (k1 = 0; k1 < n_coefs; k1++)
             {
-                for (k2 = 0; k2 < DEFAULT_N_STATE; k2++)
+                for (k2 = 0; k2 < n_coefs; k2++)
                 {
                     // printf("k1 = %d, k2 = %d,  p = %f \n", k1, k2, gsl_matrix_get(cov_p[i_b], k1, k2));
                     if (*nrt_mode % 10 == NRT_MONITOR_STANDARD)
-                        nrt_model->covariance[i_b][k1 * DEFAULT_N_STATE + k2] = (float)gsl_matrix_get(cov_p[i_b], k1, k2);
+                        nrt_model->covariance[i_b][k1 * n_coefs + k2] = (float)gsl_matrix_get(cov_p[i_b], k1, k2);
                     else
-                        nrt_model->covariance[i_b][k1 * DEFAULT_N_STATE + k2] = 0;
+                        nrt_model->covariance[i_b][k1 * n_coefs + k2] = 0;
                 }
             }
             /*   2. nrt harmonic coefficients   */
-            for (k2 = 0; k2 < SCCD_NUM_C; k2++)
+            if (fitting_coefs == TRUE)
+            {
+                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, n_coefs,
+                                          fit_cft, &tmp_rmse, temp_v_dif, lambda);
+                if (status != SUCCESS)
+                {
+                    RETURN_ERROR("Calling auto_ts_fit_scc for clear persistent pixels\n",
+                                 FUNC_NAME, FAILURE);
+                }
+            }
+
+            for (k2 = 0; k2 < n_coefs; k2++)
                 nrt_model->nrt_coefs[i_b][k2] = fit_cft[i_b][k2];
         }
 
@@ -2089,8 +2108,8 @@ int step3_processing_end_flex(
         /* define probability of change based on conse.       */
         /*                                                        */
         /**********************************************************/
-        update_cft(num_obs_processed, N_TIMES, MIN_NUM_C, MID_NUM_C, MID_NUM_C,
-                   SCCD_NUM_C, &update_num_c);
+        update_cft(num_obs_processed, N_TIMES, MIN_NUM_C, MID_NUM_C, MAX_NUM_C,
+                   n_coefs, &update_num_c);
         for (i_b = 0; i_b < nbands; i_b++)
             rmse_band[i_b] = (float)sum_square_vt[i_b] / (num_obs_processed - update_num_c);
 
@@ -2343,7 +2362,7 @@ int sccd_standard_flex(
     output_nrtqueue_flex *obs_queue, /* O: multispectral observations in queue    */
     short int *min_rmse,             /* O: adjusted rmse for the pixel    */
     int conse,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly_flex *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -2355,14 +2374,15 @@ int sccd_standard_flex(
     int nbands,
     int tmask_b1,
     int tmask_b2,
-    bool b_fitting_coefs,
-    double lambda)
+    bool fitting_coefs,
+    double lambda,
+    int n_coefs)
 {
     int i_b;
     int status;
     int k, k1, k2;
     int i = 0;
-    char FUNC_NAME[] = "sccd_standard";
+    char FUNC_NAME[] = "sccd_standard_flex";
     // char msg_str[MAX_STR_LEN];       /* Input data scene name                 */
     float **fit_cft; /* Fitted coefficients 2-D array.        */
                      /* Mimimum RMSE                          */
@@ -2415,29 +2435,29 @@ int sccd_standard_flex(
     /* alloc memory for ssm instance */
     for (i_b = 0; i_b < nbands; i_b++)
     {
-        instance[i_b].Z = gsl_vector_alloc(DEFAULT_N_STATE);
+        instance[i_b].Z = gsl_vector_alloc(n_coefs);
         if (instance[i_b].Z == NULL)
         {
             RETURN_ERROR("Allocating instance[i_b].Z memory", FUNC_NAME, FAILURE);
         }
-        instance[i_b].T = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+        instance[i_b].T = gsl_matrix_calloc(n_coefs, n_coefs);
         if (instance[i_b].T == NULL)
         {
             RETURN_ERROR("Allocating instance[i_b].T memory", FUNC_NAME, FAILURE);
         }
-        instance[i_b].Q = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+        instance[i_b].Q = gsl_matrix_calloc(n_coefs, n_coefs);
         if (instance[i_b].Q == NULL)
         {
             RETURN_ERROR("Allocating instance[i_b].Q memory", FUNC_NAME, FAILURE);
         }
-        cov_p[i_b] = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+        cov_p[i_b] = gsl_matrix_calloc(n_coefs, n_coefs);
         if (cov_p[i_b] == NULL)
         {
             RETURN_ERROR("Allocating cov_p[i_b] memory", FUNC_NAME, FAILURE);
         }
     }
 
-    fit_cft = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
+    fit_cft = (float **)allocate_2d_array(nbands, n_coefs, sizeof(float));
     if (fit_cft == NULL)
     {
         RETURN_ERROR("Allocating fit_cft memory", FUNC_NAME, FAILURE);
@@ -2462,16 +2482,16 @@ int sccd_standard_flex(
         for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
-            for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
+            for (k1 = 0; k1 < n_coefs; k1++)
             {
-                for (k2 = 0; k2 < DEFAULT_N_STATE; k2++)
+                for (k2 = 0; k2 < n_coefs; k2++)
                 {
                     // printf("k1 = %d, k2 = %d,  p = %f \n", k1, k2, gsl_matrix_get(cov_p[i_b], k1, k2));
-                    gsl_matrix_set(cov_p[i_b], k1, k2, nrt_model->covariance[i_b][k1 * DEFAULT_N_STATE + k2]);
+                    gsl_matrix_set(cov_p[i_b], k1, k2, nrt_model->covariance[i_b][k1 * n_coefs + k2]);
                 }
             }
             /*   2. nrt harmonic coefficients   */
-            for (k2 = 0; k2 < SCCD_NUM_C; k2++)
+            for (k2 = 0; k2 < n_coefs; k2++)
                 fit_cft[i_b][k2] = nrt_model->nrt_coefs[i_b][k2];
         }
 
@@ -2487,7 +2507,7 @@ int sccd_standard_flex(
             sum_square_vt[i_b] = nrt_model->rmse_sum[i_b];
             /*     6. initialize state-space model coefficients       */
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
-            initialize_ssmconstants(DEFAULT_N_STATE, nrt_model->H[i_b], base_value, &instance[i_b]);
+            initialize_ssmconstants(n_coefs, nrt_model->H[i_b], base_value, &instance[i_b]);
         }
     }
     else if ((*nrt_mode % 10 == NRT_QUEUE_STANDARD) | (*nrt_mode % 10 == NRT_MONITOR2QUEUE))
@@ -2503,7 +2523,7 @@ int sccd_standard_flex(
             //                }
             //            }
             /*   2. nrt harmonic coefficients   */
-            for (k2 = 0; k2 < SCCD_NUM_C; k2++)
+            for (k2 = 0; k2 < n_coefs; k2++)
                 fit_cft[i_b][k2] = 0;
         }
 
@@ -2559,7 +2579,7 @@ int sccd_standard_flex(
             /*                                                             */
             /***************************************************************/
             status = INCOMPLETE;
-            if ((i_span >= N_TIMES * MID_NUM_C) && (time_span >= (double)MIN_YEARS))
+            if ((i_span >= N_TIMES * n_coefs) && (time_span >= (double)MIN_YEARS))
             {
                 /**************************************************************/
                 /*                                                            */
@@ -2568,8 +2588,7 @@ int sccd_standard_flex(
                 /**************************************************************/
                 status = step1_cold_initialize_flex(conse, min_rmse, n_clr, tcg, max_t_cg, &i_dense,
                                                     num_fc, clrx, clry, &i, &i_start, rec_cg,
-                                                    N_TIMES * MID_NUM_C, &prev_i_break, rmse_ini, nbands,
-                                                    tmask_b1, tmask_b2, lambda);
+                                                    N_TIMES * n_coefs, &prev_i_break, rmse_ini, nbands, tmask_b1, tmask_b2, lambda);
             }
 
             if (INCOMPLETE == status)
@@ -2587,7 +2606,7 @@ int sccd_standard_flex(
                 for (i_b = 0; i_b < nbands; i_b++)
                 {
 
-                    status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, i, SCCD_NUM_C,
+                    status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, i, n_coefs,
                                               fit_cft, &rmse_ini[i_b], rec_v_dif, lambda);
                     //                    if (i_b == 3){
                     //                        printf("fit_cft[0][0]: %f\n", fit_cft[i_b][0]);
@@ -2608,7 +2627,7 @@ int sccd_standard_flex(
                 {
                     unadjusted_rmse = rmse_ini[i_b] * rmse_ini[i_b];
                     base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[i_start] / SLOPE_SCALE;
-                    initialize_ssmconstants(DEFAULT_N_STATE, unadjusted_rmse, base_value, &instance[i_b]);
+                    initialize_ssmconstants(n_coefs, unadjusted_rmse, base_value, &instance[i_b]);
                     /**************************************************************/
                     /*                                                            */
                     /*  initialize a and p                                        */
@@ -2616,7 +2635,7 @@ int sccd_standard_flex(
                     /**************************************************************/
                     step1_ssm_initialize_flex(&instance[i_b], clrx, clry[i_b], i_start, i, fit_cft,
                                               cov_p[i_b], i_b, &sum_square_vt[i_b], *n_clr,
-                                              b_coefs_records, n_coefs_records, coefs_records, nbands, lambda);
+                                              b_coefs_records, n_coefs_records, coefs_records, nbands, lambda, n_coefs);
                 }
                 num_obs_processed = i - i_start + 1;
                 t_start = clrx[i_start];
@@ -2639,7 +2658,7 @@ int sccd_standard_flex(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, b_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg, b_coefs_records, n_coefs_records, coefs_records, nbands, b_fitting_coefs, lambda, anomaly_conse);
+            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg, b_coefs_records, n_coefs_records, coefs_records, nbands, fitting_coefs, lambda, anomaly_conse, n_coefs);
 
             if (status == CHANGEDETECTED)
             {
@@ -2664,16 +2683,16 @@ int sccd_standard_flex(
                 for (i_b = 0; i_b < nbands; i_b++)
                 {
                     /*   1. covariance matrix   */
-                    for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
+                    for (k1 = 0; k1 < n_coefs; k1++)
                     {
-                        for (k2 = 0; k2 < DEFAULT_N_STATE; k2++)
+                        for (k2 = 0; k2 < n_coefs; k2++)
                         {
                             // printf("k1 = %d, k2 = %d,  p = %f \n", k1, k2, gsl_matrix_get(cov_p[i_b], k1, k2));
-                            nrt_model->covariance[i_b][k1 * DEFAULT_N_STATE + k2] = (float)gsl_matrix_get(cov_p[i_b], k1, k2);
+                            nrt_model->covariance[i_b][k1 * n_coefs + k2] = (float)gsl_matrix_get(cov_p[i_b], k1, k2);
                         }
                     }
                     /*   2. nrt harmonic coefficients   */
-                    for (k2 = 0; k2 < SCCD_NUM_C; k2++)
+                    for (k2 = 0; k2 < n_coefs; k2++)
                         nrt_model->nrt_coefs[i_b][k2] = fit_cft[i_b][k2];
                 }
 
@@ -2827,7 +2846,7 @@ int sccd_standard_flex(
     status = step3_processing_end_flex(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                        i_start, prev_i_break, nrt_model, num_obs_queue, obs_queue,
                                        sum_square_vt, num_obs_processed, t_start, conse, min_rmse,
-                                       anomaly_tcg, change_detected, predictability_tcg, nbands, lambda);
+                                       anomaly_tcg, change_detected, predictability_tcg, nbands, lambda, fitting_coefs, n_coefs);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))
@@ -2891,7 +2910,8 @@ int sccd_snow_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    double lambda)
+    double lambda,
+    int n_coefs)
 {
     int k;
     int i_start = 0;    /* the first observation for TSFit */
@@ -2946,23 +2966,23 @@ int sccd_snow_flex(
 
     for (i_b = 0; i_b < nbands; i_b++)
     {
-        instance[i_b].Z = gsl_vector_alloc(DEFAULT_N_STATE);
+        instance[i_b].Z = gsl_vector_alloc(n_coefs);
         if (instance[i_b].Z == NULL)
         {
             RETURN_ERROR("Allocating instance[i_b].Z memory", FUNC_NAME, FAILURE);
         }
-        instance[i_b].T = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+        instance[i_b].T = gsl_matrix_calloc(n_coefs, n_coefs);
         if (instance[i_b].T == NULL)
         {
             RETURN_ERROR("Allocating instance[i_b].T memory", FUNC_NAME, FAILURE);
         }
-        instance[i_b].Q = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+        instance[i_b].Q = gsl_matrix_calloc(n_coefs, n_coefs);
         if (instance[i_b].Q == NULL)
         {
             RETURN_ERROR("Allocating instance[i_b].Q memory", FUNC_NAME, FAILURE);
         }
-        state_a[i_b] = gsl_vector_alloc(DEFAULT_N_STATE);
-        cov_p[i_b] = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+        state_a[i_b] = gsl_vector_alloc(n_coefs);
+        cov_p[i_b] = gsl_matrix_calloc(n_coefs, n_coefs);
     }
 
     fit_cft = (float **)allocate_2d_array(nbands, SCCD_NUM_C, sizeof(float));
@@ -3055,7 +3075,7 @@ int sccd_snow_flex(
         for (i_b = 0; i_b < nbands; i_b++)
         {
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
-            initialize_ssmconstants(DEFAULT_N_STATE, rmse[i_b], base_value, &instance[i_b]);
+            initialize_ssmconstants(n_coefs, rmse[i_b], base_value, &instance[i_b]);
             /**************************************************************/
             /*                                                            */
             /*  initialize a and p                                        */
@@ -3063,7 +3083,7 @@ int sccd_snow_flex(
             /**************************************************************/
             step1_ssm_initialize_flex(&instance[i_b], clrx, clry[i_b], i_start, n_clr - 1,
                                       fit_cft, cov_p[i_b], i_b, &sum_square_vt[i_b], n_clr,
-                                      b_coefs_records, n_coefs_records, coefs_records, nbands, lambda);
+                                      b_coefs_records, n_coefs_records, coefs_records, nbands, lambda, SCCD_NUM_C);
             nrt_model[0].H[i_b] = instance[i_b].H;
         }
 
@@ -3077,12 +3097,12 @@ int sccd_snow_flex(
         for (i_b = 0; i_b < nbands; i_b++)
         {
             /*   1. covariance matrix   */
-            for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
+            for (k1 = 0; k1 < n_coefs; k1++)
             {
-                for (k2 = 0; k2 < DEFAULT_N_STATE; k2++)
+                for (k2 = 0; k2 < n_coefs; k2++)
                 {
                     // printf("k1 = %d, k2 = %d,  p = %f \n", k1, k2, gsl_matrix_get(cov_p[i_b], k1, k2));
-                    gsl_matrix_set(cov_p[i_b], k1, k2, nrt_model[0].covariance[i_b][k1 * DEFAULT_N_STATE + k2]);
+                    gsl_matrix_set(cov_p[i_b], k1, k2, nrt_model[0].covariance[i_b][k1 * n_coefs + k2]);
                 }
             }
             /*   2. nrt harmonic coefficients   */
@@ -3096,7 +3116,7 @@ int sccd_snow_flex(
             sum_square_vt[i_b] = nrt_model[0].rmse_sum[i_b];
             /*     6. initialize state-space model coefficients       */
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
-            initialize_ssmconstants(DEFAULT_N_STATE, nrt_model[0].H[i_b], base_value, &instance[i_b]);
+            initialize_ssmconstants(n_coefs, nrt_model[0].H[i_b], base_value, &instance[i_b]);
         }
 
         nrt_model[0].num_obs = nrt_model[0].num_obs + n_clr - DEFAULT_CONSE_SCCD;
@@ -3139,11 +3159,11 @@ int sccd_snow_flex(
 
     for (i_b = 0; i_b < nbands; i_b++)
     {
-        for (k1 = 0; k1 < DEFAULT_N_STATE; k1++)
+        for (k1 = 0; k1 < n_coefs; k1++)
         {
-            for (k2 = 0; k2 < DEFAULT_N_STATE; k2++)
+            for (k2 = 0; k2 < n_coefs; k2++)
             {
-                nrt_model[0].covariance[i_b][k1 * DEFAULT_N_STATE + k2] = (float)(gsl_matrix_get(cov_p[i_b], k1, k2));
+                nrt_model[0].covariance[i_b][k1 * n_coefs + k2] = (float)(gsl_matrix_get(cov_p[i_b], k1, k2));
             }
             nrt_model[0].nrt_coefs[i_b][k1] = fit_cft[i_b][k1];
         }

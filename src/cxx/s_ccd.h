@@ -26,7 +26,7 @@ int sccd(
     short int *min_rmse,                 /* O: adjusted rmse for the pixel    */
     int conse,                           /* I: consecutive observation number for change detection   */
     bool b_c2,                           /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
-    bool b_anomaly,                      /* I: output anomaly break for training purpose  */
+    bool output_anomaly,                 /* I: output anomaly break for training purpose  */
     Output_sccd_anomaly *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -37,7 +37,7 @@ int sccd(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda);
 
 int step1_cold_initialize(
@@ -89,9 +89,9 @@ int step2_KF_ChangeDetection(
     unsigned int *sum_square_vt, /* I/O:  the sum of predicted square of residuals  */
     int *num_obs_processed,      /* I/O:  the number of current non-noise observations being processed */
     int t_start,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly *rec_cg_anomaly, /* O: historical change records for SCCD results    */
-    int *num_fc_b_anomaly,
+    int *num_fc_output_anomaly,
     double anomaly_tcg,
     short int *norm_cm_scale100,
     short int *mean_angle_scale100,
@@ -100,7 +100,7 @@ int step2_KF_ChangeDetection(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda,
     int anomaly_conse);
 
@@ -135,7 +135,9 @@ int step3_processing_end(
     short int *min_rmse,
     double anomaly_tcg,
     bool change_detected,
-    double predictability_tcg);
+    double predictability_tcg,
+    double lambda,
+    bool fitting_coefs);
 
 int sccd_snow(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */
@@ -163,15 +165,15 @@ int sccd_standard(
     output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
     short int *min_rmse,        /* O: adjusted rmse for the pixel    */
     int conse,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly *rec_cg_anomaly, /* O: historical change records for SCCD results    */
-    int *num_fc_b_anomaly,
+    int *num_fc_output_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda);
 #endif // CCD_STOCHASTIC_H

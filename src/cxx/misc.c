@@ -2091,10 +2091,48 @@ int auto_ts_fit_sccd(
             }
         }
         break;
+    case 8:
+        for (i = 0; i < nums; i++)
+        {
+            x[0][i] = (float)clrx[i + start];
+            x[1][i] = (float)cos(w * (float)clrx[i + start]);
+            x[2][i] = (float)sin(w * (float)clrx[i + start]);
+            x[3][i] = (float)cos(2.0 * w * (float)clrx[i + start]);
+            x[4][i] = (float)sin(2.0 * w * (float)clrx[i + start]);
+            x[5][i] = (float)cos(3.0 * w * (float)clrx[i + start]);
+            x[6][i] = (float)sin(3.0 * w * (float)clrx[i + start]);
+            y[i] = (float)clry[band_index][i + start];
+        }
+
+        status = c_glmnet(nums, df - 1, &x[0][0], y, nlam, ulam, alpha, &lmu, cfs);
+        if (status != SUCCESS)
+        {
+            sprintf(errmsg, "Calling c_glmnet when df = %d", df);
+            RETURN_ERROR(errmsg, FUNC_NAME, ERROR)
+        }
+
+        for (i = 0; i < LASSO_COEFFS; i++)
+            coefs[lasso_band_index][i] = 0.0;
+
+        for (i = 0; i < lmu; i++)
+        {
+            for (j = 0; j < df; j++)
+            {
+                if (j == 1)
+                {
+                    coefs[lasso_band_index][j] = (float)(cfs[i][j] * SLOPE_SCALE);
+                }
+                else
+                {
+                    coefs[lasso_band_index][j] = (float)(cfs[i][j]);
+                }
+            }
+        }
+        break;
     }
 
     /* predict lasso model results */
-    if (df == 2 || df == 4 || df == 6)
+    if (df == 2 || df == 4 || df == 6 || df == 8)
     {
         auto_ts_predict_float(clrx, coefs, df, lasso_band_index, start, end, yhat);
         for (i = 0; i < nums; i++)
@@ -2108,7 +2146,7 @@ int auto_ts_fit_sccd(
 
     /* Free allocated memory */
     free(yhat);
-    if (df == 2 || df == 4 || df == 5 || df == 6)
+    if (df == 2 || df == 4 || df == 5 || df == 6 || df == 8)
     {
         if (free_2d_array((void **)x) != SUCCESS)
         {

@@ -32,9 +32,9 @@ _parameter_constraints: dict = {
     "starting_date": [Interval(Integral, 0, None, closed="left")],
     "n_cm": [Interval(Integral, 0, None, closed="left")],
     "conse": [Interval(Integral, 0, 12, closed="neither")],
-    "b_output_cm": ["boolean"],
+    "output_cm": ["boolean"],
     "gap_days": [Interval(Real, 0.0, None, closed="left")],
-    "b_anomaly": ["boolean"],
+    "output_anomaly": ["boolean"],
     "anomaly_pcg": [Interval(Real, 0.0, 1, closed="neither")],
     "anomaly_conse": [Interval(Integral, 0, 8, closed="right")],
     "sccd_conse": [Interval(Integral, 0, 8, closed="right")],
@@ -46,6 +46,7 @@ _parameter_constraints: dict = {
     "transform_mode": ["boolean"],
     "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
     "lam": [Interval(Real, 0.0, None, closed="left")],
+    "trimodel": ["boolean"]
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
@@ -156,7 +157,7 @@ def cold_detect(
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_output_cm=False,
+    output_cm=False,
     starting_date=0,
     n_cm=0,
     cm_output_interval=0,
@@ -192,14 +193,14 @@ def cold_detect(
         consecutive observation number, by default 6
     pos: int
         position id of the pixel, by default 1
-    b_output_cm: bool
+    output_cm: bool
         'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e., (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
     starting_date: int
-        the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile. should have the same date, only for b_output_cm is True. by default 0.
+        the starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile. should have the same date, only for output_cm is True. by default 0.
     n_cm: int
-        length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
+        length of outputted change magnitude. Only output_cm == 'True'. by default 0.
     cm_output_interval: int
-        temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
+        temporal interval of outputting change magnitudes. Only output_cm == 'True'. by default 0.
     b_c2: bool
         a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality. by default True
     gap_days: int
@@ -211,8 +212,8 @@ def cold_detect(
     -------
     numpy.ndarray | (numpy.ndarray, numpy.ndarray, numpy.ndarray)
 
-        If  b_output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd;
-        if b_output_cm is True, a tuple (cold_results, cm_outputs, cm_outputs_date) will be returned
+        If  output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd;
+        if output_cm is True, a tuple (cold_results, cm_outputs, cm_outputs_date) will be returned
 
             cold_results: numpy.ndarray
                 A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
@@ -245,7 +246,7 @@ def cold_detect(
         p_cg=p_cg,
         pos=pos,
         conse=conse,
-        b_output_cm=b_output_cm,
+        output_cm=output_cm,
         starting_date=starting_date,
         n_cm=n_cm,
         cm_output_interval=cm_output_interval,
@@ -273,7 +274,7 @@ def cold_detect(
         t_cg,
         conse,
         pos,
-        b_output_cm,
+        output_cm,
         starting_date,
         n_cm,
         cm_output_interval,
@@ -377,11 +378,11 @@ def sccd_detect(
     conse=6,
     pos=1,
     b_c2=True,
-    b_anomaly=False,
+    output_anomaly=False,
     anomaly_pcg=0.90,
     anomaly_conse=3,
     state_intervaldays=0.0,
-    b_fitting_coefs=False,
+    fitting_coefs=False,
     lam=20,
 ):
     """Offline SCCD algorithm for processing historical time series.
@@ -414,7 +415,7 @@ def sccd_detect(
     b_c2: bool
         A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
         pixel test due to the current low quality. by default True
-    b_anomaly: bool
+    output_anomaly: bool
         If true, output anomaly breaks where a anomaly is an overdetection of break using conse 3 and threshold = anomaly_tcg,
         which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
         Note that anomalys is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
@@ -424,7 +425,7 @@ def sccd_detect(
         Consecutive observation number to determine anomaly identification, by default 3. No more than 8.
     state_intervaldays: float
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
-    b_fitting_coefs: bool
+    fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
     lam: float
         The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
@@ -432,9 +433,9 @@ def sccd_detect(
     -------
     :py:type:`~pyxccd.common.SccdOutput` | (:py:type:`~pyxccd.common.SccdOutput`, pd.DataFrame) | (:py:type:`~pyxccd.common.SccdOutput`, numpy.ndarray)
 
-        If b_anomaly is False and b_output_state is False, sccdoutput will be returned (by default);
-        if b_anomaly is False and b_output_state is True,  (sccdoutput, states_info) will be returned;
-        if b_anomaly is True, (sccdoutput, anomalys) will be returned
+        If output_anomaly is False and b_output_state is False, sccdoutput will be returned (by default);
+        if output_anomaly is False and b_output_state is True,  (sccdoutput, states_info) will be returned;
+        if output_anomaly is True, (sccdoutput, anomalys) will be returned
 
             sccdoutput: :py:type:`~pyxccd.common.SccdOutput`
                 A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
@@ -466,7 +467,7 @@ def sccd_detect(
         pos=pos,
         sccd_conse=conse,
         b_c2=b_c2,
-        b_anomaly=b_anomaly,
+        output_anomaly=output_anomaly,
         anomaly_pcg=anomaly_pcg,
         anomaly_conse=anomaly_conse,
         state_intervaldays=state_intervaldays,
@@ -481,7 +482,7 @@ def sccd_detect(
     anomaly_tcg = chi2.ppf(anomaly_pcg, DEFAULT_BANDS)
     # sccd_wrapper = SccdDetectWrapper()
     # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
-    #                                 pos, conse, b_c2, b_anomaly, anomaly_tcg, b_monitor_init))
+    #                                 pos, conse, b_c2, output_anomaly, anomaly_tcg, b_monitor_init))
     # return tmp
     if state_intervaldays == 0:
         b_output_state = False
@@ -501,13 +502,13 @@ def sccd_detect(
         conse,
         pos,
         b_c2,
-        b_anomaly,
+        output_anomaly,
         anomaly_tcg,
         anomaly_conse,
         DEFAULT_PRED_TCG,
         b_output_state,
         state_intervaldays,
-        b_fitting_coefs,
+        fitting_coefs,
         lam,
     )
 
@@ -578,7 +579,7 @@ def sccd_update(
         p_cg=p_cg,
         pos=pos,
         sccd_conse=conse,
-        b_anomaly=False,
+        output_anomaly=False,
         anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
         lam=lam,
@@ -713,13 +714,13 @@ def cold_detect_flex(
     p_cg=0.99,
     conse=6,
     pos=1,
-    b_output_cm=False,
+    output_cm=False,
     starting_date=0,
     n_cm=0,
     cm_output_interval=0,
     gap_days=365.25,
-    tmask_b1=1,
-    tmask_b2=1,
+    tmask_b1_index=1,
+    tmask_b2_index=1,
 ):
     """running pixel-based COLD algorithm for any band combination (flexible mode).
 
@@ -739,28 +740,28 @@ def cold_detect_flex(
         Consecutive observation number, by default 6
     pos: int
         position id of the pixel, by default 1
-    b_output_cm: bool
+    output_cm: bool
         'True' means outputting change magnitude and change magnitude dates (OB-COLD), i.e.,
         (cold_results, cm_outputs, cm_outputs_date); 'False' will output only cold_results
     starting_date: int
-        The starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for b_output_cm is True. by default 0.
+        The starting date of the whole dataset to enable reconstruct CM_date, all pixels for a tile should have the same date, only for output_cm is True. by default 0.
     n_cm: int
-        Length of outputted change magnitude. Only b_output_cm == 'True'. by default 0.
+        Length of outputted change magnitude. Only output_cm == 'True'. by default 0.
     cm_output_interval: int
-        Temporal interval of outputting change magnitudes. Only b_output_cm == 'True'. by default 0.
+        Temporal interval of outputting change magnitudes. Only output_cm == 'True'. by default 0.
     gap_days: int
         Define the day number of the gap year for determining i_dense. The COLD will skip the i_dense days to set the starting point of the model. Setting a large value (e.g., 1500) if the gap year is in the middle of the time range. by default 365.25.
-    tmask_b1: int
+    tmask_b1_index: int
         The first band id for tmask. Started from 1. The default CCDC is 2 (green)
-    tmask_b2: int
+    tmask_b2_index: int
         The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
 
     Returns
     -------
     numpy.ndarray | (numpy.ndarray, numpy.ndarray, numpy.ndarray)
 
-        If  b_output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd;
-        if b_output_cm is True, a tuple (cold_results, cm_outputs, cm_outputs_date) will be returned
+        If  output_cm is False, a structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg` is returnd;
+        if output_cm is True, a tuple (cold_results, cm_outputs, cm_outputs_date) will be returned
 
             cold_results: numpy.ndarray
                 A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`
@@ -785,7 +786,7 @@ def cold_detect_flex(
         p_cg=p_cg,
         pos=pos,
         conse=conse,
-        b_output_cm=b_output_cm,
+        output_cm=output_cm,
         starting_date=starting_date,
         n_cm=n_cm,
         cm_output_interval=cm_output_interval,
@@ -801,8 +802,10 @@ def cold_detect_flex(
         raise RuntimeError(
             f"Can't input more than {MAX_FLEX_BAND} bands ({nbands} > {MAX_FLEX_BAND})"
         )
-    if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError("tmask_b1 or tmask_b2 is larger than the input band number")
+    if (tmask_b1_index > nbands) or (tmask_b2_index > nbands):
+        raise RuntimeError(
+            "tmask_b1_index or tmask_b2_index is larger than the input band number"
+        )
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.99999, nbands)
     rec_cg = _cold_detect_flex(
@@ -815,13 +818,13 @@ def cold_detect_flex(
         max_t_cg,
         conse,
         pos,
-        b_output_cm,
+        output_cm,
         starting_date,
         n_cm,
         cm_output_interval,
         gap_days,
-        tmask_b1,
-        tmask_b2,
+        tmask_b1_index,
+        tmask_b2_index,
         lam,
     )
     # dt = numpy.dtype([('t_start', numpy.int32), ('t_end', numpy.int32), ('t_break', numpy.int32), ('pos', numpy.int32),
@@ -838,13 +841,14 @@ def sccd_detect_flex(
     conse=6,
     pos=1,
     b_c2=True,
-    b_anomaly=False,
+    output_anomaly=False,
     anomaly_pcg=0.90,
     anomaly_conse=3,
     state_intervaldays=0.0,
-    tmask_b1=1,
-    tmask_b2=1,
-    b_fitting_coefs=False,
+    tmask_b1_index=1,
+    tmask_b2_index=1,
+    fitting_coefs=False,
+    trimodel=False
 ):
     """
     Offline SCCD algorithm for processing historical time series for any band combination.
@@ -869,7 +873,7 @@ def sccd_detect_flex(
     b_c2: bool
         A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
         pixel test due to the current low quality. by default True
-    b_anomaly: bool
+    output_anomaly: bool
         If true, output anomaly breaks where a anomaly is an overdetection of break using conse 3 and threshold = anomaly_tcg, which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
         Note that anomalys is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
     anomaly_pcg: float
@@ -878,12 +882,14 @@ def sccd_detect_flex(
         Consecutive observation number to determine anomaly identification, by default 3
     state_intervaldays: float
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
-    b_fitting_coefs: bool
+    fitting_coefs: bool
         If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
-    tmask_b1: int
+    tmask_b1_index: int
         The first band id for tmask. Started from 1. The default CCDC is 2 (green)
-    tmask_b2: int
+    tmask_b2_index: int
         The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
+    trimodel: bool
+        indicate if trimodel component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
 
     Returns
     ----------
@@ -912,11 +918,12 @@ def sccd_detect_flex(
         pos=pos,
         sccd_conse=conse,
         b_c2=b_c2,
-        b_anomaly=b_anomaly,
+        output_anomaly=output_anomaly,
         anomaly_pcg=anomaly_pcg,
         anomaly_conse=anomaly_conse,
         state_intervaldays=state_intervaldays,
         lam=lam,
+        trimodel=trimodel
     )
     # make sure it is c contiguous array and 64 bit
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -926,15 +933,17 @@ def sccd_detect_flex(
         raise RuntimeError(
             f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
         )
-    if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError(f"tmask_b1 or tmask_b2 is larger than the input band number")
+    if (tmask_b1_index > nbands) or (tmask_b2_index > nbands):
+        raise RuntimeError(
+            f"tmask_b1_index or tmask_b2_index is larger than the input band number"
+        )
 
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
     anomaly_tcg = chi2.ppf(anomaly_pcg, nbands)
     # sccd_wrapper = SccdDetectWrapper()
     # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
-    #                                 pos, conse, b_c2, b_anomaly, anomaly_tcg, b_monitor_init))
+    #                                 pos, conse, b_c2, output_anomaly, anomaly_tcg, b_monitor_init))
     # return tmp
     b_output_state = False if state_intervaldays == 0 else True
 
@@ -949,16 +958,17 @@ def sccd_detect_flex(
         conse,
         pos,
         b_c2,
-        b_anomaly,
+        output_anomaly,
         anomaly_tcg,
         anomaly_conse,
         DEFAULT_PRED_TCG,
         b_output_state,
         state_intervaldays,
-        tmask_b1,
-        tmask_b2,
-        b_fitting_coefs,
+        tmask_b1_index,
+        tmask_b2_index,
+        fitting_coefs,
         lam,
+        trimodel
     )
 
 
@@ -974,8 +984,9 @@ def sccd_update_flex(
     b_c2=True,
     anomaly_pcg=0.90,
     predictability_pcg=0.90,
-    tmask_b1=1,
-    tmask_b2=1,
+    tmask_b1_index=1,
+    tmask_b2_index=1,
+    trimodel=False
 ):
     """
     SCCD online update for new observations for any band combination
@@ -1004,6 +1015,8 @@ def sccd_update_flex(
         Change probability threshold for defining spectral anomalies /anomaly, by default 0.90.
     predictability_pcg: float
         Probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
+    trimodel: bool
+        indicate if trimodel component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
     Returns
     ----------
     :py:type:`~pyxccd.common.SccdOutput`
@@ -1019,10 +1032,11 @@ def sccd_update_flex(
         pos=pos,
         sccd_conse=conse,
         b_c2=b_c2,
-        b_anomaly=False,
+        output_anomaly=False,
         anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
         lam=lam,
+        trimodel=trimodel
     )
 
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -1039,8 +1053,10 @@ def sccd_update_flex(
         raise RuntimeError(
             f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
         )
-    if (tmask_b1 > nbands) or (tmask_b2 > nbands):
-        raise RuntimeError(f"tmask_b1 or tmask_b2 is larger than the input band number")
+    if (tmask_b1_index > nbands) or (tmask_b2_index > nbands):
+        raise RuntimeError(
+            f"tmask_b1_index or tmask_b2_index is larger than the input band number"
+        )
 
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
@@ -1061,7 +1077,8 @@ def sccd_update_flex(
         b_c2,
         anomaly_tcg,
         predictability_tcg,
-        tmask_b1,
-        tmask_b2,
+        tmask_b1_index,
+        tmask_b2_index,
         lam,
+        trimodel
     )

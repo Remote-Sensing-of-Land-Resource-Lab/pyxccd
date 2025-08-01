@@ -75,7 +75,7 @@ typedef struct
     8: model has 7 coefs + 1 const*/
     short int change_prob; /* the probability of a pixel that have undergone
                               change (between 0 and 100) */
-    float coefs[TOTAL_IMAGE_BANDS_FLEX][NUM_COEFFS];
+    float coefs[TOTAL_IMAGE_BANDS_FLEX][FLEX_SCCD_NUM_C];
     /*  coefficients for each time series model for each
         spectral band*/
     float rmse[TOTAL_IMAGE_BANDS_FLEX];
@@ -146,7 +146,9 @@ typedef struct
     int clrx;
 } nrt_state_records;
 
-/* The below are sccd flexible mode*/
+/********************************************************************/
+/*               The below are sccd flexible mode                   */
+/********************************************************************/
 typedef struct
 {
     int t_start; /* time when series model gets started */
@@ -155,7 +157,7 @@ typedef struct
     /* change (between 0 and 100) */
     int num_obs; /* the number of "good" observations used for model
                     estimation */
-    float coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][SCCD_NUM_C];
+    float coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C];
     /*  coefficients for each time series model for each
         spectral band*/
     float rmse[TOTAL_IMAGE_BANDS_FLEX_SCCD];
@@ -168,7 +170,7 @@ typedef struct
 typedef struct
 {
     int t_break; /* time when the first break (change) is observed */
-    float coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][SCCD_NUM_C];
+    float coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C];
     short int obs[TOTAL_IMAGE_BANDS_FLEX_SCCD][DEFAULT_CONSE_SCCD];
     short int obs_date_since1982[DEFAULT_CONSE_SCCD];
     short int norm_cm[DEFAULT_CONSE_SCCD];
@@ -181,8 +183,8 @@ typedef struct
     short int num_obs;
     short int obs[TOTAL_IMAGE_BANDS_FLEX_SCCD][DEFAULT_CONSE_SCCD];                   /* the last observations, d=(TOTAL_IMAGE_BANDS, conse - 1) */
     short int obs_date_since1982[DEFAULT_CONSE_SCCD];                                 /* dates (Julian dates - JULIAN_DATE_LAST_DAY_1972) the for observations, d=(TOTAL_IMAGE_BANDS, conse - 1) */
-    float covariance[TOTAL_IMAGE_BANDS_FLEX_SCCD][DEFAULT_N_STATE * DEFAULT_N_STATE]; /* covariance matrix,  d=(TOTAL_IMAGE_BANDS, SCCD_NUM_C * SCCD_NUM_C), the corresponding date is the first element of conse_obs_date */
-    float nrt_coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][SCCD_NUM_C];                         /* state matrix, d=(TOTAL_IMAGE_BANDS, SCCD_NUM_C)  */
+    float covariance[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C * FLEX_SCCD_NUM_C]; /* covariance matrix,  d=(TOTAL_IMAGE_BANDS, SCCD_NUM_C * SCCD_NUM_C), the corresponding date is the first element of conse_obs_date */
+    float nrt_coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C];                    /* state matrix, d=(TOTAL_IMAGE_BANDS, SCCD_NUM_C)  */
     float H[TOTAL_IMAGE_BANDS_FLEX_SCCD];                                             /*  observation noice, d=TOTAL_IMAGE_BANDS   */
     unsigned int rmse_sum[TOTAL_IMAGE_BANDS_FLEX_SCCD];
     short int norm_cm;
@@ -198,13 +200,13 @@ typedef struct
 
 typedef struct
 {
-    float nrt_coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][SCCD_NUM_C];
+    float nrt_coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C];
     int clrx;
 } nrt_coefs_records_flex;
 
 typedef struct
 {
-    float nrt_coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][HALF_DEFAULT_N_STATE];
+    float nrt_coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][HALF_FLEX_SCCD_NUM_C];
     int clrx;
 } nrt_state_records_flex;
 

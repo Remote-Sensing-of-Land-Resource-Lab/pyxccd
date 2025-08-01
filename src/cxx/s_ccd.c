@@ -52,7 +52,7 @@ int sccd(
     short int *min_rmse,                 /* O: adjusted rmse for the pixel    */
     int conse,                           /* I: consecutive observation number for change detection   */
     bool b_c2,                           /* I: a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band due to the current low quality  */
-    bool b_anomaly,                      /* I: output anomaly break for training purpose  */
+    bool output_anomaly,                 /* I: output anomaly break for training purpose  */
     Output_sccd_anomaly *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -63,7 +63,7 @@ int sccd(
     int *n_state,
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda)
 {
     int clear_sum = 0;  /* Total number of clear cfmask pixels          */
@@ -260,7 +260,7 @@ int sccd(
                 }
             }
 
-            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, b_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, b_fitting_coefs, lambda);
+            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, fitting_coefs, lambda);
         }
     }
     else
@@ -1576,7 +1576,7 @@ int step2_KF_ChangeDetection(
     unsigned int *sum_square_vt, /* I/O:  the sum of predicted square of residuals  */
     int *num_obs_processed,      /* I/O:  the number of current non-noise observations being processed */
     int t_start,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -1587,7 +1587,7 @@ int step2_KF_ChangeDetection(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda,
     int anomaly_conse)
 {
@@ -1694,7 +1694,7 @@ int step2_KF_ChangeDetection(
             break_mag = v_dif_mag_norm[i_conse];
         }
 
-        if (b_anomaly == TRUE)
+        if (output_anomaly == TRUE)
         {
             if ((break_mag < anomaly_tcg) & (i_conse < anomaly_conse))
             {
@@ -1730,7 +1730,7 @@ int step2_KF_ChangeDetection(
         //        }
     }
 
-    if (b_anomaly == TRUE)
+    if (output_anomaly == TRUE)
     {
         if (i_conse >= anomaly_conse)
         { // meaning that over 3 anomaly pixel
@@ -1886,11 +1886,11 @@ int step2_KF_ChangeDetection(
         rec_cg[*num_curve].num_obs = *num_obs_processed;
         rec_cg[*num_curve].t_start = t_start;
 
-        if (b_fitting_coefs == TRUE)
+        if (fitting_coefs == TRUE)
         {
             for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
             {
-                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_MAX_NUM_C,
+                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_NUM_C,
                                           fit_cft, &tmp_rmse, temp_v_dif, lambda);
                 if (status != SUCCESS)
                 {
@@ -2058,7 +2058,9 @@ int step3_processing_end(
     short int *min_rmse,
     double anomaly_tcg,
     bool change_detected,
-    double predictability_tcg)
+    double predictability_tcg,
+    double lambda,
+    bool fitting_coefs)
 {
     int k, k1, k2;
     int i_b, b;
@@ -2092,6 +2094,7 @@ int step3_processing_end(
     int conse_last;
     int valid_conse_last; // valid conse number after excluding the observations included in the model fitting
     int stable_count = 0;
+    float tmp_rmse;
 
     w = TWO_PI / AVE_DAYS_IN_A_YEAR;
     w2 = 2.0 * w;
@@ -2177,6 +2180,16 @@ int step3_processing_end(
                 }
             }
             /*   2. nrt harmonic coefficients   */
+            if (fitting_coefs == TRUE)
+            {
+                status = auto_ts_fit_sccd(clrx, clry, i_b, i_b, i_start, cur_i, SCCD_NUM_C,
+                                          fit_cft, &tmp_rmse, temp_v_dif, lambda);
+                if (status != SUCCESS)
+                {
+                    RETURN_ERROR("Calling auto_ts_fit_scc for clear persistent pixels\n",
+                                 FUNC_NAME, FAILURE);
+                }
+            }
             for (k2 = 0; k2 < SCCD_NUM_C; k2++)
                 nrt_model->nrt_coefs[i_b][k2] = fit_cft[i_b][k2];
         }
@@ -2502,7 +2515,7 @@ int sccd_standard(
     output_nrtqueue *obs_queue, /* O: multispectral observations in queue    */
     short int *min_rmse,        /* O: adjusted rmse for the pixel    */
     int conse,
-    bool b_anomaly,
+    bool output_anomaly,
     Output_sccd_anomaly *rec_cg_anomaly, /* O: historical change records for SCCD results    */
     int *num_fc_anomaly,
     double anomaly_tcg,
@@ -2511,7 +2524,7 @@ int sccd_standard(
     bool b_coefs_records,
     int *n_coefs_records,
     nrt_coefs_records *coefs_records,
-    bool b_fitting_coefs,
+    bool fitting_coefs,
     double lambda)
 {
     int i_b;
@@ -2791,7 +2804,7 @@ int sccd_standard(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, b_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD, b_coefs_records, n_coefs_records, coefs_records, b_fitting_coefs, lambda, anomaly_conse);
+            status = step2_KF_ChangeDetection(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD, b_coefs_records, n_coefs_records, coefs_records, fitting_coefs, lambda, anomaly_conse);
 
             if (status == CHANGEDETECTED)
             {
@@ -2979,7 +2992,7 @@ int sccd_standard(
     status = step3_processing_end(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                   i_start, prev_i_break, nrt_model, num_obs_queue,
                                   obs_queue, sum_square_vt, num_obs_processed, t_start,
-                                  conse, min_rmse, anomaly_tcg, change_detected, predictability_tcg);
+                                  conse, min_rmse, anomaly_tcg, change_detected, predictability_tcg, lambda, fitting_coefs);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))

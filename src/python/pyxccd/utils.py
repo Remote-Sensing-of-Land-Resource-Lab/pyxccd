@@ -725,10 +725,10 @@ def generate_rowcolimage(ref_image_path: str, out_path: str):
 
     with rasterio.open(ref_image_path, "r") as ds:
         profile = ds.profile
-        profile.update(dtype="int32", count=1, compress="lzw")
+        profile.update(dtype="int32", count=1, compress="lzw", nodata=-9999)
     with rasterio.open(out_path, "w", **profile) as dst:
         dst.write(index, 1)
-    save_1band_fromrefimage(index, out_path, ref_image_path, dtype=np.int32)
+    # save_1band_fromrefimage(index, out_path, ref_image_path, dtype=np.int32)
 
 
 def calculate_sccd_cm(sccd_pack: SccdOutput) -> float:

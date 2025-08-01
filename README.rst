@@ -49,7 +49,7 @@ COLD algorithm for any combination of band inputs from any sensor:
 
    from pyxccd import cold_detect_flex
    # input a user-defined array instead of multiple lists
-   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, lambda=20,tmask_b1=1, tmask_b2=2)
+   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, lambda=20,tmask_b1_index=1, tmask_b2_index=2)
 
 S-CCD:
 

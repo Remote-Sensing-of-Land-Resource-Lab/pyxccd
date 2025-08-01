@@ -277,34 +277,46 @@ void fit_cft2vec_a(
     int count_m = 2;
     gsl_vector_set(next_a, 0, fit_cft[0] + cur_date * (double)fit_cft[1] / SLOPE_SCALE);
     gsl_vector_set(next_a, 1, (double)fit_cft[1] / SLOPE_SCALE);
-    if (count_m < m)
-    {
-        if (structure % 10 == 1)
-        {
-            gsl_vector_set(next_a, count_m, (double)(fit_cft[2] * cos((double)cur_date * w) + fit_cft[3] * sin((double)cur_date * w)));
-            gsl_vector_set(next_a, count_m + 1, (double)(-fit_cft[2] * sin((double)cur_date * w) + fit_cft[3] * cos((double)cur_date * w)));
-            count_m = count_m + 2;
-        }
-    }
+    // if (count_m < m)
+    // {
+    //     if (structure % 10 == 1)
+    //     {
+    //         gsl_vector_set(next_a, count_m, (double)(fit_cft[2] * cos((double)cur_date * w) + fit_cft[3] * sin((double)cur_date * w)));
+    //         gsl_vector_set(next_a, count_m + 1, (double)(-fit_cft[2] * sin((double)cur_date * w) + fit_cft[3] * cos((double)cur_date * w)));
+    //         count_m = count_m + 2;
+    //     }
+    // }
 
-    if (count_m < m)
-    {
-        if (structure / 10 == 1)
-        {
-            gsl_vector_set(next_a, count_m, (double)(fit_cft[4] * cos((double)cur_date * 2 * w) + fit_cft[5] * sin((double)cur_date * 2 * w)));
-            gsl_vector_set(next_a, count_m + 1, (double)(-fit_cft[4] * sin((double)cur_date * 2 * w) + fit_cft[5] * cos((double)cur_date * 2 * w)));
-            count_m = count_m + 2;
-        }
-    }
+    // if (count_m < m)
+    // {
+    //     if (structure / 10 == 1)
+    //     {
+    //         gsl_vector_set(next_a, count_m, (double)(fit_cft[4] * cos((double)cur_date * 2 * w) + fit_cft[5] * sin((double)cur_date * 2 * w)));
+    //         gsl_vector_set(next_a, count_m + 1, (double)(-fit_cft[4] * sin((double)cur_date * 2 * w) + fit_cft[5] * cos((double)cur_date * 2 * w)));
+    //         count_m = count_m + 2;
+    //     }
+    // }
 
-    if (count_m < m)
+    // if (count_m < m)
+    // {
+    //     if (structure / 100 == 1)
+    //     {
+    //         gsl_vector_set(next_a, count_m, (double)(fit_cft[6] * cos((double)cur_date * 3 * w) + fit_cft[7] * sin((double)cur_date * 3 * w)));
+    //         gsl_vector_set(next_a, count_m + 1, (double)(-fit_cft[6] * sin((double)cur_date * 3 * w) + fit_cft[7] * cos((double)cur_date * 3 * w)));
+    //         count_m = count_m + 2;
+    //     }
+    // }
+
+    gsl_vector_set(next_a, 2, (double)(fit_cft[2] * cos((double)cur_date * w) + fit_cft[3] * sin((double)cur_date * w)));
+    gsl_vector_set(next_a, 3, (double)(-fit_cft[2] * sin((double)cur_date * w) + fit_cft[3] * cos((double)cur_date * w)));
+
+    gsl_vector_set(next_a, 4, (double)(fit_cft[4] * cos((double)cur_date * 2 * w) + fit_cft[5] * sin((double)cur_date * 2 * w)));
+    gsl_vector_set(next_a, 5, (double)(-fit_cft[4] * sin((double)cur_date * 2 * w) + fit_cft[5] * cos((double)cur_date * 2 * w)));
+
+    if (m == 8)
     {
-        if (structure / 100 == 1)
-        {
-            gsl_vector_set(next_a, count_m, (double)(fit_cft[6] * cos((double)cur_date * 3 * w) + fit_cft[7] * sin((double)cur_date * 3 * w)));
-            gsl_vector_set(next_a, count_m + 1, (double)(-fit_cft[6] * sin((double)cur_date * 3 * w) + fit_cft[7] * cos((double)cur_date * 3 * w)));
-            count_m = count_m + 2;
-        }
+        gsl_vector_set(next_a, 6, (double)(fit_cft[6] * cos((double)cur_date * 3 * w) + fit_cft[7] * sin((double)cur_date * 3 * w)));
+        gsl_vector_set(next_a, 7, (double)(-fit_cft[6] * sin((double)cur_date * 3 * w) + fit_cft[7] * cos((double)cur_date * 3 * w)));
     }
 }
 
@@ -321,48 +333,67 @@ void vec_a2fit_cft(
     double w = TWO_PI / AVE_DAYS_IN_A_YEAR;
     int count_m = 2;
     int i;
-    for (i = 0; i < SCCD_MAX_NUM_C; i++)
+    for (i = 0; i < m; i++)
         fit_cft[i] = 0;
 
     fit_cft[0] = gsl_vector_get(next_a, 0) - gsl_vector_get(next_a, 1) * cur_date;
     // no slope scenario: m= 2, 4, 6, 8
     fit_cft[1] = (float)(gsl_vector_get(next_a, 1) * SLOPE_SCALE);
 
-    if (count_m < m)
+    // if (count_m < m)
+    // {
+    //     if (structure % 10 == 1)
+    //     {
+    //         fit_cft[2] = cos((double)cur_date * w) * gsl_vector_get(next_a, count_m) -
+    //                      sin((double)cur_date * w) * gsl_vector_get(next_a, count_m + 1);
+    //         fit_cft[3] = cos((double)cur_date * w) * gsl_vector_get(next_a, count_m + 1) +
+    //                      sin((double)cur_date * w) * gsl_vector_get(next_a, count_m);
+    //         count_m = count_m + 2;
+    //     }
+    // }
+
+    // if (count_m < m)
+    // {
+    //     if (structure / 10 == 1)
+    //     {
+    //         fit_cft[4] = cos((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m) -
+    //                      sin((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m + 1);
+    //         fit_cft[5] = cos((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m + 1) +
+    //                      sin((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m);
+    //         count_m = count_m + 2;
+    //     }
+    // }
+
+    // if (count_m < m)
+    // {
+    //     if (structure / 100 == 1)
+    //     {
+    //         fit_cft[6] = cos((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m) -
+    //                      sin((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m + 1);
+    //         fit_cft[7] = cos((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m + 1) +
+    //                      sin((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m);
+    //         count_m = count_m + 2;
+    //     }
+    // }
+
+    fit_cft[2] = cos((double)cur_date * w) * gsl_vector_get(next_a, 2) -
+                 sin((double)cur_date * w) * gsl_vector_get(next_a, 3);
+    fit_cft[3] = cos((double)cur_date * w) * gsl_vector_get(next_a, 3) +
+                 sin((double)cur_date * w) * gsl_vector_get(next_a, 2);
+
+    fit_cft[4] = cos((double)cur_date * 2 * w) * gsl_vector_get(next_a, 4) -
+                 sin((double)cur_date * 2 * w) * gsl_vector_get(next_a, 5);
+    fit_cft[5] = cos((double)cur_date * 2 * w) * gsl_vector_get(next_a, 5) +
+                 sin((double)cur_date * 2 * w) * gsl_vector_get(next_a, 4);
+
+    if (m == 8)
     {
-        if (structure % 10 == 1)
-        {
-            fit_cft[2] = cos((double)cur_date * w) * gsl_vector_get(next_a, count_m) -
-                         sin((double)cur_date * w) * gsl_vector_get(next_a, count_m + 1);
-            fit_cft[3] = cos((double)cur_date * w) * gsl_vector_get(next_a, count_m + 1) +
-                         sin((double)cur_date * w) * gsl_vector_get(next_a, count_m);
-            count_m = count_m + 2;
-        }
+        fit_cft[6] = cos((double)cur_date * 3 * w) * gsl_vector_get(next_a, 6) -
+                     sin((double)cur_date * 3 * w) * gsl_vector_get(next_a, 7);
+        fit_cft[7] = cos((double)cur_date * 3 * w) * gsl_vector_get(next_a, 7) +
+                     sin((double)cur_date * 3 * w) * gsl_vector_get(next_a, 6);
     }
 
-    if (count_m < m)
-    {
-        if (structure / 10 == 1)
-        {
-            fit_cft[4] = cos((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m) -
-                         sin((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m + 1);
-            fit_cft[5] = cos((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m + 1) +
-                         sin((double)cur_date * 2 * w) * gsl_vector_get(next_a, count_m);
-            count_m = count_m + 2;
-        }
-    }
-
-    if (count_m < m)
-    {
-        if (structure / 100 == 1)
-        {
-            fit_cft[6] = cos((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m) -
-                         sin((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m + 1);
-            fit_cft[7] = cos((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m + 1) +
-                         sin((double)cur_date * 3 * w) * gsl_vector_get(next_a, count_m);
-            count_m = count_m + 2;
-        }
-    }
     // printf("cos((double)cur_date * 2 * w) = %f\n", cos((double)cur_date * 2 * w));
 }
 
@@ -381,7 +412,14 @@ int initialize_ssmconstants(
     instance->m = n_state;
 
     // it is a three-digit indicator, 11 meaning 'semi + annual cycle'
-    instance->structure = 11;
+    if (instance->m == 6)
+    {
+        instance->structure = 11;
+    }
+    else
+    {
+        instance->structure = 111;
+    }
 
     /* alloc memory for each element*/
 
@@ -468,31 +506,28 @@ int initialize_ssmconstants(
                 continue;
             }
 
-            if (instance->m == 8)
+            if ((i == 6) && (j == 6))
             {
-                if ((i == 6) && (j == 6))
-                {
-                    gsl_matrix_set(instance->T, i, j, cos((double)TWO_PI / (double)NUM_YEARS * 3.0));
-                    continue;
-                }
+                gsl_matrix_set(instance->T, i, j, cos((double)TWO_PI / (double)NUM_YEARS * 3.0));
+                continue;
+            }
 
-                if ((i == 7) && (j == 7))
-                {
-                    gsl_matrix_set(instance->T, i, j, cos((double)TWO_PI / (double)NUM_YEARS * 3.0));
-                    continue;
-                }
+            if ((i == 7) && (j == 7))
+            {
+                gsl_matrix_set(instance->T, i, j, cos((double)TWO_PI / (double)NUM_YEARS * 3.0));
+                continue;
+            }
 
-                if ((i == 6) && (j == 7))
-                {
-                    gsl_matrix_set(instance->T, i, j, sin((double)TWO_PI / (double)NUM_YEARS * 3.0));
-                    continue;
-                }
+            if ((i == 6) && (j == 7))
+            {
+                gsl_matrix_set(instance->T, i, j, sin((double)TWO_PI / (double)NUM_YEARS * 3.0));
+                continue;
+            }
 
-                if ((i == 7) && (j == 6))
-                {
-                    gsl_matrix_set(instance->T, i, j, -sin((double)TWO_PI / (double)NUM_YEARS * 3.0));
-                    continue;
-                }
+            if ((i == 7) && (j == 6))
+            {
+                gsl_matrix_set(instance->T, i, j, -sin((double)TWO_PI / (double)NUM_YEARS * 3.0));
+                continue;
             }
         }
     }
@@ -519,6 +554,14 @@ int initialize_ssmconstants(
         gsl_vector_set(instance->Z, 1, 1.0);
         gsl_vector_set(instance->Z, 2, 0.0);
     }
+    else if (instance->m == 4)
+    {
+        /*   initialize Z     */
+        gsl_vector_set(instance->Z, 0, 1.0);
+        gsl_vector_set(instance->Z, 1, 0.0);
+        gsl_vector_set(instance->Z, 2, 1.0);
+        gsl_vector_set(instance->Z, 3, 0.0);
+    }
     else if (instance->m == 5)
     {
         /*   initialize Z     */
@@ -538,6 +581,18 @@ int initialize_ssmconstants(
         gsl_vector_set(instance->Z, 4, 0.0);
         gsl_vector_set(instance->Z, 5, 1.0);
         gsl_vector_set(instance->Z, 6, 0.0);
+    }
+    else if (instance->m == 8)
+    {
+        /*   initialize Z     */
+        gsl_vector_set(instance->Z, 0, 1.0);
+        gsl_vector_set(instance->Z, 1, 0.0);
+        gsl_vector_set(instance->Z, 2, 1.0);
+        gsl_vector_set(instance->Z, 3, 0.0);
+        gsl_vector_set(instance->Z, 4, 1.0);
+        gsl_vector_set(instance->Z, 5, 0.0);
+        gsl_vector_set(instance->Z, 6, 1.0);
+        gsl_vector_set(instance->Z, 7, 0.0);
     }
 
     /*   initialize Q     */
@@ -630,6 +685,7 @@ int KF_ts_predict_conse(
     }
     double w = TWO_PI / AVE_DAYS_IN_A_YEAR;
     double w2 = 2 * w;
+    double w3 = 3 * w;
 
     /* make copy so that recursion won't really change values*/
     //    gsl_matrix_memcpy(pt, P_ini);
@@ -653,7 +709,11 @@ int KF_ts_predict_conse(
         //                printf("fit_cft[0][3]: %f\n", fit_cft[i_b][3]);
         //                printf("fit_cft[0][4]: %f\n", fit_cft[i_b][4]);
         //                printf("fit_cft[0][5]: %f\n", fit_cft[i_b][5]);
-        pred_y[i - pred_start] = fit_cft[i_b][0] + fit_cft[i_b][1] * (float)clrx[i] / SLOPE_SCALE + fit_cft[i_b][2] * cos((float)clrx[i] * w) + fit_cft[i_b][3] * sin((float)clrx[i] * w) + fit_cft[i_b][4] * cos((float)clrx[i] * w2) + fit_cft[i_b][5] * sin((float)clrx[i] * w2);
+        if (instance->m == 6)
+            pred_y[i - pred_start] = fit_cft[i_b][0] + fit_cft[i_b][1] * (float)clrx[i] / SLOPE_SCALE + fit_cft[i_b][2] * cos((float)clrx[i] * w) + fit_cft[i_b][3] * sin((float)clrx[i] * w) + fit_cft[i_b][4] * cos((float)clrx[i] * w2) + fit_cft[i_b][5] * sin((float)clrx[i] * w2);
+        else
+            pred_y[i - pred_start] = fit_cft[i_b][0] + fit_cft[i_b][1] * (float)clrx[i] / SLOPE_SCALE + fit_cft[i_b][2] * cos((float)clrx[i] * w) + fit_cft[i_b][3] * sin((float)clrx[i] * w) + fit_cft[i_b][4] * cos((float)clrx[i] * w2) + fit_cft[i_b][5] * sin((float)clrx[i] * w2) + fit_cft[i_b][6] * cos((float)clrx[i] * w3) + fit_cft[i_b][7] * sin((float)clrx[i] * w3);
+
         if (b_foutput == TRUE)
         {
             /* kt = pt*zt */
@@ -717,8 +777,8 @@ void filter1step_missingobs_fast(
     gsl_matrix *tt; /*I */
     gsl_matrix *mrqr;
     int i, j;
-    tt = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
-    mrqr = gsl_matrix_calloc(DEFAULT_N_STATE, DEFAULT_N_STATE);
+    tt = gsl_matrix_calloc(m, m);
+    mrqr = gsl_matrix_calloc(m, m);
     mm = gsl_matrix_alloc(m, m);
     // memcpy(zt_sub, &zt[1], 2*sizeof(*a));
     for (i = 0; i < m; i++)
@@ -789,6 +849,32 @@ void filter1step_missingobs_fast(
             {
                 gsl_matrix_set(tt, i, j, -sin((double)TWO_PI * gap_days / (double)NUM_YEARS * 2.0));
                 continue;
+            }
+            if (m == 8)
+            {
+                if ((i == 6) && (j == 6))
+                {
+                    gsl_matrix_set(tt, i, j, cos((double)TWO_PI * gap_days / (double)NUM_YEARS * 3.0));
+                    continue;
+                }
+
+                if ((i == 7) && (j == 7))
+                {
+                    gsl_matrix_set(tt, i, j, cos((double)TWO_PI * gap_days / (double)NUM_YEARS * 3.0));
+                    continue;
+                }
+
+                if ((i == 6) && (j == 7))
+                {
+                    gsl_matrix_set(tt, i, j, sin((double)TWO_PI * gap_days / (double)NUM_YEARS * 3.0));
+                    continue;
+                }
+
+                if ((i == 7) && (j == 6))
+                {
+                    gsl_matrix_set(tt, i, j, -sin((double)TWO_PI * gap_days / (double)NUM_YEARS * 3.0));
+                    continue;
+                }
             }
         }
     }

@@ -419,7 +419,7 @@ def block_tile_processing(
                             n_cm=n_cm_maps,
                             b_c2=b_c2,
                             cm_output_interval=cm_output_interval,
-                            b_output_cm=True,
+                            output_cm=True,
                         )
                     else:
                         cold_result = cold_detect(

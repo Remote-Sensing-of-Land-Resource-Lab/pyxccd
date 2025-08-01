@@ -14,7 +14,8 @@ cimport cython
 from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 # instead of int32_t and int64_t for cross-platform compatibility,see https://github.com/ansys/pymapdl/issues/14
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
-from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, reccg_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex
+from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, reccg_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex, update_nrt_model,update_nrtqueue,update_sccd_reccg,update_anomaly
+
 np.import_array()
 from scipy.stats import chi2
 
@@ -30,7 +31,8 @@ cdef int32_t NUM_NRT_QUEUE = 240
 DEF DEFAULT_CONSE = 8
 DEF NRT_BAND = 6
 DEF SCCD_NUM_C = 6
-DEF TOTAL_BAND_FLEX_NRT = 8
+DEF FLEX_SCCD_NUM_C = 8
+DEF TOTAL_BAND_FLEX_NRT = 10
 DEF TOTAL_BAND_FLEX = 10
 
 
@@ -98,7 +100,7 @@ cdef extern from "../../cxx/output.h":
         int32_t num_obs
         short int category
         short int change_prob
-        float coefs[TOTAL_BAND_FLEX][8]
+        float coefs[TOTAL_BAND_FLEX][FLEX_SCCD_NUM_C]
         float rmse[TOTAL_BAND_FLEX]
         float magnitude[TOTAL_BAND_FLEX]
 
@@ -107,14 +109,14 @@ cdef extern from "../../cxx/output.h":
         int32_t t_start
         int t_break
         int num_obs
-        float coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
+        float coefs[TOTAL_BAND_FLEX_NRT][FLEX_SCCD_NUM_C]
         float rmse[TOTAL_BAND_FLEX_NRT]
         float magnitude[TOTAL_BAND_FLEX_NRT]
 
 cdef extern from "../../cxx/output.h":
     ctypedef struct Output_sccd_anomaly_flex:
         int32_t t_break
-        float coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
+        float coefs[TOTAL_BAND_FLEX_NRT][FLEX_SCCD_NUM_C]
         short int obs[TOTAL_BAND_FLEX_NRT][DEFAULT_CONSE]
         short int obs_date_since1982[DEFAULT_CONSE]
         short int norm_cm[DEFAULT_CONSE]
@@ -126,8 +128,8 @@ cdef extern from "../../cxx/output.h":
         short int num_obs
         short int obs[TOTAL_BAND_FLEX_NRT][DEFAULT_CONSE]
         short int obs_date_since1982[DEFAULT_CONSE]
-        float covariance[TOTAL_BAND_FLEX_NRT][36]
-        float nrt_coefs[TOTAL_BAND_FLEX_NRT][SCCD_NUM_C]
+        float covariance[TOTAL_BAND_FLEX_NRT][64]
+        float nrt_coefs[TOTAL_BAND_FLEX_NRT][FLEX_SCCD_NUM_C]
         float H[TOTAL_BAND_FLEX_NRT]
         uint32_t rmse_sum[TOTAL_BAND_FLEX_NRT]
         short int norm_cm;
@@ -140,10 +142,10 @@ cdef extern from "../../cxx/output.h":
         short int clrx_since1982
 
 cdef extern from "../../cxx/cold.h":
-    cdef int32_t cold(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2,int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, int32_t pos, double tcg, int32_t conse, bool b_output_cm, int32_t starting_date, bool b_c2, Output_t *rec_cg,int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs, short int *cm_outputs_date, double gap_days, double lam);
+    cdef int32_t cold(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2,int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, int32_t pos, double tcg, int32_t conse, bool output_cm, int32_t starting_date, bool b_c2, Output_t *rec_cg,int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs, short int *cm_outputs_date, double gap_days, double lam);
 
 cdef extern from "../../cxx/cold_flex.h":
-    cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1, int tmask_b1, int32_t valid_num_scenes, int32_t pos,double tcg, double max_tcg, int32_t conse, bool b_output_cm, int32_t starting_date, Output_t_flex *rec_cg, int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs, short int *cm_outputs_date, double gap_days, double lam);
+    cdef int32_t cold_flex(int64_t *ts_stack, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1_index, int tmask_b1_index, int32_t valid_num_scenes, int32_t pos,double tcg, double max_tcg, int32_t conse, bool output_cm, int32_t starting_date, Output_t_flex *rec_cg, int32_t *num_fc, int32_t cm_output_interval, short int *cm_outputs, short int *cm_outputs_date, double gap_days, double lam);
 
 
 cdef extern from "../../cxx/cold.h":
@@ -154,15 +156,13 @@ cdef extern from "../../cxx/cold.h":
 
 
 cdef extern from "../../cxx/s_ccd.h":
-    cdef int32_t sccd(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2, int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, double tcg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue, short int *min_rmse, int32_t conse, bool b_c2, bool b_anomaly, Output_sccd_anomaly *rec_cg_anomaly, int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg,  bool b_output_state, double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool b_fitting_coefs, double lam);
+    cdef int32_t sccd(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2, int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, double tcg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue, short int *min_rmse, int32_t conse, bool b_c2, bool output_anomaly, Output_sccd_anomaly *rec_cg_anomaly, int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg,  bool b_output_state, double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool fitting_coefs, double lam);
 
 
 cdef extern from "../../cxx/s_ccd_flex.h":
-    cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1, int tmask_b2, int valid_num_scenes, double tcg, double max_t_cg, 
-    int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model,
-    int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
-    int32_t conse, bool b_c2, bool b_anomaly, Output_sccd_anomaly_flex *rec_cg_anomaly,
-    int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg, bool b_output_state,double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool b_fitting_coefs, double lam);
+    cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1_index, int tmask_b2_index, int valid_num_scenes, double tcg, double max_t_cg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model, int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
+    int32_t conse, bool b_c2, bool output_anomaly, Output_sccd_anomaly_flex *rec_cg_anomaly,
+    int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg, bool b_output_state,double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool fitting_coefs, double lam, int64_t n_coefs);
 
 
 cdef Output_sccd t
@@ -198,7 +198,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_n, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_s1,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_s2, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas, double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
-                   bint b_output_cm=False, int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, bint b_c2=True,
+                   bint output_cm=False, int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, bint b_c2=True,
                    double gap_days=365.25, double lam=20):
     """
     Helper function to do COLD algorithm.
@@ -217,9 +217,9 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
         t_cg: threshold of change magnitude, default is chi2.ppf(0.99,5)
         pos: position id of the pixel
         conse: consecutive observation number
-        b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
+        output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
         starting_date: the starting date of the whole dataset to enable reconstruct CM_date,
-                    all pixels for a tile should have the same date, only for b_output_cm is True
+                    all pixels for a tile should have the same date, only for output_cm is True
         b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to the current low quality
         cm_output_interval: the temporal interval of outputting change magnitudes
         gap_days: define the day number of the gap year for i_dense
@@ -248,7 +248,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
     cdef Output_t [:] rec_cg_view = rec_cg
 
     # cm_outputs and cm_outputs_date are for object-based cold
-    if b_output_cm == True:
+    if output_cm == True:
         if cm_output_interval == 0:
            cm_output_interval = 60
         if starting_date == 0:
@@ -265,7 +265,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
     cdef short [:] cm_outputs_date_view = cm_outputs_date  # memory view
 
     result = cold(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0],
-                 &qas_view[0], &dates_view[0], valid_num_scenes, pos, t_cg, conse, b_output_cm,
+                 &qas_view[0], &dates_view[0], valid_num_scenes, pos, t_cg, conse, output_cm,
                  starting_date, b_c2, &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], &cm_outputs_date_view[0],
                  gap_days, lam)
     if result != 0:
@@ -274,7 +274,7 @@ cpdef _cold_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np
         if num_fc <= 0:
             raise Exception("The COLD function has no change records outputted for pos = {} (possibly due to no enough clear observation)".format(pos))
         else:
-            if b_output_cm == False:
+            if output_cm == False:
                 return rec_cg[:num_fc] # np.asarray uses also the buffer-protocol and is able to construct
                                                              # a dtype-object from cython's array
             else:  # for object-based COLD
@@ -356,9 +356,9 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] ts_t,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
-                   bint b_c2=True, bint b_anomaly=False, double anomaly_tcg=9.236, 
+                   bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, 
                    int anomaly_conse=3, double predictability_tcg=9.236, 
-                   bint b_output_state=False, double state_intervaldays=1, bint b_fitting_coefs=False, double lam=20):
+                   bint b_output_state=False, double state_intervaldays=1, bint fitting_coefs=False, double lam=20):
     """
     S-CCD processing. It is required to be done before near real time monitoring
 
@@ -377,13 +377,13 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
        pos: position id of the pixel
        conse: consecutive observation number
        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
-       b_anomaly: bool, output anomaly break
+       output_anomaly: bool, output anomaly break
        anomaly_tcg: the gate change magnitude threshold for defining anomaly
        anomaly_conse: the consecutive observation number for defining anomalies
        predictability_tcg: threshold for predicability test
        b_output_state: bool, if output intermediate state variables
        state_intervaldays: bool, what is the interval for outputting state
-       b_fitting_coefs: if using fitting curve to output harmonic coefficients
+       fitting_coefs: if using fitting curve to output harmonic coefficients
        Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
        Returns
        ----------
@@ -412,8 +412,8 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     cdef int32_t n_state = 0
     
     # cdef int64_t ** state_ensemble = <int64_t **>malloc(max_n_states * NRT_BAND * 3)
-    if b_anomaly == True and b_output_state == True:
-        raise RuntimeError("b_anomaly and b_output_state cannot be set both True")
+    if output_anomaly == True and b_output_state == True:
+        raise RuntimeError("output_anomaly and b_output_state cannot be set both True")
 
     if b_output_state == True:
         max_n_states = math.ceil((dates[-1] - dates[0]) / state_intervaldays)
@@ -453,7 +453,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     cdef double [:] states_ensemble_view = state_ensemble
 
 
-    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, b_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
+    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam)
     
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -463,7 +463,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
         else:
             output_rec_cg = np.array([])
 
-        if b_anomaly == False:
+        if output_anomaly == False:
             if b_output_state == False:
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
@@ -639,9 +639,9 @@ cpdef _sccd_update(sccd_pack,
 
 cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,
                         np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands,
-                        double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_output_cm=False, 
+                        double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint output_cm=False, 
                         int32_t starting_date=0, int32_t n_cm=0, int32_t cm_output_interval=0, 
-                        double gap_days=365.25, int32_t tmask_b1=1, int32_t tmask_b2=1, double lam=20):
+                        double gap_days=365.25, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, double lam=20):
     """
     Helper function to do COLD algorithm.
 
@@ -656,13 +656,13 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         max_t_cg: threshold for identifying outlier
         pos: position id of the pixel
         conse: consecutive observation number
-        b_output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
+        output_cm: bool, 'True' means outputting change magnitude and change magnitude dates, only for object-based COLD
         starting_date: the starting date of the whole dataset to enable reconstruct CM_date,
-                    all pixels for a tile should have the same date, only for b_output_cm is True
+                    all pixels for a tile should have the same date, only for output_cm is True
         cm_output_interval: the temporal interval of outputting change magnitudes
         gap_days: define the day number of the gap year for i_dense
-        tmask_b1: the first band id for tmask
-        tmask_b2: the second band id for tmask
+        tmask_b1_index: the first band id for tmask
+        tmask_b2_index: the second band id for tmask
 
         Returns
         ----------
@@ -680,7 +680,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     cdef Output_t_flex [:] rec_cg_view = rec_cg
 
     # cm_outputs and cm_outputs_date are for object-based cold
-    if b_output_cm == True:
+    if output_cm == True:
         if cm_output_interval == 0:
            cm_output_interval = 60
         if starting_date == 0:
@@ -695,8 +695,8 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         cm_outputs_date = np.full(1, -9999, dtype=np.short)
     cdef short [:] cm_outputs_view = cm_outputs  # memory view
     cdef short [:] cm_outputs_date_view = cm_outputs_date  # memory view
-    result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
-                        valid_num_scenes, pos, t_cg, max_t_cg, conse, b_output_cm, starting_date, 
+    result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, 
+                        valid_num_scenes, pos, t_cg, max_t_cg, conse, output_cm, starting_date, 
                         &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], 
                         &cm_outputs_date_view[0], gap_days, lam)
     if result != 0:
@@ -705,7 +705,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         if num_fc <= 0:
             raise Exception("The COLD function has no change records outputted for pos = {} (possibly due to no enough clear observation)".format(pos))
         else:
-            if b_output_cm == False:
+            if output_cm == False:
                 return rec_cg[:num_fc] # np.asarray uses also the buffer-protocol and is able to construct
                                                              # a dtype-object from cython's array
             else:  # for object-based COLD
@@ -713,7 +713,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
 
 
 
-cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t,      ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint b_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1=1, int32_t tmask_b2=1, bint b_fitting_coefs=False, double lam=20):
+cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t,      ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodel=False):
     """
     Helper function to do COLD algorithm.
 
@@ -729,26 +729,27 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         conse: consecutive observation number
         pos: position id of the pixel
         b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
-        b_anomaly: indicate whether to output anomalies
+        output_anomaly: indicate whether to output anomalies
         anomaly_tcg: the gate change magnitude threshold for defining anomalies
         anomaly_conse: the consecutive observation number for defining anomalies
         starting_date: the starting date of the whole dataset to enable reconstruct CM_date,
-                    all pixels for a tile should have the same date, only for b_output_cm is True
+                    all pixels for a tile should have the same date, only for output_cm is True
         cm_output_interval: the temporal interval of outputting change magnitudes
         gap_days: define the day number of the gap year for i_dense
-        tmask_b1: the first band id for tmask
-        tmask_b2: the second band id for tmask
+        tmask_b1_index: the first band id for tmask
+        tmask_b2_index: the second band id for tmask
         lam: the lambda for lasso regression
 
         Returns
         ----------
-        change records: the COLD outputs that characterizes each temporal segment
+        change records: the S-CCD outputs that characterizes each temporal segment
     """
     if conse > DEFAULT_CONSE:
         raise RuntimeError("The inputted conse is longer than the maximum conse for S-CCD: {}".format(DEFAULT_CONSE))
 
     # allocate memory for rec_cg
     cdef Output_t t
+    cdef int64_t n_coefs
 
     # allocate memory for rec_cg
     cdef int32_t num_fc = 0
@@ -760,12 +761,17 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     nrt_queue = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
     nrt_model = np.zeros(1, dtype=nrtmodel_dt_flex)
     rec_cg_anomaly = np.zeros(NUM_FC_SCCD, dtype=anomaly_dt_flex)
+    if trimodel == True:
+        n_coefs = 8
+    else:
+        n_coefs = 6
+
 
     if b_output_state == True:
         max_n_states = math.ceil((dates[-1] - dates[0]) / state_intervaldays)
         if max_n_states < 1:
             raise RuntimeError("Make sure that state_intervaldays must be larger than 0, and not higher than the total day number")
-        state_ensemble = np.zeros(max_n_states * nbands * 3, dtype=np.double)
+        state_ensemble = np.zeros(int(max_n_states * nbands * n_coefs / 2), dtype=np.double)
         state_days = np.zeros(max_n_states, dtype=np.int64)
     else:
         state_ensemble = np.zeros(1, dtype=np.double)
@@ -791,22 +797,24 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
 
-
-    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
+    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, 
                         valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                        conse, b_c2, b_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, 
-                        anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], b_fitting_coefs, lam)
+                        conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, 
+                        anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam, n_coefs)
 
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
     else:
         if num_fc > 0:
-            output_rec_cg = rec_cg[:num_fc]
+            output_rec_cg = update_sccd_reccg(rec_cg[:num_fc], nbands, n_coefs)
+            # output_rec_cg = rec_cg[:num_fc]
         else:
             output_rec_cg = np.array([])
 
-        if b_anomaly == False:
+        nrt_model = update_nrt_model(nrt_model, nbands, n_coefs)
+        nrt_queue = update_nrtqueue(nrt_queue, nbands)
+        if output_anomaly == False:
             if b_output_state == False:
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
@@ -820,9 +828,14 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
             else:
-                colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] 
-                state_ensemble = state_ensemble.reshape(-1, nbands * 3)
-                state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
+                if trimodel == False:
+                    colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] 
+                    state_ensemble = state_ensemble.reshape(-1, nbands * 3)
+                    state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
+                else:
+                    colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] + [f"b{i}_trimodel" for i in range(nbands)] 
+                    state_ensemble = state_ensemble.reshape(-1, nbands * 4)
+                    state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                     return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
@@ -839,7 +852,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                 output_rec_cg_anomaly = rec_cg_anomaly[:num_fc_anomaly]
             else:
                 output_rec_cg_anomaly = np.array([])
-
+            output_rec_cg_anomaly = update_anomaly(output_rec_cg_anomaly, nbands, n_coefs)
             if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
                                    nrt_model, np.array([])),
@@ -865,7 +878,7 @@ cpdef _sccd_update_flex(sccd_pack,
                         int32_t conse=6, int32_t pos=1, bint b_c2=True,
                         double anomaly_tcg=9.236, int anomaly_conse=3, 
                         double predictability_tcg=15.086, 
-                        int32_t tmask_b1=1, int32_t tmask_b2=1, double lam=20):
+                        int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, double lam=20, bool trimodel=False):
     """
     SCCD online update for new observations
 
@@ -881,11 +894,11 @@ cpdef _sccd_update_flex(sccd_pack,
        pos: position id of the pixel
        conse: consecutive observation number
        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
-       b_anomaly: indicate whether to output anomalies
+       output_anomaly: indicate whether to output anomalies
        anomaly_tcg: the gate change magnitude threshold for defining anomalies
        anomaly_conse: the consecutive observations for defining anomalies
-       tmask_b1: the first band id for tmask
-       tmask_b2: the second band id for tmask
+       tmask_b1_index: the first band id for tmask
+       tmask_b2_index: the second band id for tmask
        Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
        Returns
        ----------
@@ -905,6 +918,12 @@ cpdef _sccd_update_flex(sccd_pack,
 
     if nrt_mode != 0 and nrt_mode % 10 != 1 and nrt_mode % 10 != 2 and nrt_mode != 3 and nrt_mode != 4 and nrt_mode != 5:
         raise RuntimeError("Invalid nrt_node input {} for pos = {} ".format(nrt_mode, pos))
+
+    cdef int64_t n_coefs
+    if trimodel == True:
+        n_coefs = 8
+    else:
+        n_coefs = 6
 
     cdef int32_t num_fc = len(sccd_pack.rec_cg)
     cdef int32_t num_nrt_queue = len(sccd_pack.nrt_queue)
@@ -942,12 +961,7 @@ cpdef _sccd_update_flex(sccd_pack,
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
 
-    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1, tmask_b2, 
-                    valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
-                    &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                    conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, anomaly_conse,
-                    predictability_tcg, False, 1, &n_state, &states_days_view[0], 
-                    &states_ensemble_view[0], False, lam)
+    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index,     tmask_b2_index, valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],&nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
 
     PyMem_Free(rec_cg_anomaly)
     if result != 0:
