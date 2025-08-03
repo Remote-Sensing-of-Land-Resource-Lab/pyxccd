@@ -14,7 +14,7 @@ cimport cython
 from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 # instead of int32_t and int64_t for cross-platform compatibility,see https://github.com/ansys/pymapdl/issues/14
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
-from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, reccg_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex, update_nrt_model,update_nrtqueue,update_sccd_reccg,update_anomaly
+from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, cold_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex, _update_nrt_model,_update_nrtqueue,_update_sccd_reccg,update_anomaly, _update_cold_reccg
 
 np.import_array()
 from scipy.stats import chi2
@@ -466,11 +466,11 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
         if output_anomaly == False:
             if b_output_state == False:
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
-                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], np.array([]))
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
                     return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue])
                 elif nrt_mode % 10 == 5:  # queue mode
-                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue])
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], nrt_queue[:num_nrt_queue])
                 elif nrt_mode == 0:  # void mode
                     return SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
                                     np.array([]))
@@ -483,11 +483,11 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                 state_ensemble = state_ensemble.reshape(-1, NRT_BAND * 3)
                 state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
                     return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode % 10 == 5:  # queue mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_all]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode == 0:  # void mode
                     return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
                                     np.array([])), state_all]
@@ -501,13 +501,13 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
 
             if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
-                                   nrt_model, np.array([])),
+                                   nrt_model[0], np.array([])),
                                    SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 2 or nrt_mode == 4:
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]),
                                     SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 5:  # queue mode
-                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]),
+                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], nrt_queue[:num_nrt_queue]),
                                    SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode == 0:  # void mode
                 return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
@@ -586,8 +586,10 @@ cpdef _sccd_update(sccd_pack,
     if num_nrt_queue > 0:
         nrt_queue_new[0:num_nrt_queue] = sccd_pack.nrt_queue[0:num_nrt_queue]
 
+    # TO CHECK
     if nrt_mode % 10 == 1 or nrt_mode == 3 or nrt_mode % 10 == 5:
-        nrt_model_new = sccd_pack.nrt_model.copy()
+        nrt_model = np.zeros(1, dtype=nrtmodel_dt)
+        nrt_model[0] = sccd_pack.nrt_model
     else:
         nrt_model_new = np.empty(1, dtype=nrtmodel_dt)
 
@@ -626,11 +628,11 @@ cpdef _sccd_update(sccd_pack,
 
         if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
             return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
-                              nrt_model_new, np.array([]))
+                              nrt_model_new[0], np.array([]))
         elif nrt_mode % 10 == 2 or nrt_mode == 4: # queue mode:
             return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue_new[0:num_nrt_queue])
         elif nrt_mode % 10 == 5:  # queue or m2q mode
-            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model_new, nrt_queue_new[0:num_nrt_queue])
+            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model_new[0], nrt_queue_new[0:num_nrt_queue])
         elif nrt_mode == 0:  # void mode
             return SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]), np.array([]))
         else:
@@ -672,7 +674,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     # allocate memory for rec_cg
     cdef int32_t num_fc = 0
     cdef Output_t_flex t
-    rec_cg = np.zeros(NUM_FC, dtype=reccg_dt_flex)
+    rec_cg = np.zeros(NUM_FC, dtype=cold_dt_flex)
 
     cdef int64_t [:] dates_view = dates
     cdef int64_t [:] ts_stack_view = ts_stack
@@ -695,21 +697,22 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         cm_outputs_date = np.full(1, -9999, dtype=np.short)
     cdef short [:] cm_outputs_view = cm_outputs  # memory view
     cdef short [:] cm_outputs_date_view = cm_outputs_date  # memory view
-    result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, 
-                        valid_num_scenes, pos, t_cg, max_t_cg, conse, output_cm, starting_date, 
+    result = cold_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, valid_num_scenes, pos, t_cg, max_t_cg, conse, output_cm, starting_date, 
                         &rec_cg_view[0], &num_fc, cm_output_interval, &cm_outputs_view[0], 
                         &cm_outputs_date_view[0], gap_days, lam)
+    
     if result != 0:
         raise RuntimeError("cold function fails for pos = {} ".format(pos))
     else:
         if num_fc <= 0:
             raise Exception("The COLD function has no change records outputted for pos = {} (possibly due to no enough clear observation)".format(pos))
         else:
+            rec_cg_new = _update_cold_reccg(rec_cg[:num_fc], nbands)
             if output_cm == False:
-                return rec_cg[:num_fc] # np.asarray uses also the buffer-protocol and is able to construct
+                return rec_cg_new # np.asarray uses also the buffer-protocol and is able to construct
                                                              # a dtype-object from cython's array
             else:  # for object-based COLD
-                return [rec_cg[:num_fc], cm_outputs, cm_outputs_date]
+                return [rec_cg_new, cm_outputs, cm_outputs_date]
 
 
 
@@ -807,21 +810,21 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
     else:
         if num_fc > 0:
-            output_rec_cg = update_sccd_reccg(rec_cg[:num_fc], nbands, n_coefs)
+            output_rec_cg = _update_sccd_reccg(rec_cg[:num_fc], nbands, n_coefs)
             # output_rec_cg = rec_cg[:num_fc]
         else:
             output_rec_cg = np.array([])
 
-        nrt_model = update_nrt_model(nrt_model, nbands, n_coefs)
-        nrt_queue = update_nrtqueue(nrt_queue, nbands)
+        nrt_model = _update_nrt_model(nrt_model, nbands, n_coefs)
+        nrt_queue = _update_nrtqueue(nrt_queue, nbands)
         if output_anomaly == False:
             if b_output_state == False:
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
-                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([]))
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], np.array([]))
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
                     return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue])
                 elif nrt_mode % 10 == 5:  # queue mode
-                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue])
+                    return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], nrt_queue[:num_nrt_queue])
                 elif nrt_mode == 0:  # void mode
                     return SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
                                     np.array([]))
@@ -837,11 +840,11 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                     state_ensemble = state_ensemble.reshape(-1, nbands * 4)
                     state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, np.array([])), state_all]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], np.array([])), state_all]
                 if nrt_mode % 10 == 2 or nrt_mode == 4:  # queue mode
                     return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode % 10 == 5:  # queue mode
-                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]), state_all]
+                    return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], nrt_queue[:num_nrt_queue]), state_all]
                 elif nrt_mode == 0:  # void mode
                     return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
                                     np.array([])), state_days[0:n_state], state_all]
@@ -855,13 +858,13 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
             output_rec_cg_anomaly = update_anomaly(output_rec_cg_anomaly, nbands, n_coefs)
             if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
-                                   nrt_model, np.array([])),
+                                   nrt_model[0], np.array([])),
                                    SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 2 or nrt_mode == 4:
                 return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue[:num_nrt_queue]),
                                     SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode % 10 == 5:  # queue mode
-                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue[:num_nrt_queue]),
+                return [SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model[0], nrt_queue[:num_nrt_queue]),
                                    SccdReccganomaly(pos, output_rec_cg_anomaly)]
             elif nrt_mode == 0:  # void mode
                 return [SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]),
@@ -925,6 +928,9 @@ cpdef _sccd_update_flex(sccd_pack,
     else:
         n_coefs = 6
 
+    # cdef int64_t n_coefs_old
+    # cdef int64_t nbands_old
+
     cdef int32_t num_fc = len(sccd_pack.rec_cg)
     cdef int32_t num_nrt_queue = len(sccd_pack.nrt_queue)
     cdef int32_t num_fc_anomaly = 0
@@ -942,8 +948,14 @@ cpdef _sccd_update_flex(sccd_pack,
     if num_nrt_queue > 0:
         nrt_queue_new[0:num_nrt_queue] = sccd_pack.nrt_queue[0:num_nrt_queue]
 
+    # TO CHECK
     if nrt_mode % 10 == 1 or nrt_mode == 3 or nrt_mode % 10 == 5:
-        nrt_model_new = sccd_pack.nrt_model.copy()
+        nrt_model_new = np.zeros(1, dtype=nrtmodel_dt_flex)
+        nrt_model_new[0] = sccd_pack.nrt_model
+        if nbands != np.shape(sccd_pack.nrt_model['nrt_coefs'])[0]:
+            raise RuntimeError("Unmatched bands for original and new SccdOutput for pos = {}: the original band number is {} ".format(nrt_mode, np.shape(sccd_pack.nrt_model['nrt_coefs'])[0]))
+        if n_coefs != np.shape(sccd_pack.nrt_model['nrt_coefs'])[1]:
+            raise RuntimeError("Unmatched harmonic coefficient number for original and new SccdOutput for pos = {}: the harmonic coefficient number is {} ".format(nrt_mode, np.shape(sccd_pack.nrt_model['nrt_coefs'])[1]))
     else:
         nrt_model_new = np.empty(1, dtype=nrtmodel_dt_flex)
 
@@ -969,17 +981,21 @@ cpdef _sccd_update_flex(sccd_pack,
     else:
         # sccd_pack_copy = None
         if num_fc > 0:
-            output_rec_cg = rec_cg_new[0:num_fc]
+            output_rec_cg = _update_sccd_reccg(rec_cg_new[:num_fc], nbands, n_coefs)
+            # output_rec_cg = rec_cg[:num_fc]
         else:
             output_rec_cg = np.array([])
+        
+        nrt_model_new = _update_nrt_model(nrt_model_new, nbands, n_coefs)
+        nrt_queue_new = _update_nrtqueue(nrt_queue_new, nbands)
 
         if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
             return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode,
-                              nrt_model_new, np.array([]))
+                              nrt_model_new[0], np.array([]))
         elif nrt_mode % 10 == 2 or nrt_mode == 4: # queue mode:
             return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, np.array([]), nrt_queue_new[0:num_nrt_queue])
         elif nrt_mode % 10 == 5:  # queue or m2q mode
-            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model_new, nrt_queue_new[0:num_nrt_queue])
+            return SccdOutput(pos, output_rec_cg, min_rmse, nrt_mode, nrt_model_new[0], nrt_queue_new[0:num_nrt_queue])
         elif nrt_mode == 0:  # void mode
             return SccdOutput(pos, np.array([]), min_rmse, nrt_mode, np.array([]), np.array([]))
         else:

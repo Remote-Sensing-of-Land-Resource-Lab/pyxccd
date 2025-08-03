@@ -7,6 +7,7 @@ SCCD_CONSE_OUTPUT = 8  # the default outputted observation number once S-CCD det
 NRT_BAND = 6  # the default S-CCD band number
 SCCD_NUM_C = 6  # the S-CCD harmonic model coefficient number
 FLEX_SCCD_NUM_C = 8
+COLD_NUM_C = 8
 TOTAL_BAND_FLEX = 10  # the maximum band input for flexible mode of COLD
 TOTAL_BAND_FLEX_NRT = 10  # the maximum band input for flexible mode of S-CCD
 SLOPE_SCALE = 10000
@@ -117,8 +118,7 @@ anomaly_dt = numpy.dtype(
     align=True,
 )
 
-# the below is for sccd flex mode
-reccg_dt_flex = numpy.dtype(
+cold_dt_flex = numpy.dtype(
     [
         ("t_start", numpy.int32),
         ("t_end", numpy.int32),
@@ -127,11 +127,14 @@ reccg_dt_flex = numpy.dtype(
         ("num_obs", numpy.int32),
         ("category", numpy.short),
         ("change_prob", numpy.short),
-        ("coefs", numpy.float32, (TOTAL_BAND_FLEX, FLEX_SCCD_NUM_C)),
+        ("coefs", numpy.float32, (TOTAL_BAND_FLEX, COLD_NUM_C)),
         ("rmse", numpy.float32, TOTAL_BAND_FLEX),
         ("magnitude", numpy.float32, TOTAL_BAND_FLEX),
     ]
 )
+
+# the below is for sccd flex mode
+
 
 sccd_dt_flex = numpy.dtype(
     [
@@ -179,7 +182,6 @@ anomaly_dt_flex = numpy.dtype(
     ],
     align=True,
 )
-
 
 @dataclass
 class DatasetInfo:
@@ -373,14 +375,16 @@ class anomaly:
     """included angale fot the last anomaly_conse spectral anomalies, multiplied by 100 and rounded. """
 
 
-def update_nrt_model(nrt_model, nbands, ncoefs):
+
+
+def _update_nrt_model(nrt_model:nrtmodel_dt_flex, nbands:int, ncoefs:int):
     nrtmodel_dt_flex_new = numpy.dtype(
         [
             ("t_start_since1982", numpy.short),
             ("num_obs", numpy.short),
             ("obs", numpy.short, (nbands, SCCD_CONSE_OUTPUT)),
             ("obs_date_since1982", numpy.short, SCCD_CONSE_OUTPUT),
-            ("covariance", numpy.float32, (nbands, ncoefs * ncoefs)),
+            ("covariance", numpy.float32, (nbands, ncoefs*ncoefs)),
             ("nrt_coefs", numpy.float32, (nbands, ncoefs)),
             ("H", numpy.float32, nbands),
             ("rmse_sum", numpy.uint32, nbands),
@@ -392,11 +396,11 @@ def update_nrt_model(nrt_model, nbands, ncoefs):
     )
     tmp = numpy.zeros(shape=(1), dtype=nrtmodel_dt_flex_new)
     tmp[0]["t_start_since1982"] = nrt_model[0]["t_start_since1982"]
-    tmp[0]["num_obs"] = nrt_model[0]["num_obs"]
-    tmp[0]["obs"] = nrt_model[0]["obs"][0:nbands, :]
+    tmp[0]["num_obs"] = nrt_model[0]["num_obs"] 
+    tmp[0]["obs"] = nrt_model[0]["obs"][0:nbands, :] 
     tmp[0]["obs_date_since1982"] = nrt_model[0]["obs_date_since1982"]
-    tmp[0]["covariance"] = nrt_model[0]["covariance"][0:nbands, 0 : ncoefs * ncoefs]
-    tmp[0]["nrt_coefs"] = nrt_model[0]["nrt_coefs"][0:nbands, 0:ncoefs]
+    tmp[0]["covariance"] = nrt_model[0]["covariance"][0:nbands, 0:ncoefs*ncoefs]
+    tmp[0]["nrt_coefs"] = nrt_model[0]["nrt_coefs"][0:nbands, 0:ncoefs]  
     tmp[0]["H"] = nrt_model[0]["H"][0:nbands]
     tmp[0]["rmse_sum"] = nrt_model[0]["rmse_sum"][0:nbands]
     tmp[0]["norm_cm"] = nrt_model[0]["norm_cm"]
@@ -405,7 +409,7 @@ def update_nrt_model(nrt_model, nbands, ncoefs):
     return tmp
 
 
-def update_nrtqueue(nrt_queue, nbands):
+def _update_nrtqueue(nrt_queue:nrtqueue_dt_flex, nbands:int):
     n = len(nrt_queue)
     if n == 0:
         return numpy.array([])
@@ -420,7 +424,7 @@ def update_nrtqueue(nrt_queue, nbands):
     return tmp
 
 
-def update_sccd_reccg(reccg, nbands, ncoefs):
+def _update_sccd_reccg(reccg:sccd_dt_flex, nbands:int, ncoefs:int):
     n = len(reccg)
     if n == 0:
         return numpy.array([])
@@ -431,7 +435,7 @@ def update_sccd_reccg(reccg, nbands, ncoefs):
             ("num_obs", numpy.int32),
             ("coefs", numpy.float32, (nbands, ncoefs)),
             ("rmse", numpy.float32, nbands),
-            ("magnitude", numpy.float32, nbands),
+            ("magnitude", numpy.float32,nbands),
         ],
         align=True,
     )
@@ -440,10 +444,82 @@ def update_sccd_reccg(reccg, nbands, ncoefs):
         tmp[i]["t_start"] = reccg[i]["t_start"]
         tmp[i]["t_break"] = reccg[i]["t_break"]
         tmp[i]["num_obs"] = reccg[i]["num_obs"]
-        tmp[i]["coefs"] = reccg[i]["coefs"][0:nbands, 0:ncoefs]
+        tmp[i]["coefs"] = reccg[i]["coefs"] [0:nbands, 0:ncoefs]
         tmp[i]["rmse"] = reccg[i]["rmse"][0:nbands]
         tmp[i]["magnitude"] = reccg[i]["magnitude"][0:nbands]
     return tmp
+
+
+def _update_cold_reccg(reccg:cold_dt_flex, nbands:int):
+    n = len(reccg)
+    if n == 0:
+        return numpy.array([])
+    # cold_dt_flex_new = numpy.dtype(
+    #     [
+    #         ("t_start", numpy.int32),
+    #         ("t_break", numpy.int32),
+    #         ("num_obs", numpy.int32),
+    #         ("coefs", numpy.float32, (nbands, ncoefs)),
+    #         ("rmse", numpy.float32, nbands),
+    #         ("magnitude", numpy.float32,nbands),
+    #     ],
+    #     align=True,
+    # )
+    cold_dt_flex_new = numpy.dtype(
+        [
+            ("t_start", numpy.int32),
+            ("t_end", numpy.int32),
+            ("t_break", numpy.int32),
+            ("pos", numpy.int32),
+            ("num_obs", numpy.int32),
+            ("category", numpy.short),
+            ("change_prob", numpy.short),
+            ("coefs", numpy.float32, (nbands, COLD_NUM_C)),
+            ("rmse", numpy.float32, nbands),
+            ("magnitude", numpy.float32, nbands),
+        ]
+    )
+
+    tmp = numpy.zeros(shape=(n), dtype=cold_dt_flex_new)
+    for i in range(n):
+        tmp[i]["t_start"] = reccg[i]["t_start"]
+        tmp[i]["t_end"] = reccg[i]["t_end"]
+        tmp[i]["t_break"] = reccg[i]["t_break"]
+        tmp[i]["pos"] = reccg[i]["pos"]
+        tmp[i]["num_obs"] = reccg[i]["num_obs"]
+        tmp[i]["category"] = reccg[i]["category"]
+        tmp[i]["coefs"] = reccg[i]["coefs"] [0:nbands, 0:COLD_NUM_C]
+        tmp[i]["rmse"] = reccg[i]["rmse"][0:nbands]
+        tmp[i]["magnitude"] = reccg[i]["magnitude"][0:nbands]
+    return tmp
+
+
+
+# def _update_cold_reccg(reccg, nbands, ncoefs):
+#     n = len(reccg)
+#     if n == 0:
+#         return numpy.array([])
+#     cold_dt_flex_new = numpy.dtype(
+#         [
+#             ("t_start", numpy.int32),
+#             ("t_end", numpy.int32),
+#             ("t_break", numpy.int32),
+#             ("num_obs", numpy.int32),
+#             ("coefs", numpy.float32, (nbands, ncoefs)),
+#             ("rmse", numpy.float32, nbands),
+#             ("magnitude", numpy.float32,nbands),
+#         ],
+#         align=True,
+#     )
+#     tmp = numpy.zeros(shape=(n), dtype=sccd_dt_flex_new)
+#     for i in range(n):
+#         tmp[i]["t_start"] = reccg[i]["t_start"]
+#         tmp[i]["t_break"] = reccg[i]["t_break"]
+#         tmp[i]["num_obs"] = reccg[i]["num_obs"]
+#         tmp[i]["coefs"] = reccg[i]["coefs"] [0:nbands, 0:ncoefs]
+#         tmp[i]["rmse"] = reccg[i]["rmse"][0:nbands]
+#         tmp[i]["magnitude"] = reccg[i]["magnitude"][0:nbands]
+#     return tmp
 
 
 def update_anomaly(output_rec_cg_anomaly, nbands, ncoefs):
@@ -464,11 +540,9 @@ def update_anomaly(output_rec_cg_anomaly, nbands, ncoefs):
     tmp = numpy.zeros(shape=(n), dtype=anomaly_dt_flex_new)
     for i in range(n):
         tmp[i]["t_break"] = output_rec_cg_anomaly[i]["t_break"]
-        tmp[i]["coefs"] = output_rec_cg_anomaly[i]["coefs"][0:nbands, 0:ncoefs]
+        tmp[i]["coefs"] = output_rec_cg_anomaly[i]["coefs"] [0:nbands, 0:ncoefs]
         tmp[i]["obs"] = output_rec_cg_anomaly[i]["obs"][0:nbands, 0:SCCD_CONSE_OUTPUT]
-        tmp[i]["obs_date_since1982"] = output_rec_cg_anomaly[i]["obs_date_since1982"][
-            0:SCCD_CONSE_OUTPUT
-        ]
+        tmp[i]["obs_date_since1982"] = output_rec_cg_anomaly[i]["obs_date_since1982"][0:SCCD_CONSE_OUTPUT]
         tmp[i]["norm_cm"] = output_rec_cg_anomaly[i]["norm_cm"]
         tmp[i]["cm_angle"] = output_rec_cg_anomaly[i]["cm_angle"]
     return tmp
