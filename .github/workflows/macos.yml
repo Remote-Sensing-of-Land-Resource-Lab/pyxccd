@@ -1,0 +1,95 @@
+name: Build and Test on macOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test-macos:
+    name: Build and Test on macOS (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [
+          # macos-13-xlarge, # arm64 
+          macos-14, # arm64
+          macos-15, # arm64
+          macos-13, # x64
+          # macos-14-large, # x64
+          # macos-15-large, # x64
+        ]
+        python-version: [
+          '3.9', 
+          '3.10', 
+          '3.11', 
+          '3.12', 
+          '3.13'
+        ]
+    
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0 # fetch all history for accurate version calculation
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Get SCM Version
+      id: get_scm_version
+      run: |
+        python -m pip install setuptools_scm
+        SCM_VERSION=$(python -c "from setuptools_scm import get_version; print(get_version())")
+        echo "SCM_VERSION=$SCM_VERSION" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Install system dependencies
+      run: |
+        brew update
+        brew install gsl gcc cmake
+        echo "FC=$(brew --prefix gcc)/bin/gfortran" >> $GITHUB_ENV
+
+    - name: Upgrade pip and install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install all necessary dependencies for build, runtime, and testing
+        python -m pip install -r requirements/build.txt
+        python -m pip install -r requirements/runtime.txt
+        python -m pip install -r requirements/optional.txt
+        python -m pip install -r requirements/tests.txt
+        python -m pip install -r requirements/headless.txt
+
+    - name: Build sdist and wheel
+      run: |
+        python -m pip install build
+        python -m build --sdist --wheel --outdir dist
+
+    - name: List built wheel files
+      run: |
+        ls -l dist/
+
+    - name: Install built wheel
+      run: |
+        # Find the exact wheel file name in the dist directory
+        WHEEL_FILE=$(ls dist/*.whl)
+        echo "Installing wheel: $WHEEL_FILE"
+        pip install "$WHEEL_FILE"
+      shell: bash
+
+    - name: Run tests
+      run: |
+        # Run tests against the installed package
+        pytest tests/
+
+    - name: Upload sdist and wheel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: ./dist/*
+
+    # - name: Publish to PyPI
+    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'macos-latest' && matrix.python-version == '3.12' # Only publish once
+    #   uses: pypa/gh-action-pypi-publish@release/v1
+    #   with:
+    #     password: ${{ secrets.PYPI_API_TOKEN }}
