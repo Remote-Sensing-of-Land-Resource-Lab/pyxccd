@@ -25,7 +25,7 @@ mod_name = "pyxccd"
 repo_name = "pyxccd"
 rel_mod_parent_dpath = "src/python"
 os = [ 
-    #"osx",
+    "osx",
     "linux", 
     "win", 
     #"all"
@@ -53,6 +53,10 @@ test-requires = ["-r requirements/tests.txt", "-r requirements/headless.txt"]
 test-command = "python {project}/run_tests.py"
 
 build-verbosity = 1
+
+[tool.cibuildwheel.macos]
+    archs = ["x86_64", "arm64"]
+    before-build = "brew update && brew install gsl gcc cmake"
 
 [tool.cibuildwheel.linux]
     archs = ["x86_64"]

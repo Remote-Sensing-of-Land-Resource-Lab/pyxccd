@@ -6,7 +6,7 @@ numpy>=1.24.4  ; python_version < '3.9'  and python_version >= '3.8'   # Python 
 
 joblib>=1.2.0
 pyyaml>=6.0.2, <7 ;  python_version < '4.0 '  and python_version >= '3.10'   # Python 3.10+
-pyyaml>=5.4.1, <6 ;  python_version < '3.10'   and python_version >= '3.8'   # Python 3.8~9
+pyyaml>=6.0.2, <7 ;  python_version < '3.10'   and python_version >= '3.8'   # Python 3.8~9
 
 fiona>=1.10.1 ;  python_version < '4.0'  and python_version >= '3.11'    # Python 3.11+
 fiona>=1.10.1 ;  python_version < '3.11'
