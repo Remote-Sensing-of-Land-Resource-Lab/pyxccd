@@ -290,7 +290,13 @@ if __name__ == "__main__":
     setupkw["package_dir"] = {
         "": "src/python",
     }
-    setupkw["cmake_args"] = [] + (["-GMSYS Makefiles"] if os.name == "nt" else [])
+    # Pass GSL prefix to CMake for better linking/delocating
+    gsl_prefix = os.getenv('GSL_PREFIX', '/usr/local') # Default to Homebrew location
+    setupkw["cmake_args"] = [
+        f"-DGSL_ROOT_DIR={gsl_prefix}",
+        f"-DGSL_INCLUDE_DIR={os.path.join(gsl_prefix, 'include')}",
+        f"-DGSL_LIBRARY_DIR={os.path.join(gsl_prefix, 'lib')}"
+    ] + (["-GMSYS Makefiles"] if os.name == "nt" else [])
     ### <special non-xcookie generated code>
     setupkw["include_package_data"] = True
     setupkw["package_data"] = {

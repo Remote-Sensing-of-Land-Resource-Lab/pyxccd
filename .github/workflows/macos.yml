@@ -29,7 +29,7 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v5
       with:
-        fetch-depth: 0 # fetch all history for accurate version calculation
+        fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -42,6 +42,7 @@ jobs:
         python -m pip install setuptools_scm
         SCM_VERSION=$(python -c "from setuptools_scm import get_version; print(get_version())")
         echo "SCM_VERSION=$SCM_VERSION" >> $GITHUB_ENV
+        echo "GSL_PREFIX=$(brew --prefix gsl)" >> $GITHUB_ENV
       shell: bash
 
     - name: Install system dependencies
@@ -53,36 +54,46 @@ jobs:
     - name: Upgrade pip and install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install all necessary dependencies for build, runtime, and testing
         python -m pip install -r requirements/build.txt
         python -m pip install -r requirements/runtime.txt
         python -m pip install -r requirements/optional.txt
         python -m pip install -r requirements/tests.txt
         python -m pip install -r requirements/headless.txt
+        python -m pip install build wheel setuptools delocate
 
     - name: Build sdist and wheel
       run: |
         python -m pip install build
         python -m build --sdist --wheel --outdir dist
 
-    - name: List built wheel files
+    - name: Delocate wheel
       run: |
-        ls -l dist/
+        WHEEL_FILE=$(ls dist/*.whl)
+        delocate-wheel -v "$WHEEL_FILE"
 
     - name: Install built wheel
       run: |
-        # Find the exact wheel file name in the dist directory
         WHEEL_FILE=$(ls dist/*.whl)
         echo "Installing wheel: $WHEEL_FILE"
-        pip install "$WHEEL_FILE"
+        pip install "$WHEEL_FILE" --force-reinstall --no-deps
+        # Check linked libraries after installation
+        PYXCCD_PATH=$(python -c "import pyxccd; import os; print(os.path.dirname(pyxccd.__file__))")
+        echo "pyxccd installed at: $PYXCCD_PATH"
+        # Find the exact name of the compiled module
+        COMPILED_MODULE=$(find "$PYXCCD_PATH" -name "_ccd_cython*.so" -o -name "_ccd_cython*.dylib" | head -n 1)
+        if [ -z "$COMPILED_MODULE" ]; then
+          echo "Error: _ccd_cython module not found in $PYXCCD_PATH"
+          exit 1
+        fi
+        echo "Checking compiled module: $COMPILED_MODULE"
+        otool -L "$COMPILED_MODULE"
       shell: bash
 
     - name: Run tests
       run: |
-        # Run tests against the installed package
         pytest tests/
 
-    - name: Upload sdist and wheel artifacts
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
