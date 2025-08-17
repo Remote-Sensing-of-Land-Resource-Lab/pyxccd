@@ -1,0 +1,106 @@
+name: Build and Test on macOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test-macos:
+    name: Build and Test on macOS (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [
+          # macos-13-xlarge, # arm64 
+          macos-14, # arm64
+          macos-15, # arm64
+          macos-13, # x64
+          # macos-14-large, # x64
+          # macos-15-large, # x64
+        ]
+        python-version: [
+          '3.9', 
+          '3.10', 
+          '3.11', 
+          '3.12', 
+          '3.13'
+        ]
+    
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Get SCM Version
+      id: get_scm_version
+      run: |
+        python -m pip install setuptools_scm
+        SCM_VERSION=$(python -c "from setuptools_scm import get_version; print(get_version())")
+        echo "SCM_VERSION=$SCM_VERSION" >> $GITHUB_ENV
+        echo "GSL_PREFIX=$(brew --prefix gsl)" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Install system dependencies
+      run: |
+        brew update
+        brew install gsl gcc cmake
+        echo "FC=$(brew --prefix gcc)/bin/gfortran" >> $GITHUB_ENV
+
+    - name: Upgrade pip and install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements/build.txt
+        python -m pip install -r requirements/runtime.txt
+        python -m pip install -r requirements/optional.txt
+        python -m pip install -r requirements/tests.txt
+        python -m pip install -r requirements/headless.txt
+        python -m pip install build wheel setuptools delocate
+
+    - name: Build sdist and wheel
+      run: |
+        python -m pip install build
+        python -m build --sdist --wheel --outdir dist
+
+    - name: Delocate wheel
+      run: |
+        WHEEL_FILE=$(ls dist/*.whl)
+        delocate-wheel -v "$WHEEL_FILE"
+
+    - name: Install built wheel
+      run: |
+        WHEEL_FILE=$(ls dist/*.whl)
+        echo "Installing wheel: $WHEEL_FILE"
+        pip install "$WHEEL_FILE" --force-reinstall --no-deps
+        # Check linked libraries after installation
+        PYXCCD_PATH=$(python -c "import pyxccd; import os; print(os.path.dirname(pyxccd.__file__))")
+        echo "pyxccd installed at: $PYXCCD_PATH"
+        # Find the exact name of the compiled module
+        COMPILED_MODULE=$(find "$PYXCCD_PATH" -name "_ccd_cython*.so" -o -name "_ccd_cython*.dylib" | head -n 1)
+        if [ -z "$COMPILED_MODULE" ]; then
+          echo "Error: _ccd_cython module not found in $PYXCCD_PATH"
+          exit 1
+        fi
+        echo "Checking compiled module: $COMPILED_MODULE"
+        otool -L "$COMPILED_MODULE"
+      shell: bash
+
+    - name: Run tests
+      run: |
+        pytest tests/
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: ./dist/*
+
+    # - name: Publish to PyPI
+    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'macos-latest' && matrix.python-version == '3.12' # Only publish once
+    #   uses: pypa/gh-action-pypi-publish@release/v1
+    #   with:
+    #     password: ${{ secrets.PYPI_API_TOKEN }}
