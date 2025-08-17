@@ -32,7 +32,7 @@ jobs:
     # - run: git config --global core.autocrlf input # https://github.com/msys2/setup-msys2/tree/v2/?tab=readme-ov-file#known-problems avoid dirty repo
     #   shell: cmd
     - name: Checkout source
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0 # fetch all history for accurate version calculation
     - name: Set up MSYS2
@@ -101,7 +101,7 @@ jobs:
         os: [windows-latest]
     steps:
     - name: Checkout source
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Extract python version from cibw-only
       id: extract-python-version
