@@ -77,7 +77,12 @@ jobs:
     uses: ./.github/workflows/linux_wheels.yml
     with:
       scm_version: ${{ needs.lint_job.outputs.scm_version }}
-  
+  build_and_test_macos_wheels:
+    needs: lint_job # run linting before building and testing
+    if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
+    uses: ./.github/workflows/macos_wheels.yml
+    with:
+      scm_version: ${{ needs.lint_job.outputs.scm_version }}
   build_and_test_windows_wheels:
     needs: lint_job # run linting before building and testing
     if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
@@ -91,6 +96,7 @@ jobs:
       - lint_job
       - build_and_test_sdist
       - build_and_test_linux_wheels
+      - build_and_test_macos_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.event.ref =='refs/heads/main' || github.event.ref =='refs/heads/devel')
@@ -120,6 +126,7 @@ jobs:
       - lint_job
       - build_and_test_sdist
       - build_and_test_linux_wheels
+      - build_and_test_macos_wheels
       - build_and_test_windows_wheels
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')

@@ -1,10 +1,15 @@
-name: Build and Test on macOS
+name: Build MacOS Wheels
 
 on:
+  workflow_call:
+    inputs:
+      scm_version:
+        type: string
+        required: true
   workflow_dispatch:
 
 jobs:
-  build-and-test-macos:
+  build_macos_wheels:
     name: Build and Test on macOS (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -91,16 +96,15 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest tests/
+        python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config pyproject.toml --cov-report term --cov="pyxccd" "$MOD_DPATH" tests
+
+    - name: Combine coverage and upload
+      uses: ./.github/actions/coverage_codecov
+      with:
+        gather-path: dist
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
-        path: ./dist/*
-
-    # - name: Publish to PyPI
-    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.os == 'macos-latest' && matrix.python-version == '3.12' # Only publish once
-    #   uses: pypa/gh-action-pypi-publish@release/v1
-    #   with:
-    #     password: ${{ secrets.PYPI_API_TOKEN }}
+        path: ./dist/*.whl
