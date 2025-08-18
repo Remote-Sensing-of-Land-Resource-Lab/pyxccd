@@ -98,11 +98,6 @@ jobs:
       run: |
         python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config pyproject.toml --cov-report term --cov="pyxccd" "$MOD_DPATH" tests
 
-    - name: Combine coverage and upload
-      uses: ./.github/actions/coverage_codecov
-      with:
-        gather-path: dist
-
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
