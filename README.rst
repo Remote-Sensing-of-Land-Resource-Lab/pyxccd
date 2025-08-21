@@ -20,9 +20,9 @@ We developed pyxccd mainly for the below purposes:
 
 3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C language with the superior computing efficiency and small memory usage;
 
-4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, modis);
+4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, MODIS, GOSIF, SMAP, etc);
 
-5. **Decomposing time-series signals to unveil inter-annual variation**: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing detecting inter-segment variations such as yearly phenological shifts
+5. **Continuous time-series signal decomposition **: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing for 1) detecting inter-segment variations such as yearly phenological shifts, and 2) gap filling accounting for land cover conversion (temporal breaks)
 
 
 1. Installation
@@ -31,7 +31,7 @@ We developed pyxccd mainly for the below purposes:
 
    pip install pyxccd
 
-Note: it only supports windows and linux system so far. Please contact the author if you wish to install it in the macOS system.
+Note: the installation has been cross-platform (windows, Linux and MacOS). Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
 
 2. Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook/pyxccd_example.ipynb>`_)
 ----------------------------------------------------------------------------------------------------------------
