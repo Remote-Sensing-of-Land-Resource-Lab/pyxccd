@@ -4,7 +4,7 @@ PYXCCD
 |GithubActions| |Pypi| |Downloads| |ReadTheDocs|
 
 
-A PYthon library for basic and eXtended COntinuous Change Detection
+A PYthon library for latest and eXtended COntinuous Change Detection
 =============================================================================================================================
 **Author: Su Ye (remotesensingsuy@gmail.com)**
 
@@ -14,15 +14,15 @@ The Continuous Change Detection and Classification (CCDC) algorithm has been pop
 
 We developed pyxccd mainly for the below purposes:
    
-1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
+1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update temporal model coefficients and detect breaks/anomalies;
 
 2. **The latest version of CCDC (COLD)**: The COLD algorithm has the highest breakpoint detection accuracy than the ever, and has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
 
-3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C language with the superior computing efficiency and small memory usage;
+3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was developed in the C environment with the superior computing efficiency and small memory usage;
 
 4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, MODIS, GOSIF, SMAP, etc);
 
-5. **Continuous time-series signal decomposition **: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing for 1) detecting inter-segment variations such as yearly phenological shifts, and 2) gap filling accounting for land cover conversion (temporal breaks)
+5. **Continuous time-series signal decomposition**: S-CCD allows continuously outputting trend and seasonal signal components as "states", enabling 1) detecting inter-segment variations such as yearly phenological shifts, and 2) gap filling in a manner of accounting for land cover conversion (i.e., temporal breaks)
 
 
 1. Installation
@@ -114,11 +114,11 @@ save the run-time computing memory and boost efficiency.
 Q2: how much time for production of a tile-based disturbance map (5000*5000 pixels) using pyxccd?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Re: I tested it in UCONN HPC environment (200 EPYC7452 cores): for
+Re: I tested COLD in UCONN HPC environment (200 EPYC7452 cores): for
 processing a 40-year Landsat ARD tile (1982-2021), the stacking
 typically takes 15 mins; per-pixel COLD processing costs averagely 1
-hour, per-pixel S-CCD processing costs averagely 0.5
-hour; exporting maps needs 7 mins.
+hour, while per-pixel S-CCD processing costs averagely 0.5
+hour; exporting maps needs 7 mins. 
 
 
 .. |Codecov| image:: https://codecov.io/github/Remote-Sensing-of-Land-Resource-Lab/pyxccd/badge.svg?branch=devel&service=github
