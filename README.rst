@@ -4,7 +4,7 @@ PYXCCD
 |GithubActions| |Pypi| |Downloads| |ReadTheDocs|
 
 
-A PYthon library for latest and eXtended COntinuous Change Detection
+A PYthon library for latest and eXtended Continuous Change Detection
 =============================================================================================================================
 **Author: Su Ye (remotesensingsuy@gmail.com)**
 
@@ -22,7 +22,7 @@ We developed pyxccd mainly for the below purposes:
 
 4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, MODIS, GOSIF, SMAP, etc);
 
-5. **Continuous time-series signal decomposition**: S-CCD allows continuously outputting trend and seasonal signal components as "states", enabling 1) detecting inter-segment variations such as yearly phenological shifts, and 2) gap filling in a manner of accounting for land cover conversion (i.e., temporal breaks)
+5. **Continuous time-series signal decomposition**: S-CCD can continuously outputting trend and seasonal signal components as "states" based upon state-space theory, enabling 1) detecting inter-segment variations such as yearly phenological shifts, and 2) gap filling in a manner of accounting for land cover conversion (i.e., temporal breaks)
 
 
 1. Installation
@@ -105,7 +105,7 @@ based on two testing tiles shows that pyxccd and Matlab version have
 smaller than <2% differences for breakpoint detection and <2%
 differences for harmonic coefficients; the accuracy of pyxccd was also
 tested against the same reference dataset used in the original COLD
-paper (Zhu et al., 2020), and pyxccd reached the same accuracy (27%
+paper (Zhu et al., 2020), and COLD in pyxccd reached the same accuracy (27%
 omission and 28% commission) showing that the discrepancy doesn't hurt
 accuracy. The primary source for the discrepancy is mainly from the
 rounding: MATLAB uses float64 precision, while pyxccd chose float32 to
