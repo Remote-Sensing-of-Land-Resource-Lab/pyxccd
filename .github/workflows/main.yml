@@ -35,7 +35,7 @@ jobs:
       scm_version: ${{ steps.version.outputs.scm_version }}
     steps:
     - name: Checkout source
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0 # fetch all history for accurate version calculation
 
