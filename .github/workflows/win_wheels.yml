@@ -45,7 +45,7 @@ jobs:
 
     - name: Set up Python
       id: setup-python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
         update-environment: false
@@ -111,7 +111,7 @@ jobs:
         echo python-version=$(echo "${{ matrix.cibw-only }}" | sed -n 's/^cp\([0-9]\)\([0-9]\{1,2\}\).*/\1.\2/p' ) >> $GITHUB_OUTPUT
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ steps.extract-python-version.outputs.python-version }}
     - uses: actions/download-artifact@v5
