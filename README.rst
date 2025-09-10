@@ -14,15 +14,15 @@ The Continuous Change Detection and Classification (CCDC) algorithm has been pop
 
 We developed pyxccd mainly for the below purposes:
    
-1. **Near real-time monitoring**: This package provides the unique S-CCD algorithm to recursively update model coefficients and detect changes;
+1. **Near real-time monitoring**: Implements the unique S-CCD algorithm, which recursively updates model coefficients and enables timely change detection.
 
-2. **The latest version of CCDC (COLD)**: The COLD algorithm has the highest breakpoint detection accuracy than the ever, and has been verified with `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_;
+2. **Latest CCDC (COLD)**: Integrates the advanced COLD algorithm, offering the highest retrospective breakpoint detection accuracy to date, validated against `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_.
 
-3. **Large-scale time-series processing in the desktop environment**: the core of pyxccd was coded in C language with the superior computing efficiency and small memory usage;
+3. **Efficient Large-scale time-series processing**: The core of pyxccd is written in C language, ensuring high computational efficiency and low memory usage in the desktop as well as HPC environments.
 
-4. **Using dataset other than Landsat**: pyxccd supports the use of any band combination from any sensor (such as Sentinel-2, MODIS, GOSIF, SMAP, etc);
+4. **Flexible multi-sensor support**: Supports arbitrary band combinations from diverse sensors (e.g., Sentinel-2, MODIS, GOSIF, and SMAP) in addition to Landsat.
 
-5. **Continuous time-series signal decomposition **: S-CCD allows continuously outputting trend and seasonal signal components as "states", allowing for 1) detecting inter-segment variations such as yearly phenological shifts, and 2) gap filling accounting for land cover conversion (temporal breaks)
+5. **Continuous time-series signal decomposition **: S-CCD outputs trend and seasonal components as continuous “states”, enabling (a) detection of subtle inter-segment variations such as annual phenological shifts and (b) gap filling that accounts for land cover conversions (temporal breaks).
 
 
 1. Installation
@@ -31,9 +31,9 @@ We developed pyxccd mainly for the below purposes:
 
    pip install pyxccd
 
-Note: the installation has been cross-platform (windows, Linux and MacOS). Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
+Note: the installation has been cross-platform (Windows, Linux and MacOS). Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
 
-2. Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook/pyxccd_example.ipynb>`_)
+2. Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook`_)
 ----------------------------------------------------------------------------------------------------------------
 
 COLD:

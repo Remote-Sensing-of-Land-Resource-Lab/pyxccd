@@ -6,8 +6,10 @@ import re
 from os.path import exists, dirname, join
 from setuptools import find_packages
 import os
+
 os.environ["SETUPTOOLS_SCM_DEBUG"] = "1"
 import setuptools_scm
+
 if exists("CMakeLists.txt"):
     try:
         import os
@@ -228,9 +230,9 @@ NAME = "pyxccd"
 # VERSION = parse_version(VERSION_PATH)
 VERSION = setuptools_scm.get_version(
     relative_to=__file__,
-    version_file = "src/python/pyxccd/_version.py",
-    local_scheme="no-local-version", # for PEP 440 compatibility, otherwise TestPyPI fails
-) 
+    version_file="src/python/pyxccd/_version.py",
+    local_scheme="no-local-version",  # for PEP 440 compatibility, otherwise TestPyPI fails
+)
 
 if __name__ == "__main__":
     setupkw = {}
@@ -267,7 +269,7 @@ if __name__ == "__main__":
     setupkw["author_email"] = "remotesensingsuy@gmail.com"
     setupkw["url"] = "https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd"
     setupkw["description"] = (
-        "A PYthon library for basic and eXtended COntinuous Change Detection algorithms"
+        "A PYthon library for latest and eXtended COntinuous Change Detection algorithms"
     )
     setupkw["long_description"] = parse_description()
     setupkw["long_description_content_type"] = "text/x-rst"
@@ -291,12 +293,14 @@ if __name__ == "__main__":
         "": "src/python",
     }
     if sys.platform.startswith("darwin"):
-       # Pass GSL prefix to CMake for better linking/delocating
-        gsl_prefix = os.getenv('GSL_PREFIX', '/usr/local') # Default to Homebrew location
+        # Pass GSL prefix to CMake for better linking/delocating
+        gsl_prefix = os.getenv(
+            "GSL_PREFIX", "/usr/local"
+        )  # Default to Homebrew location
         setupkw["cmake_args"] = [
             f"-DGSL_ROOT_DIR={gsl_prefix}",
             f"-DGSL_INCLUDE_DIR={os.path.join(gsl_prefix, 'include')}",
-            f"-DGSL_LIBRARY_DIR={os.path.join(gsl_prefix, 'lib')}"
+            f"-DGSL_LIBRARY_DIR={os.path.join(gsl_prefix, 'lib')}",
         ]
     elif sys.platform.startswith("win"):
         setupkw["cmake_args"] = [] + ["-GMSYS Makefiles"]
