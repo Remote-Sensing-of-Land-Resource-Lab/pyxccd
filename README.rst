@@ -4,7 +4,7 @@ PYXCCD
 |GithubActions| |Pypi| |Downloads| |ReadTheDocs|
 
 
-A PYthon library for basic and eXtended COntinuous Change Detection
+A PYthon library for latest and eXtended Continuous Change Detection
 =============================================================================================================================
 **Author: Su Ye (remotesensingsuy@gmail.com)**
 
@@ -17,6 +17,7 @@ We developed pyxccd mainly for the below purposes:
 1. **Near real-time monitoring**: Implements the unique S-CCD algorithm, which recursively updates model coefficients and enables timely change detection.
 
 2. **Latest CCDC (COLD)**: Integrates the advanced COLD algorithm, offering the highest retrospective breakpoint detection accuracy to date, validated against `Zhe's MATLAB version <https://github.com/Remote-Sensing-of-Land-Resource-Lab/COLD>`_.
+
 
 3. **Efficient Large-scale time-series processing**: The core of pyxccd is written in C language, ensuring high computational efficiency and low memory usage in the desktop as well as HPC environments.
 
@@ -105,7 +106,7 @@ based on two testing tiles shows that pyxccd and Matlab version have
 smaller than <2% differences for breakpoint detection and <2%
 differences for harmonic coefficients; the accuracy of pyxccd was also
 tested against the same reference dataset used in the original COLD
-paper (Zhu et al., 2020), and pyxccd reached the same accuracy (27%
+paper (Zhu et al., 2020), and COLD in pyxccd reached the same accuracy (27%
 omission and 28% commission) showing that the discrepancy doesn't hurt
 accuracy. The primary source for the discrepancy is mainly from the
 rounding: MATLAB uses float64 precision, while pyxccd chose float32 to
@@ -114,11 +115,11 @@ save the run-time computing memory and boost efficiency.
 Q2: how much time for production of a tile-based disturbance map (5000*5000 pixels) using pyxccd?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Re: I tested it in UCONN HPC environment (200 EPYC7452 cores): for
+Re: I tested COLD in UCONN HPC environment (200 EPYC7452 cores): for
 processing a 40-year Landsat ARD tile (1982-2021), the stacking
 typically takes 15 mins; per-pixel COLD processing costs averagely 1
-hour, per-pixel S-CCD processing costs averagely 0.5
-hour; exporting maps needs 7 mins.
+hour, while per-pixel S-CCD processing costs averagely 0.5
+hour; exporting maps needs 7 mins. 
 
 
 .. |Codecov| image:: https://codecov.io/github/Remote-Sensing-of-Land-Resource-Lab/pyxccd/badge.svg?branch=devel&service=github
