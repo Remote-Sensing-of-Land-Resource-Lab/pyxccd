@@ -53,7 +53,7 @@ jobs:
     - name: Install system dependencies
       run: |
         brew update
-        brew install gsl gcc cmake
+        brew install gsl gcc
         echo "FC=$(brew --prefix gcc)/bin/gfortran" >> $GITHUB_ENV
 
     - name: Upgrade pip and install dependencies
