@@ -40,7 +40,7 @@ jobs:
         fetch-depth: 0 # fetch all history for accurate version calculation
 
     - name: Set up Python 3.11 for linting
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
     - name: Install dependencies
