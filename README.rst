@@ -34,7 +34,7 @@ We developed pyxccd mainly for the below purposes:
 
 Note: the installation has been cross-platform (Windows, Linux and MacOS). Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
 
-2. Using pyxccd for pixel-based processing (more see `jupyter examples <tool/notebook`_)
+2. Using pyxccd for pixel-based processing
 ----------------------------------------------------------------------------------------------------------------
 
 COLD:
