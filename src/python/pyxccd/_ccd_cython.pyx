@@ -588,8 +588,8 @@ cpdef _sccd_update(sccd_pack,
 
     # TO CHECK
     if nrt_mode % 10 == 1 or nrt_mode == 3 or nrt_mode % 10 == 5:
-        nrt_model = np.zeros(1, dtype=nrtmodel_dt)
-        nrt_model[0] = sccd_pack.nrt_model
+        nrt_model_new = np.zeros(1, dtype=nrtmodel_dt)
+        nrt_model_new[0] = sccd_pack.nrt_model
     else:
         nrt_model_new = np.empty(1, dtype=nrtmodel_dt)
 

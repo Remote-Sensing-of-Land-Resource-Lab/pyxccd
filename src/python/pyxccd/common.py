@@ -216,7 +216,7 @@ SccdOutput = namedtuple(
 SccdOutput.__doc__ = ": A namedtuple of standard S-CCD ouputs"
 SccdOutput.position.__doc__ = ": int. Location of each time series model. \n The position is computed as (i * (n_row-1) + j), e.g., the pos of (1000, 1) is 5000*(1000-1)+1"
 SccdOutput.rec_cg.__doc__ = ": numpy.ndarray. 1-d structured array with :py:class:`rec_cg`. \n Historical temporal segment info were obtained from S-CCD algorithm as a structured array"
-SccdOutput.min_rmse.__doc__ = """: numpy.ndarray. 1-d array of shape (nbands,). \n The minimum RMSE  was obtained by temporal semivariogram. This array is unchanged with sccd_update since sccd_detect is first set."""
+SccdOutput.min_rmse.__doc__ = """: numpy.ndarray. 1-d array of shape (nbands,). \n The minimum RMSE  was obtained by temporal semivariogram. This array keeps fix with sccd_update since sccd_detect is first used."""
 SccdOutput.nrt_mode.__doc__ = """:int. \n
                                     (first digit) \n
                                     0 - has predictability \n
@@ -229,10 +229,10 @@ SccdOutput.nrt_mode.__doc__ = """:int. \n
                                     3 - monitoring mode for snow \n
                                     4 - queue mode for snow \n
                                     5 - transition mode from monitoring to queue mode (keep nrt_model and nrt_queue both), keeping 15 days since the break is first detected"""
-SccdOutput.nrt_model.__doc__ = ": numpy.ndarray. 1-d structured array with :py:class:`nrt_model` dtype \n Current sccd model for the monitoring modes (1/3/5/11) that could be used for NRT monitoring"
+SccdOutput.nrt_model.__doc__ = """: numpy.ndarray. 1-d structured array with :py:class:`nrt_model` dtype \n 
+Current nrt model that will be used for NRT monitoring. Only valid for the monitoring modes (1/3/5/11) """
 SccdOutput.nrt_queue.__doc__ = """: numpy.ndarray. 1-d array of structured array with :py:class:`nrt_queue` dtype. \n 
-                                    Observation collection to build initialization model for queue modes (2/4/5). 
-                                    Store the observations in the queue, and cannot perform NRT monitoring as no model yet."""
+                                    Observation collection to build initialization model for queue modes (2/4/5). Collected the observations in the queue until the CCDC initialization successes."""
 
 
 # the below dataclass are created only for docstring purpose. Python so far doesn't support docstring for dtype yet.
