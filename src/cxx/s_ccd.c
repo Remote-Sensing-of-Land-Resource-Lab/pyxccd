@@ -2708,7 +2708,7 @@ int sccd_standard(
     /* While loop - process til the conse -1 observation remains  */
     /*                                                            */
     /**************************************************************/
-    while (i + conse <= *n_clr - 1) // the first conse obs have been investigated in the last run
+    while (i + conse <= *n_clr) // the first conse obs have been investigated in the last run
     {
 
         if (0 == bl_train)

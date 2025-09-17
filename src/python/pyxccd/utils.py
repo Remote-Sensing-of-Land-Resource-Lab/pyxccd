@@ -1078,3 +1078,19 @@ def extract_features(
                     break
 
     return features
+
+
+def convert_datesince1982(date: int) -> pd.Timestamp:
+    """_summary_
+
+    Parameters
+    ----------
+    date : int
+        ordinal date
+
+    Returns
+    -------
+    pd.Timestamp
+        _description_
+    """
+    return pd.Timestamp.fromordinal(date + defaults["COMMON"]["JULIAN_LANDSAT4_LAUNCH"])
