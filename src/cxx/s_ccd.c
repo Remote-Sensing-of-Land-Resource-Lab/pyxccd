@@ -1,4 +1,4 @@
-﻿#include <stdint.h>
+#include <stdint.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
@@ -2060,7 +2060,9 @@ int step3_processing_end(
     bool change_detected,
     double predictability_tcg,
     double lambda,
-    bool fitting_coefs)
+    bool fitting_coefs,
+    int *num_curve,
+    Output_sccd *rec_cg)
 {
     int k, k1, k2;
     int i_b, b;
@@ -2088,23 +2090,17 @@ int step3_processing_end(
     clock_t t_time = clock();
     float **v_dif_mag;
     int update_num_c, i;
+    float tmp_rmse;
+    float tmp;
 
     // double time_taken;
     t_time = clock();
     int conse_last;
     int valid_conse_last; // valid conse number after excluding the observations included in the model fitting
     int stable_count = 0;
-    float tmp_rmse;
 
     w = TWO_PI / AVE_DAYS_IN_A_YEAR;
     w2 = 2.0 * w;
-
-    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, *n_clr - i_start,
-                                             sizeof(float));
-    if (temp_v_dif == NULL)
-    {
-        RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
-    }
 
     rmse = (float *)malloc(TOTAL_IMAGE_BANDS_SCCD * sizeof(float));
     if (rmse == NULL)
@@ -2154,6 +2150,13 @@ int step3_processing_end(
     if (medium_v_dif == NULL)
     {
         RETURN_ERROR("Allocating v_dif_mag_norm memory", FUNC_NAME, FAILURE);
+    }
+
+    temp_v_dif = (float **)allocate_2d_array(TOTAL_IMAGE_BANDS, cur_i - i_start + 1,
+                                             sizeof(float));
+    if (temp_v_dif == NULL)
+    {
+        RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
     }
 
     //    time_taken = (clock() - (double)t_time)/CLOCKS_PER_SEC; // calculate the elapsed time
@@ -2435,6 +2438,45 @@ int step3_processing_end(
                         //                            nrt_model->cm_bands[i_b] = (short int) (tmp);
                         //                        }
                         nrt_model->anomaly_conse = conse_last; // for new change, at last conse
+
+                        /**********************************************************/
+                        /*            check if a new break is detected            */
+                        /**********************************************************/
+                        if ((nrt_model->anomaly_conse >= conse) && (nrt_model->norm_cm >= anomaly_tcg * 100) && (nrt_model->cm_angle < NSIGN * 100) && (*nrt_mode % 10 == NRT_MONITOR_STANDARD))
+                        {
+                            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                            {
+                                rec_cg[*num_curve].rmse[i_b] = sqrtf((float)rmse_band[i_b]);
+                            }
+
+                            rec_cg[*num_curve].num_obs = num_obs_processed + 1;
+                            rec_cg[*num_curve].t_start = t_start;
+
+                            for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                            {
+                                quick_sort_float(v_dif_mag[i_b], 0, conse - 1);
+                                matlab_2d_float_median(v_dif_mag, i_b, conse,
+                                                       &tmp);
+                                rec_cg[*num_curve].magnitude[i_b] = (float)tmp;
+                                for (k = 0; k < SCCD_NUM_C; k++)
+                                {
+                                    /**********************************/
+                                    /*                                */
+                                    /* Record fitted coefficients.    */
+                                    /*                                */
+                                    /**********************************/
+                                    rec_cg[*num_curve].coefs[i_b][k] = fit_cft[i_b][k];
+                                }
+                            } // for(i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+
+                            /* record break  */
+                            rec_cg[*num_curve].t_break = clrx[cur_i];
+                            *num_curve = *num_curve + 1;
+                            prev_i_break = cur_i;
+                            i_start = cur_i;
+
+                            *nrt_mode = NRT_MONITOR2QUEUE;
+                        }
                     }
                 }
 
@@ -2708,7 +2750,7 @@ int sccd_standard(
     /* While loop - process til the conse -1 observation remains  */
     /*                                                            */
     /**************************************************************/
-    while (i + conse <= *n_clr) // the first conse obs have been investigated in the last run
+    while (i + conse <= *n_clr - 1) // the first conse obs have been investigated in the last run
     {
 
         if (0 == bl_train)
@@ -2992,7 +3034,7 @@ int sccd_standard(
     status = step3_processing_end(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                   i_start, prev_i_break, nrt_model, num_obs_queue,
                                   obs_queue, sum_square_vt, num_obs_processed, t_start,
-                                  conse, min_rmse, anomaly_tcg, change_detected, predictability_tcg, lambda, fitting_coefs);
+                                  conse, min_rmse, anomaly_tcg, change_detected, predictability_tcg, lambda, fitting_coefs, num_fc, rec_cg);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))

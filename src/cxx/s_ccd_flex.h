@@ -147,7 +147,9 @@ int step3_processing_end_flex(
     int nbands,
     double lambda,
     bool fitting_coefs,
-    int n_coefs);
+    int n_coefs,
+    int *num_curve,
+    Output_sccd_flex *rec_cg);
 
 int sccd_snow_flex(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */

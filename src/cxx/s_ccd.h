@@ -137,7 +137,9 @@ int step3_processing_end(
     bool change_detected,
     double predictability_tcg,
     double lambda,
-    bool fitting_coefs);
+    bool fitting_coefs,
+    int *num_curve,
+    Output_sccd *rec_cg);
 
 int sccd_snow(
     int *clrx,    /* I: clear pixel curve in X direction (date)             */

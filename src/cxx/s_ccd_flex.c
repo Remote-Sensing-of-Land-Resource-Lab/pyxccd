@@ -1,4 +1,4 @@
-﻿#include <stdint.h>
+#include <stdint.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
@@ -1745,7 +1745,7 @@ int step2_KF_ChangeDetection_flex(
             rec_cg[*num_curve].rmse[i_b] = sqrtf((float)rmse_band[i_b]);
         }
 
-        rec_cg[*num_curve].num_obs = *num_obs_processed;
+        rec_cg[*num_curve].num_obs = cur_i - i_start + 1;
         rec_cg[*num_curve].t_start = t_start;
         if (fitting_coefs == TRUE)
         {
@@ -1925,7 +1925,9 @@ int step3_processing_end_flex(
     int nbands,
     double lambda,
     bool fitting_coefs,
-    int n_coefs)
+    int n_coefs,
+    int *num_curve,
+    Output_sccd_flex *rec_cg)
 {
     int k, k1, k2;
     int i_b, b;
@@ -1952,6 +1954,7 @@ int step3_processing_end_flex(
     clock_t t_time = clock();
     float **v_dif_mag;
     int update_num_c, i;
+    float tmp;
 
     // double time_taken;
     t_time = clock();
@@ -2280,6 +2283,44 @@ int step3_processing_end_flex(
                         //                            nrt_model->cm_bands[i_b] = (short int) (tmp);
                         //                        }
                         nrt_model->anomaly_conse = conse_last; // for new change, at last conse
+
+                        /**********************************************************/
+                        /*            check if a new break is detected            */
+                        /**********************************************************/
+                        if ((nrt_model->anomaly_conse >= conse) && (nrt_model->norm_cm >= anomaly_tcg * 100) && (nrt_model->cm_angle < NSIGN * 100) && (*nrt_mode % 10 == NRT_MONITOR_STANDARD))
+                        {
+                            for (i_b = 0; i_b < nbands; i_b++)
+                            {
+                                rec_cg[*num_curve].rmse[i_b] = sqrtf((float)rmse_band[i_b]);
+                            }
+
+                            rec_cg[*num_curve].num_obs = num_obs_processed + 1;
+                            rec_cg[*num_curve].t_start = t_start;
+
+                            for (i_b = 0; i_b < nbands; i_b++)
+                            {
+                                quick_sort_float(v_dif_mag[i_b], 0, conse - 1);
+                                matlab_2d_float_median(v_dif_mag, i_b, conse,
+                                                       &tmp);
+                                rec_cg[*num_curve].magnitude[i_b] = (float)tmp;
+                                for (k = 0; k < n_coefs; k++)
+                                {
+                                    /**********************************/
+                                    /*                                */
+                                    /* Record fitted coefficients.    */
+                                    /*                                */
+                                    /**********************************/
+                                    rec_cg[*num_curve].coefs[i_b][k] = fit_cft[i_b][k];
+                                }
+                            } // for(i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+
+                            /* record break  */
+                            rec_cg[*num_curve].t_break = clrx[cur_i];
+                            *num_curve = *num_curve + 1;
+                            prev_i_break = cur_i;
+                            i_start = cur_i;
+                            *nrt_mode = NRT_MONITOR2QUEUE;
+                        }
                     }
                 }
 
@@ -2553,7 +2594,7 @@ int sccd_standard_flex(
     /* While loop - process til the conse -1 observation remains  */
     /*                                                            */
     /**************************************************************/
-    while (i + conse <= *n_clr) // the first conse obs have been investigated in the last run
+    while (i + conse <= *n_clr - 1) // the first conse obs have been investigated in the last run
     {
 
         if (0 == bl_train)
@@ -2846,7 +2887,7 @@ int sccd_standard_flex(
     status = step3_processing_end_flex(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                        i_start, prev_i_break, nrt_model, num_obs_queue, obs_queue,
                                        sum_square_vt, num_obs_processed, t_start, conse, min_rmse,
-                                       anomaly_tcg, change_detected, predictability_tcg, nbands, lambda, fitting_coefs, n_coefs);
+                                       anomaly_tcg, change_detected, predictability_tcg, nbands, lambda, fitting_coefs, n_coefs, num_fc, rec_cg);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))
