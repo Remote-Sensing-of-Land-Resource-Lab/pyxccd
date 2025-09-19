@@ -655,7 +655,11 @@ def check_1d(array, var_name):
             "Expected 1D array for input {}, but got {}D".format(var_name, array.ndim)
         )
 
-    if (array.dtype != "int64") or (array.dtype != "int32") or (array.dtype != "int16"):
+    if (
+        (array.dtype != "int64")
+        and (array.dtype != "int32")
+        and (array.dtype != "int16")
+    ):
         raise ValueError(
             "Expected int16, int32, int64 for the input, but got {}".format(array.dtype)
         )
