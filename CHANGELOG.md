@@ -3,6 +3,9 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 0.1.4] - Released 2025-09-19
+* Fix the bug for processing the tail of S-CCD
+
 ## [Version 0.1.3] - Released 2025-08-21
 * Add MacOS version
 
