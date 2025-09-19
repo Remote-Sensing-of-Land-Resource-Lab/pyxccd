@@ -11,6 +11,7 @@ import operator
 import warnings
 import numpy as np
 
+
 def _is_arraylike(x):
     """Returns whether the input is array-like."""
     return hasattr(x, "__len__") or hasattr(x, "shape") or hasattr(x, "__array__")
@@ -633,7 +634,8 @@ def check_consistent_length(*arrays):
     if len(uniques) > 1:
         raise ValueError(
             "Found input variables with inconsistent numbers of samples: %r"
-            % [int(x) for x in lengths])
+            % [int(x) for x in lengths]
+        )
 
 
 def check_1d(array, var_name):
@@ -649,4 +651,11 @@ def check_1d(array, var_name):
 
     """
     if array.ndim != 1:
-        raise ValueError("Expected 1D array for input {}, but got {}D".format(var_name, array.ndim))
+        raise ValueError(
+            "Expected 1D array for input {}, but got {}D".format(var_name, array.ndim)
+        )
+
+    if (array.dtype != "int64") or (array.dtype != "int32") or (array.dtype != "int16"):
+        raise ValueError(
+            f"Expected int16, int32, int64 for the input, but got {array.dtype}"
+        )
