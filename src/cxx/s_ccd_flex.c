@@ -1963,13 +1963,6 @@ int step3_processing_end_flex(
     int stable_count = 0;
     float tmp_rmse;
 
-    temp_v_dif = (float **)allocate_2d_array(nbands, *n_clr - i_start,
-                                             sizeof(float));
-    if (temp_v_dif == NULL)
-    {
-        RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
-    }
-
     rmse = (float *)malloc(nbands * sizeof(float));
     if (rmse == NULL)
     {
@@ -2011,6 +2004,13 @@ int step3_processing_end_flex(
     }
 
     medium_v_dif = (float *)malloc(nbands * sizeof(float));
+
+    temp_v_dif = (float **)allocate_2d_array(nbands, cur_i - i_start + 1,
+                                             sizeof(float));
+    if (temp_v_dif == NULL)
+    {
+        RETURN_ERROR("Allocating temp_v_dif memory", FUNC_NAME, FAILURE);
+    }
 
     rmse_band = (float *)calloc(nbands, sizeof(float));
 

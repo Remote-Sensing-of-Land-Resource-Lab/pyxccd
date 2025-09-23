@@ -487,6 +487,7 @@ def _update_cold_reccg(reccg, nbands: int):
         tmp[i]["pos"] = reccg[i]["pos"]
         tmp[i]["num_obs"] = reccg[i]["num_obs"]
         tmp[i]["category"] = reccg[i]["category"]
+        tmp[i]["change_prob"] = reccg[i]["change_prob"]
         tmp[i]["coefs"] = reccg[i]["coefs"][0:nbands, 0:COLD_NUM_C]
         tmp[i]["rmse"] = reccg[i]["rmse"][0:nbands]
         tmp[i]["magnitude"] = reccg[i]["magnitude"][0:nbands]

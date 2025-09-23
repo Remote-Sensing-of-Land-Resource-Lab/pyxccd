@@ -46,14 +46,14 @@ _parameter_constraints: dict = {
     "transform_mode": ["boolean"],
     "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
     "lam": [Interval(Real, 0.0, None, closed="left")],
-    "trimodel": ["boolean"]
+    "trimodel": ["boolean"],
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
 NUM_FC_SCCD = 40
 NUM_NRT_QUEUE = 240
 MAX_FLEX_BAND = 10
-MAX_FLEX_BAND_SCCD = 8
+MAX_FLEX_BAND_SCCD = 10
 DEFAULT_BANDS = 5
 
 
@@ -848,7 +848,7 @@ def sccd_detect_flex(
     tmask_b1_index=1,
     tmask_b2_index=1,
     fitting_coefs=False,
-    trimodel=False
+    trimodel=False,
 ):
     """
     Offline SCCD algorithm for processing historical time series for any band combination.
@@ -923,7 +923,7 @@ def sccd_detect_flex(
         anomaly_conse=anomaly_conse,
         state_intervaldays=state_intervaldays,
         lam=lam,
-        trimodel=trimodel
+        trimodel=trimodel,
     )
     # make sure it is c contiguous array and 64 bit
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -968,7 +968,7 @@ def sccd_detect_flex(
         tmask_b2_index,
         fitting_coefs,
         lam,
-        trimodel
+        trimodel,
     )
 
 
@@ -986,7 +986,7 @@ def sccd_update_flex(
     predictability_pcg=0.90,
     tmask_b1_index=1,
     tmask_b2_index=1,
-    trimodel=False
+    trimodel=False,
 ):
     """
     SCCD online update for new observations for any band combination
@@ -1036,7 +1036,7 @@ def sccd_update_flex(
         anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
         lam=lam,
-        trimodel=trimodel
+        trimodel=trimodel,
     )
 
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -1080,5 +1080,5 @@ def sccd_update_flex(
         tmask_b1_index,
         tmask_b2_index,
         lam,
-        trimodel
+        trimodel,
     )
