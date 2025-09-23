@@ -75,7 +75,7 @@ sccd_dt = numpy.dtype(
 #         2-d array of shape (nbands, ncoefs) to keep multispectral harmonic coefficients from the last lasso regression.
 #         Spectral bands include blue, green, red, nir, swir1, swir2 (from  row 1 to 6); eight harmonic
 #         coefficients include intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi,
-#         cos_trimodel, sin_trimodel (from col 1 to 6). Note the slope has been multiplied by
+#         cos_trimodal, sin_trimodal (from col 1 to 6). Note the slope has been multiplied by
 #         10000, S-CCD uses 6-coefs model and 6 spectral bands
 #     rmse: numpy.ndarray
 #         1-d array of shape (nbands,), multispectral RMSE of predicted and actiual observations
@@ -289,7 +289,7 @@ class cold_rec_cg:
     """Probability of a pixel that have undergone change (between 0 and 100)"""
 
     coefs: numpy.ndarray
-    """2-d array of shape (nbands, ncoefs). It keeps multispectral harmonic coefficients from the last lasso regression. If not flexible mode, the spectral bands are fix, including blue, green, red, nir, swir1, swir2, thermal (from row 1 to 7). If flexible mode, the rows follow the order of inputted bands.The columns correspond to the eight harmonic coefficients including intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodel, sin_trimodel (from col 1 to 8). Note that the slope has been multiplied by 10000."""
+    """2-d array of shape (nbands, ncoefs). It keeps multispectral harmonic coefficients from the last lasso regression. If not flexible mode, the spectral bands are fix, including blue, green, red, nir, swir1, swir2, thermal (from row 1 to 7). If flexible mode, the rows follow the order of inputted bands.The columns correspond to the eight harmonic coefficients including intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodal, sin_trimodal (from col 1 to 8). Note that the slope has been multiplied by 10000."""
 
     rmse: numpy.ndarray
     """1-d array of shape (nbands,), multispectral RMSE of predicted and actiual observations"""
@@ -365,7 +365,7 @@ class anomaly:
     t_break: numpy.int32
     """ordinal date when the anomaly break is detected"""
     coefs: numpy.ndarray
-    """2-d array of shape (nbands, ncoefs) to keep multispectral harmonic coefficients from the last lasso regression. Spectral bands include blue, green, red, nir, swir1, swir2, thermal (from row 1 to 7); eight harmonic coefficients include intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodel, sin_trimodel (from col 1 to 8). Note the slope has been multiplied by 10000."""
+    """2-d array of shape (nbands, ncoefs) to keep multispectral harmonic coefficients from the last lasso regression. Spectral bands include blue, green, red, nir, swir1, swir2, thermal (from row 1 to 7); eight harmonic coefficients include intercept, slope, cos_annual, sin_annual, cos_semi, sin_semi, cos_trimodal, sin_trimodal (from col 1 to 8). Note the slope has been multiplied by 10000."""
     obs: numpy.ndarray
     """2-d array of shape (nbands, nobs). The 6 spectral bands follow the order (blue, green, red, nir, swir1, swir2) for last 8 observations."""
     obs_date_since1982: numpy.ndarray

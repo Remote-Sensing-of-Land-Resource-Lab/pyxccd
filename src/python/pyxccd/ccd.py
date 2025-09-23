@@ -46,7 +46,7 @@ _parameter_constraints: dict = {
     "transform_mode": ["boolean"],
     "state_intervaldays": [Interval(Real, 0.0, None, closed="left")],
     "lam": [Interval(Real, 0.0, None, closed="left")],
-    "trimodel": ["boolean"],
+    "trimodal": ["boolean"],
 }
 
 NUM_FC = 40  # define the maximum number of outputted curves
@@ -848,7 +848,7 @@ def sccd_detect_flex(
     tmask_b1_index=1,
     tmask_b2_index=1,
     fitting_coefs=False,
-    trimodel=False,
+    trimodal=False,
 ):
     """
     Offline SCCD algorithm for processing historical time series for any band combination.
@@ -888,8 +888,8 @@ def sccd_detect_flex(
         The first band id for tmask. Started from 1. The default CCDC is 2 (green)
     tmask_b2_index: int
         The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
-    trimodel: bool
-        indicate if trimodel component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
+    trimodal: bool
+        indicate if trimodal component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
 
     Returns
     ----------
@@ -923,7 +923,7 @@ def sccd_detect_flex(
         anomaly_conse=anomaly_conse,
         state_intervaldays=state_intervaldays,
         lam=lam,
-        trimodel=trimodel,
+        trimodal=trimodal,
     )
     # make sure it is c contiguous array and 64 bit
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -968,7 +968,7 @@ def sccd_detect_flex(
         tmask_b2_index,
         fitting_coefs,
         lam,
-        trimodel,
+        trimodal,
     )
 
 
@@ -986,7 +986,7 @@ def sccd_update_flex(
     predictability_pcg=0.90,
     tmask_b1_index=1,
     tmask_b2_index=1,
-    trimodel=False,
+    trimodal=False,
 ):
     """
     SCCD online update for new observations for any band combination
@@ -1015,8 +1015,8 @@ def sccd_update_flex(
         Change probability threshold for defining spectral anomalies /anomaly, by default 0.90.
     predictability_pcg: float
         Probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
-    trimodel: bool
-        indicate if trimodel component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
+    trimodal: bool
+        indicate if trimodal component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
     Returns
     ----------
     :py:type:`~pyxccd.common.SccdOutput`
@@ -1036,7 +1036,7 @@ def sccd_update_flex(
         anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
         lam=lam,
-        trimodel=trimodel,
+        trimodal=trimodal,
     )
 
     dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
@@ -1080,5 +1080,5 @@ def sccd_update_flex(
         tmask_b1_index,
         tmask_b2_index,
         lam,
-        trimodel,
+        trimodal,
     )

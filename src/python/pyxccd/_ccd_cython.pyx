@@ -716,7 +716,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
 
 
 
-cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t,      ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodel=False):
+cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t,      ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodal=False):
     """
     Helper function to do COLD algorithm.
 
@@ -764,7 +764,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
     nrt_queue = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
     nrt_model = np.zeros(1, dtype=nrtmodel_dt_flex)
     rec_cg_anomaly = np.zeros(NUM_FC_SCCD, dtype=anomaly_dt_flex)
-    if trimodel == True:
+    if trimodal == True:
         n_coefs = 8
     else:
         n_coefs = 6
@@ -831,12 +831,12 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                 else:
                     raise RuntimeError("No correct nrt_mode (mode={}) returned for pos = {} ".format(nrt_mode, pos))
             else:
-                if trimodel == False:
+                if trimodal == False:
                     colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] 
                     state_ensemble = state_ensemble.reshape(-1, nbands * 3)
                     state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 else:
-                    colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] + [f"b{i}_trimodel" for i in range(nbands)] 
+                    colnames = ["dates"] + [f"b{i}_trend" for i in range(nbands)] + [f"b{i}_annual" for i in range(nbands)] + [f"b{i}_semiannual" for i in range(nbands)] + [f"b{i}_trimodal" for i in range(nbands)] 
                     state_ensemble = state_ensemble.reshape(-1, nbands * 4)
                     state_all = pd.DataFrame(np.column_stack((state_days[0:n_state], state_ensemble[0:n_state,:])), columns=colnames)
                 if nrt_mode % 10 == 1 or nrt_mode == 3:  # monitor mode
@@ -881,7 +881,7 @@ cpdef _sccd_update_flex(sccd_pack,
                         int32_t conse=6, int32_t pos=1, bint b_c2=True,
                         double anomaly_tcg=9.236, int anomaly_conse=3, 
                         double predictability_tcg=15.086, 
-                        int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, double lam=20, bool trimodel=False):
+                        int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, double lam=20, bool trimodal=False):
     """
     SCCD online update for new observations
 
@@ -923,7 +923,7 @@ cpdef _sccd_update_flex(sccd_pack,
         raise RuntimeError("Invalid nrt_node input {} for pos = {} ".format(nrt_mode, pos))
 
     cdef int64_t n_coefs
-    if trimodel == True:
+    if trimodal == True:
         n_coefs = 8
     else:
         n_coefs = 6

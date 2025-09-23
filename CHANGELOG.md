@@ -12,7 +12,7 @@ that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Version 0.1.1] - Released 2025-08-03
 
 ### Added
-* Add the option of adding trimodel for sccd_detect_flex; tailor the outputs of sccd_detect_flex based upon input bands and coefficient choices(6 or 8) to save the disk space of the output; optimize some namings for parameters (e.g., tmask_b1_index=1, fitting_coefs); change the output type of nrt_model from numpy to structure
+* Add the option of adding trimodal for sccd_detect_flex; tailor the outputs of sccd_detect_flex based upon input bands and coefficient choices(6 or 8) to save the disk space of the output; optimize some namings for parameters (e.g., tmask_b1_index=1, fitting_coefs); change the output type of nrt_model from numpy to structure
 
 
 ## [Version 0.1.0] - Released 2025-06-17
