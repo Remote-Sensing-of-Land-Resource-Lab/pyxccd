@@ -601,18 +601,18 @@ int initialize_ssmconstants(
     // double ini_q00 = pow(base_value, 2) / 10000.0 / AVE_DAYS_IN_A_YEAR;
     if (lambda == 0)
     {
-        ini_q00 = MAX_Q00
+        ini_q00 = MAX_Q00;
     }
     else
     {
         ini_q00 = 20.0 / lambda * INI_Q00;
         if (ini_q00 > MAX_Q00)
         {
-            ini_q00 = MAX_Q00
+            ini_q00 = MAX_Q00;
         }
         if (ini_q00 < INI_Q00)
         {
-            ini_q00 = INI_Q00
+            ini_q00 = INI_Q00;
         }
     }
 
