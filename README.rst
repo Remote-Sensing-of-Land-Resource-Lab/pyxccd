@@ -101,16 +101,7 @@ Q&A
 Q1: Has pyxccd been verified with original Matlab codes?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Re: yes, multiple rounds of verification have been done. Comparison
-based on two testing tiles shows that pyxccd and Matlab version have
-smaller than <2% differences for breakpoint detection and <2%
-differences for harmonic coefficients; the accuracy of pyxccd was also
-tested against the same reference dataset used in the original COLD
-paper (Zhu et al., 2020), and COLD in pyxccd reached the same accuracy (27%
-omission and 28% commission) showing that the discrepancy doesn't hurt
-accuracy. The primary source for the discrepancy is mainly from the
-rounding: MATLAB uses float64 precision, while pyxccd chose float32 to
-save the run-time computing memory and boost efficiency.
+Re: Multiple rounds of verification have been conducted. A comparison based on two testing tiles indicates that differences between pyxccd and the MATLAB implementation are minimal, with discrepancies of less than 2% in both breakpoint detection and harmonic coefficients. Furthermore, the accuracy of pyxccd was evaluated against the same reference dataset used in the original COLD study (Zhu et al., 2020). The results demonstrate that COLD in pyxccd achieves equivalent accuracy (27% omission and 28% commission), confirming that the observed discrepancies do not compromise performance. The primary source of the discrepancy stems from numerical precision: MATLAB employs float64, whereas pyxccd uses float32 to reduce memory consumption and improve computational efficiency.
 
 Q2: how much time for production of a tile-based disturbance map (5000*5000 pixels) using pyxccd?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
