@@ -406,9 +406,11 @@ int initialize_ssmconstants(
     int n_state,
     float rmse,
     double base_value,
-    ssmodel_constants *instance)
+    ssmodel_constants *instance,
+    double lambda)
 {
     int i, j;
+    double ini_q00;
     instance->m = n_state;
 
     // it is a three-digit indicator, 11 meaning 'semi + annual cycle'
@@ -597,7 +599,23 @@ int initialize_ssmconstants(
 
     /*   initialize Q     */
     // double ini_q00 = pow(base_value, 2) / 10000.0 / AVE_DAYS_IN_A_YEAR;
-    double ini_q00 = INI_Q00;
+    if (lambda == 0)
+    {
+        ini_q00 = MAX_Q00
+    }
+    else
+    {
+        ini_q00 = 20.0 / lambda * INI_Q00;
+        if (ini_q00 > MAX_Q00)
+        {
+            ini_q00 = MAX_Q00
+        }
+        if (ini_q00 < INI_Q00)
+        {
+            ini_q00 = INI_Q00
+        }
+    }
+
     for (i = 0; i < instance->m; i++)
         if (i == 1)
             gsl_matrix_set(instance->Q, i, i, ini_q00 / SLOPE_SS_SCALE);

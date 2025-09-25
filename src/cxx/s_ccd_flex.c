@@ -2548,7 +2548,7 @@ int sccd_standard_flex(
             sum_square_vt[i_b] = nrt_model->rmse_sum[i_b];
             /*     6. initialize state-space model coefficients       */
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
-            initialize_ssmconstants(n_coefs, nrt_model->H[i_b], base_value, &instance[i_b]);
+            initialize_ssmconstants(n_coefs, nrt_model->H[i_b], base_value, &instance[i_b], lambda);
         }
     }
     else if ((*nrt_mode % 10 == NRT_QUEUE_STANDARD) | (*nrt_mode % 10 == NRT_MONITOR2QUEUE))
@@ -2668,7 +2668,7 @@ int sccd_standard_flex(
                 {
                     unadjusted_rmse = rmse_ini[i_b] * rmse_ini[i_b];
                     base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[i_start] / SLOPE_SCALE;
-                    initialize_ssmconstants(n_coefs, unadjusted_rmse, base_value, &instance[i_b]);
+                    initialize_ssmconstants(n_coefs, unadjusted_rmse, base_value, &instance[i_b], lambda);
                     /**************************************************************/
                     /*                                                            */
                     /*  initialize a and p                                        */
@@ -3116,7 +3116,7 @@ int sccd_snow_flex(
         for (i_b = 0; i_b < nbands; i_b++)
         {
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
-            initialize_ssmconstants(n_coefs, rmse[i_b], base_value, &instance[i_b]);
+            initialize_ssmconstants(n_coefs, rmse[i_b], base_value, &instance[i_b], lambda);
             /**************************************************************/
             /*                                                            */
             /*  initialize a and p                                        */
@@ -3157,7 +3157,7 @@ int sccd_snow_flex(
             sum_square_vt[i_b] = nrt_model[0].rmse_sum[i_b];
             /*     6. initialize state-space model coefficients       */
             base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[0] / SLOPE_SCALE;
-            initialize_ssmconstants(n_coefs, nrt_model[0].H[i_b], base_value, &instance[i_b]);
+            initialize_ssmconstants(n_coefs, nrt_model[0].H[i_b], base_value, &instance[i_b], lambda);
         }
 
         nrt_model[0].num_obs = nrt_model[0].num_obs + n_clr - DEFAULT_CONSE_SCCD;

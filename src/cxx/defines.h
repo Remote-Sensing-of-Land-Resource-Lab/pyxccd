@@ -109,6 +109,7 @@
 #define DEFAULT_COLD_TCG 15.0863
 
 #define INI_Q00 0.25 /* MATLAB default */
+#define MAX_Q00 10   /* Maximum Q */
 #define INI_P 1000000
 
 /* from ccd.c detection method*/

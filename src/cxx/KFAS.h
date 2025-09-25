@@ -102,7 +102,8 @@ int initialize_ssmconstants(
     int n_state,
     float rmse,
     double base_value,
-    ssmodel_constants *instance);
+    ssmodel_constants *instance,
+    double lambda);
 
 int KF_ts_predict_conse(
     ssmodel_constants *instance, /* i: the inputted ssm instance   */
