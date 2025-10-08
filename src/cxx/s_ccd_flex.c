@@ -307,9 +307,9 @@ int sccd_flex(
             {
                 cur_coefs = cur_coefs + 1;
             }
-            if ((*nrt_mode % 10 == NRT_QUEUE_STANDARD))
+            if (*nrt_mode % 10 == NRT_QUEUE_STANDARD)
             {
-                if (days > clrx[n_clr - num_obs_queue])
+                if (days > clrx[n_clr - *num_obs_queue])
                     break;
             }
             else
