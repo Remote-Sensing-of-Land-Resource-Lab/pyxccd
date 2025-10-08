@@ -330,8 +330,16 @@ int sccd(
             {
                 cur_coefs = cur_coefs + 1;
             }
-            if (days > clrx[n_clr - conse]) // we will output the states for the last obs that can't reach conse observations
-                break;
+            if ((*nrt_mode % 10 == NRT_QUEUE_STANDARD))
+            {
+                if (days > clrx[n_clr - num_obs_queue])
+                    break;
+            }
+            else
+            {
+                if (days > clrx[n_clr - conse]) // we will output the states for the last obs that can't reach conse observations
+                    break;
+            }
         }
     }
 
