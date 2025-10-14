@@ -1752,7 +1752,7 @@ int step2_KF_ChangeDetection(
                 current_anomaly = *num_fc_anomaly - 1;
             }
 
-            if ((break_mag > CM_outputs[current_CM_n]) & (| clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break | > 90))
+            if ((break_mag > CM_outputs[current_CM_n]) & (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > 90))
             // if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[*num_fc_anomaly - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last anomaly break
             {
                 for (conse_last = 1; conse_last <= conse; conse_last++)
