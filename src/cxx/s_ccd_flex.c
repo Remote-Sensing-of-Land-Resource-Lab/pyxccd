@@ -1609,7 +1609,7 @@ int step2_KF_ChangeDetection_flex(
     {
         if (i_conse >= anomaly_conse)
         { // meaning that over 3 anomaly pixel
-            current_CM_n = (clrx[cur_i] - ORDINAL_DATE_1982_1_1) / AVE_DAYS_IN_A_YEAR;
+            current_CM_n = (clrx[cur_i] - ORDINAL_DATE_LAST_DAY_1972) / AVE_DAYS_IN_A_YEAR;
             if (CM_outputs[current_CM_n] == 0)
             { // meaning that hasn't been assigned with anomaly
                 current_anomaly = *num_fc_anomaly;
@@ -1619,7 +1619,7 @@ int step2_KF_ChangeDetection_flex(
                 current_anomaly = *num_fc_anomaly - 1;
             }
 
-            if (break_mag > CM_outputs[current_CM_n])
+            if ((break_mag > CM_outputs[current_CM_n]) & (| clrx[cur_i] - rrec_cg_anomaly[current_anomaly].t_break | > 90))
             // if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[*num_fc_anomaly - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last anomaly break
             {
                 for (conse_last = 1; conse_last <= conse; conse_last++)
@@ -2459,7 +2459,7 @@ int sccd_standard_flex(
     short int cm_angle_scale100 = 0;
     short int norm_cm_scale100 = NA_VALUE; /* I/O: maximum change magnitudes at every norm_cm_INTERVAL days */
     short int norm_cm_date = NA_VALUE;     /* I/O: dates for maximum change magnitudes at every norm_cm_INTERVAL days */
-    int n_cm = (clrx[*n_clr - 1] - ORDINAL_DATE_1982_1_1) / AVE_DAYS_IN_A_YEAR + 1;
+    int n_cm = (clrx[*n_clr - 1] - ORDINAL_DATE_LAST_DAY_1972) / AVE_DAYS_IN_A_YEAR + 1;
     ;
     float *CM_outputs;
     bool change_detected = FALSE; // change_detected is only used to mark change to be detected for online mode
