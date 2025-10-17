@@ -1374,8 +1374,7 @@ int stand_procedure_flex(
                     /*                                            */
                     /**********************************************/
 
-                    rec_cg[*num_fc]
-                        .change_prob = 0;
+                    rec_cg[*num_fc].change_prob = 0;
                     rec_cg[*num_fc].num_obs = i - i_start + 1;
                     rec_cg[*num_fc].category = 0 + update_num_c;
 
