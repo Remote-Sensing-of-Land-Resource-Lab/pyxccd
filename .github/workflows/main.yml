@@ -106,7 +106,7 @@ jobs:
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v6
       with:
         pattern: wheels-*
         merge-multiple: true
@@ -146,7 +146,7 @@ jobs:
       run: |
         echo "Error: scm_version=${{ needs.lint_job.outputs.scm_version }} does not match the tag name ${{ github.ref_name }}."
         exit 1
-    - uses: actions/download-artifact@v5
+    - uses: actions/download-artifact@v6
       with:
         pattern: wheels-*
         merge-multiple: true
