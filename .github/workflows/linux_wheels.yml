@@ -58,7 +58,7 @@ jobs:
       with:
         gather-path: wheelhouse
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       name: Upload wheels artifact
       with:
         name: wheels-${{ matrix.cibw-only }}
