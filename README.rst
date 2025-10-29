@@ -23,7 +23,7 @@ We developed pyxccd mainly for the below purposes:
 
 4. **Flexible multi-sensor support**: Supports arbitrary band combinations from diverse sensors (e.g., Sentinel-2, MODIS, GOSIF, and SMAP) in addition to Landsat.
 
-5. **Capturing time-varying model coefficients**: S-CCD allows modeling trend and seasonal signals as time-varying variables (namely “states”), enabling (a) characterization of subtle inter-segment variations (e.g., phenological shifts) and (b) gap filling that accounts for land cover conversions (temporal breaks).
+5. **State-space model incoporation**: S-CCD allows modeling trend and seasonal signals as time-varying variables (namely “states”) guided by break detection, enabling (a) characterization of subtle inter-segment variations (e.g., phenological shifts) and (b) gap filling that accounts for land cover conversions (temporal breaks).
 
 
 1. Installation
@@ -42,6 +42,9 @@ COLD:
 .. code:: python
 
    from pyxccd import cold_detect
+   import pandas as pd
+   data = pd.read_csv('tutorial/datasets/1_hls_sc.csv')
+   dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas, sensor = data.to_numpy().copy().T
    cold_result = cold_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas)
 
 COLD algorithm for any combination of band inputs from any sensor:
@@ -50,7 +53,7 @@ COLD algorithm for any combination of band inputs from any sensor:
 
    from pyxccd import cold_detect_flex
    # input a user-defined array instead of multiple lists
-   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, lambda=20,tmask_b1_index=1, tmask_b2_index=2)
+   cold_result = cold_detect_flex(dates, np.stack((reds, nirs, swir1s), axis=1), qas, lambda=20,tmask_b1_index=1, tmask_b2_index=2)
 
 S-CCD:
 
@@ -98,7 +101,7 @@ The recent applications of S-CCD could be found in `CONUS Land Watcher <https://
 Q&A
 ---
 
-Q1: Has pyxccd been verified with original Matlab codes?
+Q1: Has pyxccd been verified?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Re: Multiple rounds of verification have been conducted. A comparison based on two testing tiles indicates that differences between pyxccd and the MATLAB implementation are minimal, with discrepancies of less than 2% in both breakpoint detection and harmonic coefficients. Furthermore, the accuracy of pyxccd was evaluated against the same reference dataset used in the original COLD study (Zhu et al., 2020). The results demonstrate that COLD in pyxccd achieves equivalent accuracy (27% omission and 28% commission), confirming that the observed discrepancies do not compromise performance. The primary source of the discrepancy stems from numerical precision: MATLAB employs float64, whereas pyxccd uses float32 to reduce memory consumption and improve computational efficiency.

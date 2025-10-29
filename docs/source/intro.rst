@@ -18,4 +18,4 @@ We developed pyxccd mainly for the below purposes:
 
 4. **Flexible multi-sensor support**: Supports arbitrary band combinations from diverse sensors (e.g., Sentinel-2, MODIS, GOSIF, and SMAP) in addition to Landsat.
 
-5. **Continuous time-series signal decomposition **: S-CCD outputs trend and seasonal components as continuous “states”, enabling (a) detection of subtle inter-segment variations such as annual phenological shifts and (b) gap filling that accounts for land cover conversions (temporal breaks).
+5. **State-space model incoporation**: S-CCD allows modeling trend and seasonal signals as time-varying variables (namely “states”) guided by break detection, enabling (a) characterization of subtle inter-segment variations (e.g., phenological shifts) and (b) gap filling that accounts for land cover conversions (temporal breaks).
