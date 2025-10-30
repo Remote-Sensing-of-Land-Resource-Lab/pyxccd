@@ -6,10 +6,8 @@ setuptools>=76.0  ; python_version >= '3.12'  # distutils removed in Python 3.12
 
 # --- Testing ---
 pytest>=6.2.5           ; python_version >= '3.10'
-pytest>=4.6.0           ; python_version >= '3.7' and python_version < '3.10'
-pytest>=4.6.0           ; python_version >= '3.6' and python_version < '3.7'
+pytest>=4.6.0           ; python_version >= '3.9' and python_version < '3.10'
 
-pytest-cov>=3.0.0       ; python_version >= '3.6'
 pytest-timeout>=1.4.2
 
 # --- Coverage ---
