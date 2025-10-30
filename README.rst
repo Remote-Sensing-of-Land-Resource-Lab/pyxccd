@@ -32,7 +32,7 @@ We developed pyxccd mainly for the below purposes:
 
    pip install pyxccd
 
-Note: the installation has been cross-platform (Windows, Linux and MacOS). Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
+Note: the installation has been cross-platform (Windows, Linux and MacOS), python >= 3.9. Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
 
 2. Using pyxccd for pixel-based processing
 ----------------------------------------------------------------------------------------------------------------
