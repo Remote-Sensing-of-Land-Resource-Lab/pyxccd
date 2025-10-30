@@ -3,7 +3,10 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Version 0.1.5] - Released 2025-10-29
+## [Version 0.1.7] - Released 2025-10-30
+* remove the support for python 3.8 and limit the numpy version >= numpy2.0.0
+
+## [Version 0.1.6] - Released 2025-10-29
 * Fix multiple bugs for detecting the first signal of the anomaly, states output, and macos installation; adding controlling of Q by lambda for S-CCD
 
 ## [Version 0.1.5] - Released 2025-09-14

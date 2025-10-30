@@ -112,7 +112,7 @@ modpath = join(
 # release = parse_version(modpath)
 # version = ".".join(release.split(".")[0:2])
 
-version = "0.1.6"  # hard coded as no git environment in readthedocs
+version = "0.1.7"  # hard coded as no git environment in readthedocs
 
 # -- General configuration ---------------------------------------------------
 
