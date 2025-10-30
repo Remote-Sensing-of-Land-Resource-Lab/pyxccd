@@ -77,33 +77,103 @@ S-CCD for outputting continuous seasonal and trend states:
 ----------------
 API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
 
-Tutorials: 
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| No.| Topics                     | Applications                | Location              | Time series  | Resolution  | Density   |
-+====+============================+=============================+=======================+==============+=============+===========+
-| 0  | `Introduction <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/0_intro.ipynb>`_            | -                 | -       | -      | -       | -  |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 1  | `Break detection <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/1_break_detection_fire_hls.ipynb>`_            | Forest fire                 | Sichuan, China        | HLS2.0       | 30 m        | 2-3 days  |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 2  | `Parameter selection <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/2_parameter_selection_insect_landsat.ipynb>`_        | Forest insects              | CO & MA, United States| Landsat      | 30 m        | 8-16 days |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 3  | `Flexible choice for inputs <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/3_flexible_inputs_crop_sentinel2.ipynb>`_ | Crop dynamics               | Henan, China          | Sentinel-2   | 10 m        | 5 days    |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 4  | `Tile-based processing <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/4_tile_processing_general_hls.ipynb>`_     | General disturbances        | Zhejiang, China       | HLS2.0       | 30 m        | 2-3 days  |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 5  | `State analysis 1 <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/5_state_analysis_greenning&precipitation_coarse.ipynb>`_          | Greening                    | Tibet, China          | MODIS        | 500 m       | 16 days   |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 6  | `State analysis 2 <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/5_state_analysis_greenning&precipitation_coarse.ipynb>`_          | Precipitation seasonality   | Arctic                | GPCP         | 2.5°        | Monthly   |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 7  | `Anomalies vs. breaks <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/6_anomalies_break_drought_gosif.ipynb>`_       | Agricultural drought        | Rajasthan, India      | GOSIF        | 0.05°       | 8 days    |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 8  | `Near real-time monitoring <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/7_near_realtime_logging_hls.ipynb>`_  | Forest logging              | Sichuan, China        | HLS2.0       | 30 m        | 2-3 days  |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
-| 9  | `Gap filling <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb>`_                | Soil moisture               | Henan, China          | FY3B         | 25 km       | Daily     |
-+----+----------------------------+-----------------------------+-----------------------+--------------+-------------+-----------+
+4. Tutorials
+----------------
+.. list-table::
+   :header-rows: 1
+   :widths: 5 25 25 25 15 15 15
+
+   * - No.
+     - Topics
+     - Applications
+     - Location
+     - Time series
+     - Resolution
+     - Density
+   * - 0
+     - `Introduction`_
+     - 
+     - 
+     - 
+     - 
+     - 
+   * - 1
+     - `Break detection`_
+     - Forest fire
+     - Sichuan, China
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 2
+     - `Parameter selection`_
+     - Forest insects
+     - CO & MA, United States
+     - Landsat
+     - 30 m
+     - 8–16 days
+   * - 3
+     - `Flexible choice for inputs`_
+     - Crop dynamics
+     - Henan, China
+     - Sentinel-2
+     - 10 m
+     - 5 days
+   * - 4
+     - `Tile-based processing`_
+     - General disturbances
+     - Zhejiang, China
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 5
+     - `State analysis 1`_
+     - Greening
+     - Tibet, China
+     - MODIS
+     - 500 m
+     - 16 days
+   * - 6
+     - `State analysis 2`_
+     - Precipitation seasonality
+     - Arctic
+     - GPCP
+     - 2.5°
+     - Monthly
+   * - 7
+     - `Anomalies vs. breaks`_
+     - Agricultural drought
+     - Rajasthan, India
+     - GOSIF
+     - 0.05°
+     - 8 days
+   * - 8
+     - `Near real-time monitoring`_
+     - Forest logging
+     - Sichuan, China
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 9
+     - `Gap filling`_
+     - Soil moisture
+     - Henan, China
+     - FY3B
+     - 25 km
+     - Daily
+
+.. _Introduction: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/0_intro.ipynb
+.. _Break detection: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/1_break_detection_fire_hls.ipynb
+.. _Parameter selection: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/2_parameter_selection_insect_landsat.ipynb
+.. _Flexible choice for inputs: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/3_flexible_inputs_crop_sentinel2.ipynb
+.. _Tile-based processing: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/4_tile_processing_general_hls.ipynb
+.. _State analysis 1: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/5_state_analysis_greenning&precipitation_coarse.ipynb
+.. _State analysis 2: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/5_state_analysis_greenning&precipitation_coarse.ipynb
+.. _Anomalies vs. breaks: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/6_anomalies_break_drought_gosif.ipynb
+.. _Near real-time monitoring: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/7_near_realtime_logging_hls.ipynb
+.. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
 
 
-4. Citations
+5. Citations
 ------------
 
 If you make use of the algorithms in this repo (or to read more about them),
