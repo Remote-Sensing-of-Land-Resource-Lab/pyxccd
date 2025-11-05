@@ -3,6 +3,9 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 0.1.5] - Released 2025-10-29
+* Fix multiple bugs for detecting the first signal of the anomaly, states output, and macos installation; adding controlling of Q by lambda for S-CCD
+
 ## [Version 0.1.5] - Released 2025-09-14
 * Fix the bug for fitting_coefs and change probability
 

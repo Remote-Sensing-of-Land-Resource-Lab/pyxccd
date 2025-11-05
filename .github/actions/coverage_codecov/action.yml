@@ -10,7 +10,7 @@ runs:
     - name: Set up Python (if not already set up)
       uses: actions/setup-python@v5
       with:
-        python-version: '>=3.8'
+        python-version: '>=3.9'
 
     - name: Gather coverage files
       shell: bash

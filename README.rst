@@ -23,7 +23,7 @@ We developed pyxccd mainly for the below purposes:
 
 4. **Flexible multi-sensor support**: Supports arbitrary band combinations from diverse sensors (e.g., Sentinel-2, MODIS, GOSIF, and SMAP) in addition to Landsat.
 
-5. **Capturing time-varying model coefficients**: S-CCD allows modeling trend and seasonal signals as time-varying variables (namely “states”), enabling (a) characterization of subtle inter-segment variations (e.g., phenological shifts) and (b) gap filling that accounts for land cover conversions (temporal breaks).
+5. **State-space model incoporation**: S-CCD allows modeling trend and seasonal signals as time-varying variables (namely “states”) guided by break detection, enabling (a) characterization of subtle inter-segment variations (e.g., phenological shifts) and (b) gap filling that accounts for land cover conversions (temporal breaks).
 
 
 1. Installation
@@ -32,7 +32,7 @@ We developed pyxccd mainly for the below purposes:
 
    pip install pyxccd
 
-Note: the installation has been cross-platform (Windows, Linux and MacOS). Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
+Note: the installation has been cross-platform (Windows, Linux and MacOS), python >= 3.9. Contact the author (remotesensingsuy@gmail.com) if you have problems for installation 
 
 2. Using pyxccd for pixel-based processing
 ----------------------------------------------------------------------------------------------------------------
@@ -42,6 +42,9 @@ COLD:
 .. code:: python
 
    from pyxccd import cold_detect
+   import pandas as pd
+   data = pd.read_csv('tutorial/datasets/1_hls_sc.csv')
+   dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas, sensor = data.to_numpy().copy().T
    cold_result = cold_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, thermals, qas)
 
 COLD algorithm for any combination of band inputs from any sensor:
@@ -50,7 +53,7 @@ COLD algorithm for any combination of band inputs from any sensor:
 
    from pyxccd import cold_detect_flex
    # input a user-defined array instead of multiple lists
-   cold_result = cold_detect_flex(dates, np.stack((band1, band2, band3), axis=1), qas, lambda=20,tmask_b1_index=1, tmask_b2_index=2)
+   cold_result = cold_detect_flex(dates, np.stack((reds, nirs, swir1s), axis=1), qas, lambda=20,tmask_b1_index=1, tmask_b2_index=2)
 
 S-CCD:
 
@@ -74,9 +77,103 @@ S-CCD for outputting continuous seasonal and trend states:
 ----------------
 API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
 
-Tutorial: under development
+4. Tutorials
+----------------
+.. list-table::
+   :header-rows: 1
+   :widths: 5 25 25 25 15 15 15
 
-4. Citations
+   * - No.
+     - Topics
+     - Applications
+     - Location
+     - Time series
+     - Resolution
+     - Density
+   * - 0
+     - `Introduction`_
+     - 
+     - 
+     - 
+     - 
+     - 
+   * - 1
+     - `Break detection`_
+     - Forest fire
+     - Sichuan, China
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 2
+     - `Parameter selection`_
+     - Forest insects
+     - CO & MA, United States
+     - Landsat
+     - 30 m
+     - 8–16 days
+   * - 3
+     - `Flexible choice for inputs`_
+     - Crop dynamics
+     - Henan, China
+     - Sentinel-2
+     - 10 m
+     - 5 days
+   * - 4
+     - `Tile-based processing`_
+     - General disturbances
+     - Zhejiang, China
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 5
+     - `State analysis 1`_
+     - Greening
+     - Tibet, China
+     - MODIS
+     - 500 m
+     - 16 days
+   * - 6
+     - `State analysis 2`_
+     - Precipitation seasonality
+     - Arctic
+     - GPCP
+     - 2.5°
+     - Monthly
+   * - 7
+     - `Anomalies vs. breaks`_
+     - Agricultural drought
+     - Rajasthan, India
+     - GOSIF
+     - 0.05°
+     - 8 days
+   * - 8
+     - `Near real-time monitoring`_
+     - Forest logging
+     - Sichuan, China
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 9
+     - `Gap filling`_
+     - Soil moisture
+     - Henan, China
+     - FY3B
+     - 25 km
+     - Daily
+
+.. _Introduction: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/0_intro.ipynb
+.. _Break detection: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/1_break_detection_fire_hls.ipynb
+.. _Parameter selection: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/2_parameter_selection_insect_landsat.ipynb
+.. _Flexible choice for inputs: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/3_flexible_inputs_crop_sentinel2.ipynb
+.. _Tile-based processing: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/4_tile_processing_general_hls.ipynb
+.. _State analysis 1: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/5_state_analysis_greenning&precipitation_coarse.ipynb
+.. _State analysis 2: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/5_state_analysis_greenning&precipitation_coarse.ipynb
+.. _Anomalies vs. breaks: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/6_anomalies_break_drought_gosif.ipynb
+.. _Near real-time monitoring: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/7_near_realtime_logging_hls.ipynb
+.. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
+
+
+5. Citations
 ------------
 
 If you make use of the algorithms in this repo (or to read more about them),
@@ -98,7 +195,7 @@ The recent applications of S-CCD could be found in `CONUS Land Watcher <https://
 Q&A
 ---
 
-Q1: Has pyxccd been verified with original Matlab codes?
+Q1: Has pyxccd been verified?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Re: Multiple rounds of verification have been conducted. A comparison based on two testing tiles indicates that differences between pyxccd and the MATLAB implementation are minimal, with discrepancies of less than 2% in both breakpoint detection and harmonic coefficients. Furthermore, the accuracy of pyxccd was evaluated against the same reference dataset used in the original COLD study (Zhu et al., 2020). The results demonstrate that COLD in pyxccd achieves equivalent accuracy (27% omission and 28% commission), confirming that the observed discrepancies do not compromise performance. The primary source of the discrepancy stems from numerical precision: MATLAB employs float64, whereas pyxccd uses float32 to reduce memory consumption and improve computational efficiency.
