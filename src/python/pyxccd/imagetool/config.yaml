@@ -1,8 +1,8 @@
 DATASETINFO:
-  n_rows: 5000
-  n_cols: 5000
-  n_block_x: 20
-  n_block_y: 20
+  n_rows: 3660
+  n_cols: 3660
+  n_block_x: 30
+  n_block_y: 30
 
 ALGORITHMINFO:
   probability_threshold: 0.99
