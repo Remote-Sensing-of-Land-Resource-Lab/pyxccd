@@ -14,30 +14,26 @@
 # running example:
 # source /home/colory666/env_collect/py310_geo/bin/activate
 # python prepare_ard.py --source_dir=/data/landsat_c2/204_22 --out_dir=/data/results/204_22_stack --yaml_path=/home/colory666/pyxccd/src/python/pyxccd/imagetool/config.yaml  --n_cores=10
-import os
+
 import shutil
 import tarfile
+import xml.etree.ElementTree as ET
+from os.path import isfile, join, isdir, exists
+from importlib import resources as importlib_resources
+import datetime as dt
+import os
 import logging
 import time
-from typing import Optional
-import datetime as dt
-import xml.etree.ElementTree as ET
-from logging import Logger
-import yaml
-import click
-from pytz import timezone
-from datetime import datetime
-from os import listdir
-from os.path import isfile, join, isdir
-from pathlib import Path
-from importlib import resources as importlib_resources
-from multiprocessing import Pool
 import functools
-
+from logging import Logger
+from datetime import datetime
 import pandas as pd
+import multiprocessing
 import numpy as np
-from glob import glob
 from dateutil.parser import parse
+import click
+import yaml
+from pathlib import Path
 from pyxccd.common import DatasetInfo
 from pyxccd.utils import class_from_dict, rio_loaddata, rio_warp
 
@@ -1437,449 +1433,180 @@ def bbox(f):
     return min(x), min(y), max(x), max(y)
 
 
+def checkfinished(signal_path) -> bool:
+    """Check if the signal file exists"""
+    return exists(signal_path)
+
+
+def safe_stack_single_image_hls(
+    source_dir: str,
+    out_dir: str,
+    data_info: DatasetInfo,
+    logger: Logger,
+    folder: str,
+    low_date_bound: str,
+    upp_date_bound: str,
+) -> bool:
+    """Process single HLS image stacking"""
+    [_, _, _, imagetime, _, _] = folder.rsplit(".")
+    img_date = dt.datetime(int(imagetime[0:4]), 1, 1) + dt.timedelta(
+        int(imagetime[4:7]) - 1
+    )
+
+    if low_date_bound is not None:
+        if img_date.date() < parse(low_date_bound).date():
+            logger.info(f"Skipping {folder} (before {low_date_bound})")
+            return True
+
+    if upp_date_bound is not None:
+        if img_date.date() > parse(upp_date_bound).date():
+            logger.info(f"Skipping {folder} (after {upp_date_bound})")
+            return True
+
+    if single_image_stacking_hls(
+        source_dir=source_dir,
+        out_dir=out_dir,
+        logger=logger,
+        dataset_info=data_info,
+        is_partition=True,
+        clear_threshold=0.0,
+        low_date_bound=low_date_bound,
+        upp_date_bound=upp_date_bound,
+        folder=folder,
+    ):
+        return True
+
+    logger.warning("Stacking %s failed!", folder)
+    return False
+
+
+def process_folder(
+    folder_list,
+    out_path,
+    logger,
+    data_info,
+    low_date_bound,
+    upp_date_bound,
+):
+    """Process single folder"""
+    [source_dir, folder] = os.path.split(folder_list)
+    [_, _, _, imagetime, _, _] = folder.rsplit(".")
+    img_date = dt.datetime(int(imagetime[0:4]), 1, 1) + dt.timedelta(
+        int(imagetime[4:7]) - 1
+    )
+
+    if low_date_bound is not None and img_date.date() < parse(low_date_bound).date():
+        logger.info(f"Skipping {folder} (before {low_date_bound})")
+        return
+    if upp_date_bound is not None and img_date.date() > parse(upp_date_bound).date():
+        logger.info(f"Skipping {folder} (after {upp_date_bound})")
+        return
+
+    tile = os.path.basename(source_dir)
+    out_dir = join(out_path, tile + "_stack")
+
+    safe_stack_single_image_hls(
+        source_dir, out_dir, data_info, logger, folder, low_date_bound, upp_date_bound
+    )
+    logger.info("Stacking %s completed!", folder)
+
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+
 @click.command()
-@click.option(
-    "--source_dir",
-    type=str,
-    default=None,
-    help="the folder directory of Landsat tar files " "downloaded from USGS website",
-)
-@click.option(
-    "--out_dir", type=str, default=None, help="the folder directory for storing stacks"
-)
-@click.option(
-    "--clear_threshold",
-    type=float,
-    default=0,
-    help="threshold of clear pixel percentage for a tile, if lower than threshold, won't be processed",
-)
-@click.option(
-    "--single_path",
-    type=bool,
-    default=True,
-    help="indicate if using single_path or sidelap",
-)
-@click.option("--rank", type=int, default=1, help="the rank id")
-@click.option("--n_cores", type=int, default=1, help="the total cores assigned")
-@click.option(
-    "--is_partition/--continuous", default=True, help="partition the output to blocks"
-)
-@click.option("--yaml_path", type=str, help="yaml file path")
-@click.option(
-    "--hpc/--dhtc", default=True, help="if it is set for HPC or DHTC environment"
-)
+@click.option("--source_path", type=str, default=None, help="HLS data directory")
+@click.option("--yaml_path", type=str, help="Configuration file path")
+@click.option("--rank", type=int, default=1, help="Current process rank")
+@click.option("--n_cores", type=int, default=1, help="Parallel cores number")
+@click.option("--out_path", type=str, default=None, help="Output directory")
 @click.option(
     "--low_date_bound",
     type=str,
     default=None,
-    help="the lower bound of the date range of user interest",
+    help="the lower bound of the date range of user interest. Example: 2019-01-01",
 )
 @click.option(
     "--upp_date_bound",
     type=str,
     default=None,
-    help="the upper bound of the date range of user interest",
-)
-@click.option(
-    "--collection",
-    type=click.Choice(["ARD", "C2", "HLS", "HLS14", "ARD-C2"]),
-    default="C2",
-    help="image source category",
+    help="the upper bound of the date range of user interest. Example: 2024-12-31",
 )
 def main(
-    source_dir,
-    out_dir,
-    clear_threshold,
-    single_path,
+    source_path,
+    yaml_path,
     rank,
     n_cores,
-    is_partition,
-    yaml_path,
-    hpc,
+    out_path,
     low_date_bound,
     upp_date_bound,
-    collection,
 ):
-    if not os.path.exists(source_dir):
-        print("Source directory not exists!")
+    """Main processing function"""
+    st = time.time()
 
-    # select only _SR
-    if collection == "ARD" or collection == "ARD-C2":
-        folder_list = [
-            f[0 : len(f) - 4]
-            for f in listdir(source_dir)
-            if (
-                isfile(join(source_dir, f))
-                and f.endswith(".tar")
-                and f[len(f) - 6 : len(f) - 4] == "SR"
-            )
-        ]
-    elif collection == "C2":
-        folder_list = [
-            f[0 : len(f) - 4]
-            for f in listdir(source_dir)
-            if (isfile(join(source_dir, f)) and f.endswith(".tar"))
-        ]
-    elif collection == "HLS":
-        folder_list = [f for f in listdir(source_dir) if f.startswith("HLS")]
-    elif collection == "HLS14":
-        folder_list = [
-            y for x in os.walk(source_dir) for y in glob(join(x[0], "*.hdf"))
-        ]
-
-    tmp_path = join(out_dir, "tmp{}".format(rank))
-
-    tz = timezone("US/Eastern")
-    with open(yaml_path) as yaml_obj:
+    # Load configuration
+    with open(yaml_path, encoding="utf-8") as yaml_obj:
         config_general = yaml.safe_load(yaml_obj)
+    data_info = class_from_dict(DatasetInfo, config_general["DATASETINFO"])
 
-    dataset_info = class_from_dict(DatasetInfo, config_general["DATASETINFO"])
+    folder_list = []
+    tile_name = os.path.basename(source_path)
 
-    logger = None
+    if exists(source_path):
+        folder_list = [
+            join(source_path, f)
+            for f in os.listdir(source_path)
+            if os.path.isdir(join(source_path, f)) and f.strip()
+        ]
 
-    # adjust row and columns if they are not divisible by block height and width
-    if collection == "C2":
-        if os.path.exists(join(tmp_path, folder_list[0])):
-            shutil.rmtree(join(tmp_path, folder_list[0]), ignore_errors=True)
-        if not os.path.exists(join(tmp_path, "ref_folder")):
-            with tarfile.open(join(source_dir, folder_list[0] + ".tar")) as tar_ref:
-                tar_ref.extractall(join(tmp_path, "ref_folder"))
-        ref_path = join(tmp_path, "ref_folder", f"{folder_list[0]}_SR_B1.TIF")
-        ref_image = rio_loaddata(ref_path)
-        if ref_image.shape[0] % dataset_info.block_height > 0:
-            dataset_info.n_block_y = (
-                int(ref_image.shape[0] / dataset_info.block_height) + 1
-            )
-            dataset_info.n_rows = dataset_info.block_height * dataset_info.n_block_y
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+    logger = logging.getLogger(__name__)
 
-        if ref_image.shape[1] % dataset_info.block_width > 0:
-            dataset_info.n_block_x = (
-                int(ref_image.shape[1] / dataset_info.block_width) + 1
-            )
-            dataset_info.n_cols = dataset_info.block_width * dataset_info.n_block_x
-        ref_image = None
+    logger.info(f"Processing tile: {tile_name}")
+    logger.info(f"Number of HLS folders found: {len(folder_list)}")
 
-    # create needed folders
+    # Prepare output directories
     if rank == 1:
-        # mode = w enables the log file to be overwritten
-        logging.basicConfig(
-            filename=join(os.getcwd(), "prepare_ard.log"),
-            filemode="w",
-            level=logging.INFO,
-        )
-        logger = logging.getLogger(__name__)
+        tile_dir = join(out_path, tile_name + "_stack")
+        Path(tile_dir).mkdir(exist_ok=True)
+        for i in range(data_info.n_block_y):
+            for j in range(data_info.n_block_x):
+                block_dir = join(tile_dir, f"block_x{j+1}_y{i+1}")
+                if not exists(block_dir):
+                    os.mkdir(block_dir)
 
-        logger.info(
-            "AutoPrepareDataARD starts: {}".format(
-                datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-            )
-        )
+        # Create completion marker file
+        with open(join(out_path, f"tmp_creation_finished_{tile_name}.txt"), "w"):
+            pass
 
-        # create folder
-        Path(out_dir).mkdir(parents=True, exist_ok=True)
-        Path(tmp_path).mkdir(parents=True, exist_ok=True)
-
-        # if the nrows are divisible by block_height, need to adjust dataset info
-        if collection == "C2":
-            ref_image = rio_loaddata(ref_path)
-            if ref_image.shape[0] % dataset_info.block_height > 0:
-                dataset_info.n_block_y = (
-                    int(ref_image.shape[0] / dataset_info.block_height) + 1
-                )
-                dataset_info.n_rows = dataset_info.block_height * dataset_info.n_block_y
-
-            if ref_image.shape[1] % dataset_info.block_width > 0:
-                dataset_info.n_block_x = (
-                    int(ref_image.shape[1] / dataset_info.block_width) + 1
-                )
-                dataset_info.n_cols = dataset_info.block_width * dataset_info.n_block_x
-            ref_image = None
-
-        if is_partition is True:
-            for i in range(dataset_info.n_block_y):
-                for j in range(dataset_info.n_block_x):
-                    Path(join(out_dir, f"block_x{j + 1}_y{i + 1}")).mkdir(
-                        parents=True, exist_ok=True
-                    )
-
-        if collection == "ARD" or collection == "ARD-C2":
-            if hpc is True:
-                if os.path.exists(join(tmp_path, folder_list[0])):
-                    shutil.rmtree(join(tmp_path, folder_list[0]), ignore_errors=True)
-                with tarfile.open(join(source_dir, folder_list[0] + ".tar")) as tar_ref:
-                    try:
-                        tar_ref.extractall(join(tmp_path, folder_list[0]))
-                    except Exception:
-                        logger.error("Unzip fails for {}".format(folder_list[0]))
-                if collection == "ARD":
-                    ref_path = join(
-                        tmp_path, folder_list[0], "{}b1.tif".format(folder_list[0])
-                    )
-                else:
-                    ref_path = join(
-                        tmp_path, folder_list[0], "{}_B1.TIF".format(folder_list[0])
-                    )
-
-                # warp a tile-based single path tif
-                with importlib_resources.path(
-                    "pyxccd.imagetool", "singlepath_landsat_conus.tif"
-                ) as conus_image_fpath:
-                    # conus_image_fpath = (Path(__file__).parent / 'singlepath_landsat_conus.tif').resolve()
-                    rio_warp(
-                        conus_image_fpath,
-                        join(out_dir, "singlepath_landsat_tile.tif"),
-                        ref_path,
-                    )
-                shutil.rmtree(join(tmp_path, folder_list[0]), ignore_errors=True)
-                ordinal_dates = [
-                    pd.Timestamp.toordinal(
-                        dt.datetime(
-                            int(folder[15:19]), int(folder[19:21]), int(folder[21:23])
-                        )
-                    )
-                    for folder in folder_list
-                ]
-        elif collection == "C2":
-            ordinal_dates = [
-                pd.Timestamp.toordinal(
-                    dt.datetime(
-                        int(folder[17:21]), int(folder[21:23]), int(folder[23:25])
-                    )
-                )
-                for folder in folder_list
-            ]
-        elif collection == "HLS":
-            ordinal_dates = [
-                pd.Timestamp.toordinal(dt.datetime(int(folder[15:19]), 1, 1))
-                + int(folder[19:22])
-                - 1
-                for folder in folder_list
-            ]
-        elif collection == "HLS14":
-            ordinal_dates = [
-                pd.Timestamp.toordinal(
-                    dt.datetime(int(folder.split("/")[-1][15:19]), 1, 1)
-                )
-                + int(folder.split("/")[-1][19:22])
-                - 1
-                for folder in folder_list
-            ]
-        ordinal_dates.sort()
-        file = open(
-            join(out_dir, "starting_last_dates.txt"), "w+"
-        )  # need to save out starting and
-        # lasting date for this tile
-        if low_date_bound is not None:
-            tmp = pd.Timestamp.toordinal(parse(low_date_bound))
-        else:
-            tmp = 0
-        file.writelines("{}\n".format(str(np.max([ordinal_dates[0], tmp]))))
-        if upp_date_bound is not None:
-            tmp = pd.Timestamp.toordinal(parse(upp_date_bound))
-        else:
-            tmp = 999999
-        file.writelines("{}\n".format(str(np.min([ordinal_dates[-1], tmp]))))
-        file.close()
-    else:
-        # mode = w enables the log file to be overwritten
-        logging.basicConfig(
-            filename=join(os.getcwd(), "prepare_ard.log"),
-            filemode="a",
-            level=logging.INFO,
-        )
-        logger = logging.getLogger(__name__)
-
-    # use starting_last_dates.txt to indicate all folder have been created. Very stupid way. Need improve it in future.
-    while not checkfinished_step1(join(out_dir, "starting_last_dates.txt")):
+    # Wait for directory preparation to complete
+    while not checkfinished(join(out_path, f"tmp_creation_finished_{tile_name}.txt")):
         time.sleep(5)
 
-    # read a general path file which can indicate which pixel is assigned to which path
-    path_array = None
-    if single_path is True:
-        if collection == "ARD" or collection == "ARD-C2":
-            # parse tile h and v from folder name
-            folder_name = os.path.basename(source_dir)
-            if hpc is True:
-                path_array = rio_loaddata(join(out_dir, "singlepath_landsat_tile.tif"))
-            else:
-                try:
-                    tile_h = int(
-                        folder_name[
-                            folder_name.find("h") + 1 : folder_name.find("h") + 4
-                        ]
-                    )
-                    tile_v = int(
-                        folder_name[
-                            folder_name.find("v") + 1 : folder_name.find("v") + 4
-                        ]
-                    )
-                    path_array = rio_loaddata(
-                        join(
-                            Path(os.path.realpath(__file__)).parent,
-                            "singlepath_landsat_tile_crop_compress.tif",
-                        ),
-                        xoff=tile_h * dataset_info.n_cols,
-                        yoff=tile_v * dataset_info.n_rows,
-                        xsize=dataset_info.n_cols,
-                        ysize=dataset_info.n_rows,
-                    )  # read a partial array
-                    # from a large file
-                except IOError as e:
-                    logger.error(e)
-                    exit()
-
-    if collection == "C2":
-        # gpd_tile = gpd.read_file(shapefile_path)
-
-        pool = Pool(n_cores)
-        single_image_stacking_collection2_partial = functools.partial(
-            single_image_stacking_collection2,
-            tmp_path,
-            source_dir,
-            out_dir,
-            clear_threshold,
-            logger,
-            dataset_info,
-            ref_path,
-            is_partition,
-            low_date_bound,
-            upp_date_bound,
+    # Parallel processing
+    with multiprocessing.Pool(n_cores) as pool:
+        pool.map(
+            functools.partial(
+                process_folder,
+                out_path=out_path,
+                logger=logger,
+                data_info=data_info,
+                low_date_bound=low_date_bound,
+                upp_date_bound=upp_date_bound,
+            ),
+            folder_list,
         )
-        pool.map(single_image_stacking_collection2_partial, folder_list)
 
-        # for i in range(int(np.ceil(len(folder_list) / n_cores))):
-        #     new_rank = rank - 1 + i * n_cores
-        #     # means that all folder has been processed
-        #     if new_rank > (len(folder_list) - 1):
-        #         break
-        #     folder = folder_list[new_rank]
-        #     single_image_stacking_collection2(
-        #         tmp_path,
-        #         source_dir,
-        #         out_dir,
-        #         clear_threshold,
-        #         logger,
-        #         dataset_info,
-        #         ref_path,
-        #         is_partition=is_partition,
-        #         low_date_bound=low_date_bound,
-        #         upp_date_bound=upp_date_bound,
-        #         folder
-        #     )
-    elif collection == "ARD" or collection == "ARD-C2":
-        pool = Pool(n_cores)
-        single_image_stacking_partial = functools.partial(
-            single_image_stacking,
-            tmp_path,
-            source_dir,
-            out_dir,
-            clear_threshold,
-            path_array,
-            logger,
-            dataset_info,
-            is_partition,
-            low_date_bound,
-            upp_date_bound,
-        )
-        pool.map(single_image_stacking_partial, folder_list)
-
-        # assign files to each core
-        # for i in range(int(np.ceil(len(folder_list) / n_cores))):
-        #     new_rank = rank - 1 + i * n_cores
-        #     # means that all folder has been processed
-        #     if new_rank > (len(folder_list) - 1):
-        #         break
-        #     folder = folder_list[new_rank]
-        #     single_image_stacking(
-        #         tmp_path,
-        #         source_dir,
-        #         out_dir,
-        #         folder,
-        #         clear_threshold,
-        #         path_array,
-        #         logger,
-        #         dataset_info,
-        #         is_partition=is_partition,
-        #         low_date_bound=low_date_bound,
-        #         upp_date_bound=upp_date_bound,
-        #     )
-    elif collection == "HLS":
-        pool = Pool(n_cores)
-        single_image_stacking_hls_partial = functools.partial(
-            single_image_stacking_hls,
-            source_dir,
-            out_dir,
-            logger,
-            dataset_info,
-            clear_threshold,
-            is_partition,
-            low_date_bound,
-            upp_date_bound,
-        )
-        pool.map(single_image_stacking_hls_partial, folder_list)
-        # assign files to each core
-        # for i in range(int(np.ceil(len(folder_list) / n_cores))):
-        #     new_rank = rank - 1 + i * n_cores
-        #     # means that all folder has been processed
-        #     if new_rank > (len(folder_list) - 1):
-        #         break
-        #     folder = folder_list[new_rank]
-        #     single_image_stacking_hls(
-        #         source_dir,
-        #         out_dir,
-        #         logger,
-        #         dataset_info,
-        #         folder,
-        #         clear_threshold=clear_threshold,
-        #         is_partition=is_partition,
-        #         low_date_bound=low_date_bound,
-        #         upp_date_bound=upp_date_bound,
-        #     )
-    # elif collection == "HLS14":
-    #     pool = Pool(n_cores)
-    #     single_image_stacking_hls14_partial = functools.partial(
-    #         single_image_stacking_hls, out_dir,
-    #             logger,
-    #             dataset_info,
-    #             clear_threshold,
-    #             is_partition,
-    #             low_date_bound,
-    #             upp_date_bound
-    #     )
-    #     pool.map(single_image_stacking_hls14_partial,  folder_list)
-    # assign files to each core
-    # for i in range(int(np.ceil(len(folder_list) / n_cores))):
-    #     new_rank = rank - 1 + i * n_cores
-    #     # means that all folder has been processed
-    #     if new_rank > (len(folder_list) - 1):
-    #         break
-    #     folder = folder_list[new_rank]
-    #     single_image_stacking_hls14(
-    #         out_dir,
-    #         logger,
-    #         dataset_info,
-    #         folder,
-    #         clear_threshold=clear_threshold,
-    #         is_partition=is_partition,
-    #         low_date_bound=low_date_bound,
-    #         upp_date_bound=upp_date_bound,
-    #     )
-    # create an empty file for signaling the core that has been finished
-    with open(os.path.join(out_dir, "rank{}_finished.txt".format(rank)), "w"):
-        pass
-
-    # wait for other cores assigned
-    # while not checkfinished_step2(out_dir, n_cores):
-    #     time.sleep(5)
-    shutil.rmtree(tmp_path, ignore_errors=True)
-    # create scene list after stacking is finished and remove folders. Not need it in DHTC
+    # Cleanup and reporting
     if rank == 1:
-        # remove tmp folder
-        logger.info(
-            "Stacking procedure finished: {}".format(
-                datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-            )
-        )
+        logger.info("Stacking procedure finished")
+        os.remove(join(out_path, f"tmp_creation_finished_{tile_name}.txt"))
+        logger.info("Total running time: %.2f hours", (time.time() - st) / 3600)
 
 
 if __name__ == "__main__":
