@@ -73,11 +73,8 @@ S-CCD for outputting continuous seasonal and trend states:
    # open state output (state_ensemble) by setting state_intervaldays as a non-zero value
    sccd_result, state_ensemble = sccd_detect(dates, blues, greens, reds, nirs, swir1s, swir2s, qas, state_intervaldays=1)
 
-3. Documentation
-----------------
-API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
 
-4. Tutorials
+3. Tutorials
 ----------------
 .. list-table::
    :header-rows: 1
@@ -173,7 +170,21 @@ API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
 .. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
 
 
-5. Citations
+4. GUI
+------------
+
+We provided GUI to quickly test S-CCD or COLD algorithms using point-based time series formated in CSV or EXCEL:
+
+`夸克硬盘 (for China mainland) <https://pan.quark.cn/s/c57a14eeb7fa>`_
+
+`Dropbox (for outside China mainland) <https://www.dropbox.com/scl/fo/9wnhpswko79qm3y8mem0h/AMa7twlULMwPdBjVDLmpYVI?rlkey=c403n0lbirvtt3h0fkyue7uke&st=nmxvqgfm&dl=0>`_
+
+
+5. Documentation
+----------------
+API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
+
+6. Citations
 ------------
 
 If you make use of the algorithms in this repo (or to read more about them),
