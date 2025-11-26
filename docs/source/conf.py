@@ -67,11 +67,24 @@ Notes:
 
 
 # -- Project information -----------------------------------------------------
-import sphinx_rtd_theme
+# import sphinx_rtd_theme
 from os.path import exists
 from os.path import dirname
 from os.path import join
-import setuptools_scm
+
+# import setuptools_scm
+
+# Try to import the RTD theme, but don't hard-fail if it's missing.
+try:
+    import sphinx_rtd_theme  # type: ignore[attr-defined]
+except ModuleNotFoundError:
+    sphinx_rtd_theme = None
+
+# setuptools_scm is currently unused; make it optional or remove it.
+try:
+    import setuptools_scm  # noqa: F401
+except ModuleNotFoundError:
+    setuptools_scm = None
 
 # import sys, os
 
