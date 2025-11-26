@@ -34,7 +34,7 @@ jobs:
         arch: [auto]
     steps:
     - name: Checkout source
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0 # fetch all history for accurate version calculation
     - name: Set up QEMU
@@ -43,7 +43,7 @@ jobs:
       with:
         platforms: all
     - name: Build binary wheels
-      uses: pypa/cibuildwheel@v3.2.1
+      uses: pypa/cibuildwheel@v3.3.0
       with:
         output-dir: wheelhouse
         config-file: pyproject.toml
@@ -83,7 +83,7 @@ jobs:
         arch: [auto]
     steps:
     - name: Checkout source
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
       if: runner.os == 'Linux' && matrix.arch != 'auto'
