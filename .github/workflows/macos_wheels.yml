@@ -64,6 +64,11 @@ jobs:
         python -m pip install -r requirements/tests.txt
         python -m pip install -r requirements/headless.txt
         python -m pip install build wheel setuptools delocate
+      
+    # Install Sphinx and sphinx_rtd_theme for documentation testing
+    - name: Install Sphinx and documentation theme
+      run: |
+        python -m pip install sphinx sphinx-rtd-theme
 
     - name: Build sdist and wheel
       run: |
