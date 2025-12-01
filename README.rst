@@ -177,7 +177,7 @@ We provided GUI to quickly test S-CCD or COLD algorithms using point-based time 
 
 `夸克硬盘 (for China mainland) <https://pan.quark.cn/s/c57a14eeb7fa>`_
 
-`Dropbox (for outside China mainland) <https://www.dropbox.com/scl/fo/9wnhpswko79qm3y8mem0h/AMa7twlULMwPdBjVDLmpYVI?rlkey=c403n0lbirvtt3h0fkyue7uke&st=nmxvqgfm&dl=0>`_
+`Dropbox (for outside China mainland) <https://www.dropbox.com/scl/fo/7l3bzkkwan51t5yqee0a0/AMYHYgxYQov3UxEVamZWd6M?rlkey=aon58nep5r5jppz1l7ky5ou2s&st=gyvmsax5&dl=0>`_
 
 
 5. Documentation
