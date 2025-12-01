@@ -8,8 +8,8 @@ NRT_BAND = 6  # the default S-CCD band number
 SCCD_NUM_C = 6  # the S-CCD harmonic model coefficient number
 FLEX_SCCD_NUM_C = 8
 COLD_NUM_C = 8
-TOTAL_BAND_FLEX = 10  # the maximum band input for flexible mode of COLD
-TOTAL_BAND_FLEX_NRT = 10  # the maximum band input for flexible mode of S-CCD
+TOTAL_BAND_FLEX = 12  # the maximum band input for flexible mode of COLD
+TOTAL_BAND_FLEX_NRT = 12  # the maximum band input for flexible mode of S-CCD
 SLOPE_SCALE = 10000
 
 

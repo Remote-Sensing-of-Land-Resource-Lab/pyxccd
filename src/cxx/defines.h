@@ -5,8 +5,8 @@
 
 /* from ccdc.c */
 #define TOTAL_IMAGE_BANDS 7            /* Number of image bands, for loops.   */
-#define TOTAL_IMAGE_BANDS_FLEX 10      /* Number of image bands for flexibale mode.   */
-#define TOTAL_IMAGE_BANDS_FLEX_SCCD 10 /* Number of image bands for flexibale mode.   */
+#define TOTAL_IMAGE_BANDS_FLEX 12      /* Number of image bands for flexibale mode.   */
+#define TOTAL_IMAGE_BANDS_FLEX_SCCD 12 /* Number of image bands for flexibale mode.   */
 #define TOTAL_IMAGE_BANDS_SCCD 6       /* Number of image bands, for loops.   */
 #define TOTAL_INDICES 0                /* Number of image bands, for loops. */
 #define TOTAL_BANDS 8                  /* Total image plus mask bands, for loops.  HLS */

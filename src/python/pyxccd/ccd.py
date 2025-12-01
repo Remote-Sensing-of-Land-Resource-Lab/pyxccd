@@ -52,8 +52,8 @@ _parameter_constraints: dict = {
 NUM_FC = 40  # define the maximum number of outputted curves
 NUM_FC_SCCD = 40
 NUM_NRT_QUEUE = 240
-MAX_FLEX_BAND = 10
-MAX_FLEX_BAND_SCCD = 10
+MAX_FLEX_BAND = 12
+MAX_FLEX_BAND_SCCD = 12
 DEFAULT_BANDS = 5
 
 
