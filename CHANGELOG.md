@@ -3,6 +3,9 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 1.0.0] - Released 2025-12-1
+* version 1.0.0. Finally!
+
 ## [Version 0.1.7] - Released 2025-10-30
 * remove the support for python 3.8 and limit the numpy version >= numpy2.0.0
 
