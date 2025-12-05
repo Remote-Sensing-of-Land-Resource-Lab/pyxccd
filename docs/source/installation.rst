@@ -3,7 +3,7 @@ Installation
 ============
 
 1. Easy installation
-=================
+======================
 
 .. code-block:: console
 
@@ -12,7 +12,7 @@ Installation
 Pyxccd 1.0 requires Python 3.8 or higher.
 
 2. Advanced installation
-=====================
+==========================
 The steps to install this library in development mode are consolidated
 into a single script: ``run_developer_setup.sh``.  On debian-based systems,
 this will install all of the developer requirements and ensure you are setup
