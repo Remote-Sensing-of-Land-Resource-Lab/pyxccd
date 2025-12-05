@@ -115,16 +115,20 @@ temporal segments of the input data defined by the break. After running
 ``cold_detect``, the output is a 1-d structural array. The length of the
 array denotes the number of the segments for this pixel (for this case,
 we got two segments and one break). Each element include 10 attributes
-as the following: \* t_start: Ordinal date when series model gets
-started \* t_end: Ordinal date when series model gets ended \* t_break:
-Ordinal date when the break is detected (the observation next to t_end)
-\* pos: Location of each time series model using the date code as user
-define. For example, in the lesson 4, pos = i \* n_cols + j, where i is
-the 0-based row number, j is the 1-based column number, to guarantee the
-pos starts from 1. For a HLS pixel at 1000th row, and 1st col, pos is
-3660\ *1000+1* num_obs: Number of clear observations used for model
-estimation \* category: Quality of the model estimation (what model is
-used, what process is used)
+as the following:
+
+- t_start: Ordinal date when series model gets started
+- t_end: Ordinal date when series model gets ended
+- t_break: Ordinal date when the break is detected (the observation next to t_end)
+- pos: Location of each time series model using the date code as user
+  define. For example, in the lesson 4, pos = i \* n_cols + j, where i is
+  the 0-based row number, j is the 1-based column number, to guarantee the
+  pos starts from 1. For a HLS pixel at 1000th row, and 1st col, pos is
+  3660*1000+1
+- num_obs: Number of clear observations used for model
+  estimation
+- category: Quality of the model estimation (what model is
+  used, what process is used)
 
 ::
 

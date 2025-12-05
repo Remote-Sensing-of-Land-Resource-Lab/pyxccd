@@ -479,6 +479,8 @@ amplitude.
 
 .. image:: 5_state_analysis_greenning&precipitation_coarse_files/5_state_analysis_greenning&precipitation_coarse_9_0.png
 
+Lambda
+~~~~~~~~~~~
 
 Unfortunately, we only observed a subtle increase in the amplitude of
 the semi-annual cycle toward the end of the time series. Further

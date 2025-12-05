@@ -1,4 +1,4 @@
-Pyxccd指南 (Chinese)
+Pyxccd教程 (Chinese)
 =======================
 
 .. toctree::

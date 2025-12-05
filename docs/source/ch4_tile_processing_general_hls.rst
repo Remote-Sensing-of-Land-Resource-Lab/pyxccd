@@ -1,7 +1,7 @@
 第4课：基于瓦片的处理
 ===============================
 
-**作者: Yingchu Hu, Su Ye**
+**作者: Yingchu Hu, 叶粟**
 
 **时间序列数据集: Harmonized Landsat-Sentinel (HLS) 数据集**
 

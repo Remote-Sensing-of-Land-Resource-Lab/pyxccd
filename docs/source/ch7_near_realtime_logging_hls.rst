@@ -1,7 +1,7 @@
 第7课：近实时监测
 ===================================
 
-**作者: Su Ye (remotesensingsuy@gmail.com)**
+**作者: 叶粟 (remotesensingsuy@gmail.com)**
 
 **时间序列数据集: Harmonized Landsat-Sentinel (HLS) 数据集**
 
