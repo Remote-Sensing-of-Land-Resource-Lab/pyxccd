@@ -82,7 +82,7 @@ jobs:
         python -m pytest --verbose --cov={self.mod_name} $MOD_DPATH ../tests
         cd ..
     - name: Upload sdist artifact
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: wheels-sdist
         path: ./wheelhouse/*.tar.gz
