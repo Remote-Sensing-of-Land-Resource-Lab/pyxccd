@@ -67,24 +67,11 @@ Notes:
 
 
 # -- Project information -----------------------------------------------------
-# import sphinx_rtd_theme
+import sphinx_rtd_theme
 from os.path import exists
 from os.path import dirname
 from os.path import join
-
-# import setuptools_scm
-
-# Try to import the RTD theme, but don't hard-fail if it's missing.
-try:
-    import sphinx_rtd_theme  # type: ignore[attr-defined]
-except ModuleNotFoundError:
-    sphinx_rtd_theme = None
-
-# setuptools_scm is currently unused; make it optional or remove it.
-try:
-    import setuptools_scm  # noqa: F401
-except ModuleNotFoundError:
-    setuptools_scm = None
+import setuptools_scm
 
 # import sys, os
 
@@ -125,7 +112,7 @@ modpath = join(
 # release = parse_version(modpath)
 # version = ".".join(release.split(".")[0:2])
 
-version = "1.0.0"  # hard coded as no git environment in readthedocs
+version = "0.1.2"  # hard coded as no git environment in readthedocs
 
 # -- General configuration ---------------------------------------------------
 
@@ -220,20 +207,16 @@ pygments_style = "sphinx"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-if sphinx_rtd_theme is not None:
-    # Normal docs build: RTD theme is installed
-    html_theme = "sphinx_rtd_theme"
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-else:
-    # Fallback when the theme isn't installed (e.g. during tests)
-    html_theme = "alabaster"
-    html_theme_path = []
+html_theme = "sphinx_rtd_theme"
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    "collapse_navigation": False,
+    "collapse_navigation": True,# 启用折叠
+    "navigation_depth": 4,# 支持多级嵌套
     "display_version": True,
     # 'logo_only': True,
 }
@@ -244,7 +227,7 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-
+html_css_files = ['custom.css']
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -263,8 +246,15 @@ htmlhelp_basename = "pyxccddoc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
-
+latex_engine = 'xelatex'
+latex_use_xindy = False
 latex_elements = {
+    'preamble': r'''
+\usepackage{xeCJK}
+\usepackage{ctex}
+\setCJKmainfont{SimSun}
+\setmainfont{Times New Roman}
+'''   
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',

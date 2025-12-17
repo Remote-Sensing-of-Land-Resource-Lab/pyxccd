@@ -76,6 +76,7 @@ S-CCD for outputting continuous seasonal and trend states:
 
 3. Tutorials
 ----------------
+
 .. list-table::
    :header-rows: 1
    :widths: 5 25 25 25 15 15 15
@@ -169,6 +170,7 @@ S-CCD for outputting continuous seasonal and trend states:
 .. _Near real-time monitoring: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/7_near_realtime_logging_hls.ipynb
 .. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
 
+Tutorial datasets: `Github link <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/tree/devel/tutorials/datasets>`_
 
 4. GUI
 ------------
