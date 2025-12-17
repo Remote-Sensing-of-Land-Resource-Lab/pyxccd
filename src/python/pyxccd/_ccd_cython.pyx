@@ -14,7 +14,7 @@ cimport cython
 from libc.stdint cimport int32_t, int64_t, uint32_t, uint64_t
 # instead of int32_t and int64_t for cross-platform compatibility,see https://github.com/ansys/pymapdl/issues/14
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
-from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, cold_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex, _update_nrt_model,_update_nrtqueue,_update_sccd_reccg,update_anomaly, _update_cold_reccg
+from .common import reccg_dt, sccd_dt, nrtqueue_dt, nrtmodel_dt, anomaly_dt, cold_dt_flex, sccd_dt_flex, nrtqueue_dt_flex, nrtmodel_dt_flex, anomaly_dt_flex, _update_nrt_model,_update_nrtqueue,_update_sccd_reccg,update_anomaly, _update_cold_reccg, _expand_sccd_reccg, _expand_nrt_model, _expand_nrtqueue
 
 np.import_array()
 from scipy.stats import chi2
@@ -716,7 +716,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
 
 
 
-cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t,      ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodal=False):
+cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodal=False):
     """
     Helper function to do COLD algorithm.
 
@@ -942,20 +942,20 @@ cpdef _sccd_update_flex(sccd_pack,
     # grab inputs from the input
     rec_cg_new = np.empty(NUM_FC_SCCD, dtype=sccd_dt_flex)
     if num_fc > 0:
-        rec_cg_new[0:num_fc] = sccd_pack.rec_cg[0:num_fc]
+        rec_cg_new[0:num_fc] = _expand_sccd_reccg(sccd_pack.rec_cg[0:num_fc], nbands, ncoefs)
 
     nrt_queue_new = np.empty(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
     if num_nrt_queue > 0:
-        nrt_queue_new[0:num_nrt_queue] = sccd_pack.nrt_queue[0:num_nrt_queue]
+        nrt_queue_new[0:num_nrt_queue] = _expand_nrtqueue(sccd_pack.nrt_queue[0:num_nrt_queue], nbands)
 
     # TO CHECK
     if nrt_mode % 10 == 1 or nrt_mode == 3 or nrt_mode % 10 == 5:
-        nrt_model_new = np.zeros(1, dtype=nrtmodel_dt_flex)
-        nrt_model_new[0] = sccd_pack.nrt_model
         if nbands != np.shape(sccd_pack.nrt_model['nrt_coefs'])[0]:
             raise RuntimeError("Unmatched bands for original and new SccdOutput for pos = {}: the original band number is {} ".format(nrt_mode, np.shape(sccd_pack.nrt_model['nrt_coefs'])[0]))
         if n_coefs != np.shape(sccd_pack.nrt_model['nrt_coefs'])[1]:
             raise RuntimeError("Unmatched harmonic coefficient number for original and new SccdOutput for pos = {}: the harmonic coefficient number is {} ".format(nrt_mode, np.shape(sccd_pack.nrt_model['nrt_coefs'])[1]))
+        nrt_model_new = np.zeros(1, dtype=nrtmodel_dt_flex)
+        nrt_model_new[0] = _expand_nrt_model(sccd_pack.nrt_model, nbands, ncoefs)
     else:
         nrt_model_new = np.empty(1, dtype=nrtmodel_dt_flex)
 

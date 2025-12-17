@@ -449,6 +449,48 @@ def _update_sccd_reccg(reccg, nbands: int, ncoefs: int):
     return tmp
 
 
+def _expand_nrt_model(nrt_model, nbands, ncoefs):
+    tmp = numpy.zeros(shape=(1), dtype=nrtmodel_dt_flex)
+    tmp[0]["t_start_since1982"] = nrt_model[0]["t_start_since1982"]
+    tmp[0]["num_obs"] = nrt_model[0]["num_obs"]
+    tmp[0]["obs"] = nrt_model[0]["obs"][0:nbands, :]
+    tmp[0]["obs_date_since1982"] = nrt_model[0]["obs_date_since1982"]
+    tmp[0]["covariance"] = nrt_model[0]["covariance"][0:nbands, 0 : ncoefs * ncoefs]
+    tmp[0]["nrt_coefs"] = nrt_model[0]["nrt_coefs"][0:nbands, 0:ncoefs]
+    tmp[0]["H"] = nrt_model[0]["H"][0:nbands]
+    tmp[0]["rmse_sum"] = nrt_model[0]["rmse_sum"][0:nbands]
+    tmp[0]["norm_cm"] = nrt_model[0]["norm_cm"]
+    tmp[0]["cm_angle"] = nrt_model[0]["cm_angle"]
+    tmp[0]["anomaly_conse"] = nrt_model[0]["anomaly_conse"]
+    return tmp
+
+
+def _expand_nrtqueue(nrt_queue, nbands: int):
+    n = len(nrt_queue)
+    if n == 0:
+        return numpy.array([])
+    tmp = numpy.zeros(shape=(n), dtype=nrtqueue_dt_flex)
+    for i in range(n):
+        tmp[i]["clrx_since1982"] = nrt_queue[i]["clrx_since1982"]
+        tmp[i]["clry"] = nrt_queue[i]["clry"][0:nbands]
+    return tmp
+
+
+def _expand_sccd_reccg(reccg, nbands: int, ncoefs: int):
+    n = len(reccg)
+    if n == 0:
+        return numpy.array([])
+    tmp = numpy.zeros(shape=(n), dtype=sccd_dt_flex)
+    for i in range(n):
+        tmp[i]["t_start"] = reccg[i]["t_start"]
+        tmp[i]["t_break"] = reccg[i]["t_break"]
+        tmp[i]["num_obs"] = reccg[i]["num_obs"]
+        tmp[i]["coefs"] = reccg[i]["coefs"][0:nbands, 0:ncoefs]
+        tmp[i]["rmse"] = reccg[i]["rmse"][0:nbands]
+        tmp[i]["magnitude"] = reccg[i]["magnitude"][0:nbands]
+    return tmp
+
+
 def _update_cold_reccg(reccg, nbands: int):
     n = len(reccg)
     if n == 0:
