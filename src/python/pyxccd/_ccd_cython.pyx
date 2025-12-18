@@ -169,6 +169,7 @@ cdef Output_sccd t
 cdef output_nrtqueue t2
 cdef output_nrtmodel t3
 cdef Output_sccd_anomaly t4
+cdef Output_sccd_anomaly_flex t5
 
 
 #cdef class SccdOutput:
@@ -934,17 +935,18 @@ cpdef _sccd_update_flex(sccd_pack,
     cdef int32_t num_fc = len(sccd_pack.rec_cg)
     cdef int32_t num_nrt_queue = len(sccd_pack.nrt_queue)
     cdef int32_t num_fc_anomaly = 0
-    cdef Output_sccd_anomaly_flex* rec_cg_anomaly = <Output_sccd_anomaly_flex*> PyMem_Malloc(sizeof(t4))
+    cdef Output_sccd_anomaly_flex* rec_cg_anomaly = <Output_sccd_anomaly_flex*> PyMem_Malloc(sizeof(t5))
+    # rec_cg_anomaly = np.zeros(1, dtype=anomaly_dt_flex)
     state_ensemble = np.zeros(1, dtype=np.double)
     state_days = np.zeros(1, dtype=np.int64)
     cdef int32_t n_state = 0
 
     # grab inputs from the input
-    rec_cg_new = np.empty(NUM_FC_SCCD, dtype=sccd_dt_flex)
+    rec_cg_new = np.zeros(NUM_FC_SCCD, dtype=sccd_dt_flex)
     if num_fc > 0:
-        rec_cg_new[0:num_fc] = _expand_sccd_reccg(sccd_pack.rec_cg[0:num_fc], nbands, ncoefs)
+        rec_cg_new[0:num_fc] = _expand_sccd_reccg(sccd_pack.rec_cg[0:num_fc], nbands, n_coefs)
 
-    nrt_queue_new = np.empty(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
+    nrt_queue_new = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
     if num_nrt_queue > 0:
         nrt_queue_new[0:num_nrt_queue] = _expand_nrtqueue(sccd_pack.nrt_queue[0:num_nrt_queue], nbands)
 
@@ -955,9 +957,9 @@ cpdef _sccd_update_flex(sccd_pack,
         if n_coefs != np.shape(sccd_pack.nrt_model['nrt_coefs'])[1]:
             raise RuntimeError("Unmatched harmonic coefficient number for original and new SccdOutput for pos = {}: the harmonic coefficient number is {} ".format(nrt_mode, np.shape(sccd_pack.nrt_model['nrt_coefs'])[1]))
         nrt_model_new = np.zeros(1, dtype=nrtmodel_dt_flex)
-        nrt_model_new[0] = _expand_nrt_model(sccd_pack.nrt_model, nbands, ncoefs)
+        nrt_model_new[0] = _expand_nrt_model(sccd_pack.nrt_model, nbands, n_coefs)
     else:
-        nrt_model_new = np.empty(1, dtype=nrtmodel_dt_flex)
+        nrt_model_new = np.zeros(1, dtype=nrtmodel_dt_flex)
 
     min_rmse = sccd_pack.min_rmse
 
@@ -965,6 +967,7 @@ cpdef _sccd_update_flex(sccd_pack,
     cdef Output_sccd_flex [:] rec_cg_view = rec_cg_new
     cdef output_nrtqueue_flex [:] nrt_queue_view = nrt_queue_new
     cdef output_nrtmodel_flex [:] nrt_model_view = nrt_model_new
+    # cdef Output_sccd_anomaly_flex [:] rec_cg_anomaly_view = rec_cg_anomaly
     cdef short [:] min_rmse_view = min_rmse
     cdef int64_t [:] dates_view = dates
     cdef int64_t [:] ts_stack_view = ts_stack
@@ -973,7 +976,10 @@ cpdef _sccd_update_flex(sccd_pack,
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
 
-    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index,     tmask_b2_index, valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],&nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
+    result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, 
+                        valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
+                        &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
+                        conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
 
     PyMem_Free(rec_cg_anomaly)
     if result != 0:

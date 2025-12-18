@@ -2651,7 +2651,7 @@ int sccd_standard_flex(
                 /* step 1 - conti: initialize ssm models .                    */
                 /*                                                            */
                 /**************************************************************/
-
+                printf("lalala1");
                 for (i_b = 0; i_b < nbands; i_b++)
                 {
 
@@ -2677,6 +2677,7 @@ int sccd_standard_flex(
                     unadjusted_rmse = rmse_ini[i_b] * rmse_ini[i_b];
                     base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[i_start] / SLOPE_SCALE;
                     initialize_ssmconstants(n_coefs, unadjusted_rmse, base_value, &instance[i_b], lambda);
+                    printf("lalala_iband");
                     /**************************************************************/
                     /*                                                            */
                     /*  initialize a and p                                        */
@@ -2686,6 +2687,7 @@ int sccd_standard_flex(
                                               cov_p[i_b], i_b, &sum_square_vt[i_b], *n_clr,
                                               b_coefs_records, n_coefs_records, coefs_records, nbands, lambda, n_coefs);
                 }
+                printf("lalala2");
                 num_obs_processed = i - i_start + 1;
                 t_start = clrx[i_start];
                 /* initialization stage stops, and continious change detection starts */
