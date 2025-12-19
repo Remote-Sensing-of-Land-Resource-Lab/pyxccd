@@ -112,7 +112,7 @@ modpath = join(
 # release = parse_version(modpath)
 # version = ".".join(release.split(".")[0:2])
 
-version = "0.1.2"  # hard coded as no git environment in readthedocs
+version = "1.0.1"  # hard coded as no git environment in readthedocs
 
 # -- General configuration ---------------------------------------------------
 
@@ -215,8 +215,8 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # documentation.
 #
 html_theme_options = {
-    "collapse_navigation": True,# 启用折叠
-    "navigation_depth": 4,# 支持多级嵌套
+    "collapse_navigation": True,  # 启用折叠
+    "navigation_depth": 4,  # 支持多级嵌套
     "display_version": True,
     # 'logo_only': True,
 }
@@ -227,7 +227,7 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ['custom.css']
+html_css_files = ["custom.css"]
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -246,15 +246,15 @@ htmlhelp_basename = "pyxccddoc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
-latex_engine = 'xelatex'
+latex_engine = "xelatex"
 latex_use_xindy = False
 latex_elements = {
-    'preamble': r'''
+    "preamble": r"""
 \usepackage{xeCJK}
 \usepackage{ctex}
 \setCJKmainfont{SimSun}
 \setmainfont{Times New Roman}
-'''   
+"""
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
