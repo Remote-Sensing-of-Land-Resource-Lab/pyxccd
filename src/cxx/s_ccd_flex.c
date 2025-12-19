@@ -419,13 +419,12 @@ int step1_ssm_initialize_flex(
     /********************************************************************************************/
     /* first step: update a and p between prev_i_break - 1(included) and stable_start(not included) */
     /********************************************************************************************/
-    F
-        /* initialize a1 */
-        // fit_cft2vec_a(fit_cft[i_b], state_a, clrx[stable_start], instance->m, instance->structure);
-        /*  initialize p */
-        // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
-        // ini_p = INI_P;
-        ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
+    /* initialize a1 */
+    // fit_cft2vec_a(fit_cft[i_b], state_a, clrx[stable_start], instance->m, instance->structure);
+    /*  initialize p */
+    // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
+    // ini_p = INI_P;
+    ini_p = (float)pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
 
     for (k = 0; k < instance->m; k++)
     {
