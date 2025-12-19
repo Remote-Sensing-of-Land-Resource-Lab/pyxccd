@@ -58,7 +58,7 @@ jobs:
       with:
         gather-path: wheelhouse
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       name: Upload wheels artifact
       with:
         name: wheels-${{ matrix.cibw-only }}
@@ -98,7 +98,7 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: ${{ steps.extract-python-version.outputs.python-version }}
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       name: Download wheels
       with:
         name: wheels-${{ matrix.cibw-only }}

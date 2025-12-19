@@ -880,7 +880,7 @@ cpdef _sccd_update_flex(sccd_pack,
                         np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, 
                         int32_t nbands, double t_cg, double max_t_cg, 
                         int32_t conse=6, int32_t pos=1, bint b_c2=True,
-                        double anomaly_tcg=9.236, int anomaly_conse=3, 
+                        double anomaly_tcg=9.236,  
                         double predictability_tcg=15.086, 
                         int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, double lam=20, bool trimodal=False):
     """
@@ -900,7 +900,6 @@ cpdef _sccd_update_flex(sccd_pack,
        b_c2: bool, a temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid pixel test due to its current low quality
        output_anomaly: indicate whether to output anomalies
        anomaly_tcg: the gate change magnitude threshold for defining anomalies
-       anomaly_conse: the consecutive observations for defining anomalies
        tmask_b1_index: the first band id for tmask
        tmask_b2_index: the second band id for tmask
        Note that passing 2-d array to c as 2-d pointer does not work, so have to pass separate bands
@@ -942,11 +941,11 @@ cpdef _sccd_update_flex(sccd_pack,
     cdef int32_t n_state = 0
 
     # grab inputs from the input
-    rec_cg_new = np.zeros(NUM_FC_SCCD, dtype=sccd_dt_flex)
+    rec_cg_new = np.empty(NUM_FC_SCCD, dtype=sccd_dt_flex)
     if num_fc > 0:
         rec_cg_new[0:num_fc] = _expand_sccd_reccg(sccd_pack.rec_cg[0:num_fc], nbands, n_coefs)
 
-    nrt_queue_new = np.zeros(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
+    nrt_queue_new = np.empty(NUM_NRT_QUEUE, dtype=nrtqueue_dt_flex)
     if num_nrt_queue > 0:
         nrt_queue_new[0:num_nrt_queue] = _expand_nrtqueue(sccd_pack.nrt_queue[0:num_nrt_queue], nbands)
 
@@ -979,7 +978,7 @@ cpdef _sccd_update_flex(sccd_pack,
     result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, 
                         valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                        conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
+                        conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 3, predictability_tcg, False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
 
     PyMem_Free(rec_cg_anomaly)
     if result != 0:

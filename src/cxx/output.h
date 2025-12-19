@@ -168,14 +168,14 @@ typedef struct
 } Output_sccd_flex;
 
 typedef struct
+{
     int t_break; /* time when the first break (change) is observed */
-float coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C];
-short int obs[TOTAL_IMAGE_BANDS_FLEX_SCCD][DEFAULT_CONSE_SCCD];
-short int obs_date_since1982[DEFAULT_CONSE_SCCD];
-short int norm_cm[DEFAULT_CONSE_SCCD];
-short int cm_angle[DEFAULT_CONSE_SCCD];
-}
-Output_sccd_anomaly_flex;
+    float coefs[TOTAL_IMAGE_BANDS_FLEX_SCCD][FLEX_SCCD_NUM_C];
+    short int obs[TOTAL_IMAGE_BANDS_FLEX_SCCD][DEFAULT_CONSE_SCCD];
+    short int obs_date_since1982[DEFAULT_CONSE_SCCD];
+    short int norm_cm[DEFAULT_CONSE_SCCD];
+    short int cm_angle[DEFAULT_CONSE_SCCD];
+} Output_sccd_anomaly_flex;
 
 typedef struct
 {

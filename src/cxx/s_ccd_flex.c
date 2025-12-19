@@ -419,13 +419,13 @@ int step1_ssm_initialize_flex(
     /********************************************************************************************/
     /* first step: update a and p between prev_i_break - 1(included) and stable_start(not included) */
     /********************************************************************************************/
-
-    /* initialize a1 */
-    // fit_cft2vec_a(fit_cft[i_b], state_a, clrx[stable_start], instance->m, instance->structure);
-    /*  initialize p */
-    // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
-    // ini_p = INI_P;
-    ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
+    F
+        /* initialize a1 */
+        // fit_cft2vec_a(fit_cft[i_b], state_a, clrx[stable_start], instance->m, instance->structure);
+        /*  initialize p */
+        // ini_p = caculate_ini_p(instance->m, state_a, instance->Z);
+        // ini_p = INI_P;
+        ini_p = pow((fit_cft[i_b][1] * clrx_extend[stable_nobs] / SLOPE_SCALE + fit_cft[i_b][0]), 2) * INITIAL_P_RATIO;
 
     for (k = 0; k < instance->m; k++)
     {
@@ -2651,7 +2651,6 @@ int sccd_standard_flex(
                 /* step 1 - conti: initialize ssm models .                    */
                 /*                                                            */
                 /**************************************************************/
-                printf("lalala1");
                 for (i_b = 0; i_b < nbands; i_b++)
                 {
 
@@ -2677,7 +2676,6 @@ int sccd_standard_flex(
                     unadjusted_rmse = rmse_ini[i_b] * rmse_ini[i_b];
                     base_value = (double)fit_cft[i_b][0] + (double)fit_cft[i_b][1] * clrx[i_start] / SLOPE_SCALE;
                     initialize_ssmconstants(n_coefs, unadjusted_rmse, base_value, &instance[i_b], lambda);
-                    printf("lalala_iband");
                     /**************************************************************/
                     /*                                                            */
                     /*  initialize a and p                                        */
@@ -2687,7 +2685,6 @@ int sccd_standard_flex(
                                               cov_p[i_b], i_b, &sum_square_vt[i_b], *n_clr,
                                               b_coefs_records, n_coefs_records, coefs_records, nbands, lambda, n_coefs);
                 }
-                printf("lalala2");
                 num_obs_processed = i - i_start + 1;
                 t_start = clrx[i_start];
                 /* initialization stage stops, and continious change detection starts */
