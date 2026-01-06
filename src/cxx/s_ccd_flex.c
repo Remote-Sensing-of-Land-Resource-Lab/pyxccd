@@ -2709,7 +2709,7 @@ int sccd_standard_flex(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg, b_coefs_records, n_coefs_records, coefs_records, nbands, fitting_coefs, lambda, anomaly_conse, n_coefs);
+            status = step2_KF_ChangeDetection_flex(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, max_t_cg, b_coefs_records, n_coefs_records, coefs_records, nbands, fitting_coefs, lambda, anomaly_conse, anomaly_interval, n_coefs);
 
             if (status == CHANGEDETECTED)
             {
