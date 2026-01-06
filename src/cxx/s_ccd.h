@@ -31,6 +31,7 @@ int sccd(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_output_state, /* I: indicate whether to output state  */
     double state_intervaldays,
@@ -102,7 +103,8 @@ int step2_KF_ChangeDetection(
     nrt_coefs_records *coefs_records,
     bool fitting_coefs,
     double lambda,
-    int anomaly_conse);
+    int anomaly_conse,
+    int anomaly_interval);
 
 /************************************************************************
 FUNCTION: step3_processingend
@@ -172,6 +174,7 @@ int sccd_standard(
     int *num_fc_output_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,

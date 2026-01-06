@@ -53,6 +53,7 @@ int sccd_flex(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_output_state, /* I: indicate whether to output state  */
     double state_intervaldays,
@@ -244,7 +245,7 @@ int sccd_flex(
                 }
             }
 
-            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, fitting_coefs, lambda, n_coefs);
+            result = sccd_standard_flex(clrx, clry, &n_clr, tcg, max_t_cg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, anomaly_interval, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, nbands, tmask_b1, tmask_b2, fitting_coefs, lambda, n_coefs);
         }
     }
     else
@@ -1482,6 +1483,7 @@ int step2_KF_ChangeDetection_flex(
     bool fitting_coefs,
     double lambda,
     int anomaly_conse,
+    int anomaly_interval,
     int n_coefs)
 {
     int i_b, b, m, k, j;
@@ -1618,7 +1620,8 @@ int step2_KF_ChangeDetection_flex(
                 current_anomaly = *num_fc_anomaly - 1;
             }
 
-            if ((break_mag > CM_outputs[current_CM_n]) & (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > 90))
+            // if ((break_mag > CM_outputs[current_CM_n]) & (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > 90))
+            if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > anomaly_interval))
             // if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[*num_fc_anomaly - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last anomaly break
             {
                 for (conse_last = 1; conse_last <= conse; conse_last++)
@@ -2415,6 +2418,7 @@ int sccd_standard_flex(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,

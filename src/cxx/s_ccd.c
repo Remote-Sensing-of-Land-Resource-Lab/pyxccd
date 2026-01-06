@@ -57,6 +57,7 @@ int sccd(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_output_state, /* I: indicate whether to output state  */
     double state_intervaldays,
@@ -260,7 +261,7 @@ int sccd(
                 }
             }
 
-            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, fitting_coefs, lambda);
+            result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, anomaly_interval, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, fitting_coefs, lambda);
         }
     }
     else
@@ -1597,7 +1598,8 @@ int step2_KF_ChangeDetection(
     nrt_coefs_records *coefs_records,
     bool fitting_coefs,
     double lambda,
-    int anomaly_conse)
+    int anomaly_conse,
+    int anomaly_interval)
 {
     int i_b, b, m, k, j;
     int status;
@@ -1752,7 +1754,8 @@ int step2_KF_ChangeDetection(
                 current_anomaly = *num_fc_anomaly - 1;
             }
 
-            if ((break_mag > CM_outputs[current_CM_n]) & (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > 90))
+            // if ((break_mag > CM_outputs[current_CM_n]) & (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > 90))
+            if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[current_anomaly].t_break > anomaly_interval))
             // if ((*num_fc_anomaly == 0) | (clrx[cur_i] - rec_cg_anomaly[*num_fc_anomaly - 1].t_break > AVE_DAYS_IN_A_YEAR))// must has a gap of 1 year with the last anomaly break
             {
                 for (conse_last = 1; conse_last <= conse; conse_last++)
@@ -2570,6 +2573,7 @@ int sccd_standard(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,
@@ -2853,7 +2857,7 @@ int sccd_standard(
         /**************************************************************/
         else
         {
-            status = step2_KF_ChangeDetection(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD, b_coefs_records, n_coefs_records, coefs_records, fitting_coefs, lambda, anomaly_conse);
+            status = step2_KF_ChangeDetection(instance, clrx, clry, i, i_start, num_fc, conse, min_rmse, tcg, n_clr, cov_p, fit_cft, rec_cg, sum_square_vt, &num_obs_processed, t_start, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, &norm_cm_scale100, &cm_angle_scale100, CM_outputs, T_MAX_CG_SCCD, b_coefs_records, n_coefs_records, coefs_records, fitting_coefs, lambda, anomaly_conse, anomaly_interval);
 
             if (status == CHANGEDETECTED)
             {

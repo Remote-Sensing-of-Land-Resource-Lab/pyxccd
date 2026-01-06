@@ -37,6 +37,7 @@ _parameter_constraints: dict = {
     "output_anomaly": ["boolean"],
     "anomaly_pcg": [Interval(Real, 0.0, 1, closed="neither")],
     "anomaly_conse": [Interval(Integral, 0, 8, closed="right")],
+    "anomaly_interval": [Interval(Integral, 6, 366, closed="right")],
     "sccd_conse": [Interval(Integral, 0, 8, closed="right")],
     "predictability_pcg": [Interval(Real, 0.0, 1, closed="neither")],
     "dist_conse": [Interval(Integral, 0, 6, closed="right")],
@@ -381,6 +382,7 @@ def sccd_detect(
     output_anomaly=False,
     anomaly_pcg=0.90,
     anomaly_conse=3,
+    anomaly_interval=90,
     state_intervaldays=0.0,
     fitting_coefs=False,
     lam=20,
@@ -423,6 +425,8 @@ def sccd_detect(
         Change probability threshold for defining spectral anomalies, by default 0.90.
     anomaly_conse: int
         Consecutive observation number to determine anomaly identification, by default 3. No more than 8.
+    anomaly_interval:int
+        The minimum interval between two anomaly outputs. Should be in the range [7, 366]
     state_intervaldays: float
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     fitting_coefs: bool
@@ -470,6 +474,7 @@ def sccd_detect(
         output_anomaly=output_anomaly,
         anomaly_pcg=anomaly_pcg,
         anomaly_conse=anomaly_conse,
+        anomaly_interval=anomaly_interval,
         state_intervaldays=state_intervaldays,
         lam=lam,
     )
@@ -505,6 +510,7 @@ def sccd_detect(
         output_anomaly,
         anomaly_tcg,
         anomaly_conse,
+        anomaly_interval,
         DEFAULT_PRED_TCG,
         b_output_state,
         state_intervaldays,
@@ -844,6 +850,7 @@ def sccd_detect_flex(
     output_anomaly=False,
     anomaly_pcg=0.90,
     anomaly_conse=3,
+    anomaly_interval=90,
     state_intervaldays=0.0,
     tmask_b1_index=1,
     tmask_b2_index=1,
@@ -880,6 +887,8 @@ def sccd_detect_flex(
         Change probability threshold for defining spectral anomalies anomalys, by default 0.90.
     anomaly_conse: int
         Consecutive observation number to determine anomaly identification, by default 3
+    anomaly_interval:int
+        The minimum interval between two anomaly outputs. Should be in the range [7, 365]
     state_intervaldays: float
         If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
     fitting_coefs: bool
@@ -921,6 +930,7 @@ def sccd_detect_flex(
         output_anomaly=output_anomaly,
         anomaly_pcg=anomaly_pcg,
         anomaly_conse=anomaly_conse,
+        anomaly_interval=anomaly_interval,
         state_intervaldays=state_intervaldays,
         lam=lam,
         trimodal=trimodal,
@@ -961,6 +971,7 @@ def sccd_detect_flex(
         output_anomaly,
         anomaly_tcg,
         anomaly_conse,
+        anomaly_interval,
         DEFAULT_PRED_TCG,
         b_output_state,
         state_intervaldays,

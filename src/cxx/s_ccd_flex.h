@@ -29,6 +29,7 @@ int sccd_flex(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_output_state, /* I: indicate whether to output state  */
     double state_intervaldays,
@@ -110,6 +111,7 @@ int step2_KF_ChangeDetection_flex(
     bool fitting_coefs,
     double lambda,
     int anomaly_conse,
+    int anomaly_interval,
     int n_coefs);
 
 /************************************************************************
@@ -185,6 +187,7 @@ int sccd_standard_flex(
     int *num_fc_anomaly,
     double anomaly_tcg,
     int anomaly_conse,
+    int anomaly_interval,
     double predictability_tcg,
     bool b_coefs_records,
     int *n_coefs_records,

@@ -156,13 +156,13 @@ cdef extern from "../../cxx/cold.h":
 
 
 cdef extern from "../../cxx/s_ccd.h":
-    cdef int32_t sccd(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2, int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, double tcg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue, short int *min_rmse, int32_t conse, bool b_c2, bool output_anomaly, Output_sccd_anomaly *rec_cg_anomaly, int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg,  bool b_output_state, double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool fitting_coefs, double lam);
+    cdef int32_t sccd(int64_t *buf_b, int64_t *buf_g, int64_t *buf_r, int64_t *buf_n, int64_t *buf_s1, int64_t *buf_s2, int64_t *buf_t, int64_t *fmask_buf, int64_t *valid_date_array, int32_t valid_num_scenes, double tcg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd *rec_cg, output_nrtmodel *nrt_model, int32_t *num_nrt_queue, output_nrtqueue *nrt_queue, short int *min_rmse, int32_t conse, bool b_c2, bool output_anomaly, Output_sccd_anomaly *rec_cg_anomaly, int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, int anomaly_interval, double predictability_tcg,  bool b_output_state, double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble, bool fitting_coefs, double lam);
 
 
 cdef extern from "../../cxx/s_ccd_flex.h":
     cdef int32_t sccd_flex(int64_t *ts_data, int64_t *fmask_buf, int64_t *valid_date_array, int nbands, int tmask_b1_index, int tmask_b2_index, int valid_num_scenes, double tcg, double max_t_cg, int32_t *num_fc, int32_t *nrt_mode, Output_sccd_flex *rec_cg, output_nrtmodel_flex *nrt_model, int32_t *num_obs_queue, output_nrtqueue_flex *obs_queue, short int *min_rmse, 
     int32_t conse, bool b_c2, bool output_anomaly, Output_sccd_anomaly_flex *rec_cg_anomaly,
-    int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, double predictability_tcg, bool b_output_state,double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool fitting_coefs, double lam, int64_t n_coefs);
+    int32_t *num_fc_anomaly, double anomaly_tcg, int anomaly_conse, int anomaly_interval, double predictability_tcg, bool b_output_state,double state_intervaldays, int32_t *n_state, int64_t *state_days, double *states_ensemble,bool fitting_coefs, double lam, int64_t n_coefs);
 
 
 cdef Output_sccd t
@@ -358,7 +358,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
                    np.ndarray[np.int64_t, ndim=1, mode='c'] qas,
                    double t_cg = 15.0863, int32_t conse=6, int32_t pos=1, 
                    bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, 
-                   int anomaly_conse=3, double predictability_tcg=9.236, 
+                   int anomaly_conse=3, int anomaly_interval=90, double predictability_tcg=9.236, 
                    bint b_output_state=False, double state_intervaldays=1, bint fitting_coefs=False, double lam=20):
     """
     S-CCD processing. It is required to be done before near real time monitoring
@@ -381,6 +381,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
        output_anomaly: bool, output anomaly break
        anomaly_tcg: the gate change magnitude threshold for defining anomaly
        anomaly_conse: the consecutive observation number for defining anomalies
+       anomaly_interval: the minimum interval days between two anomalies
        predictability_tcg: threshold for predicability test
        b_output_state: bool, if output intermediate state variables
        state_intervaldays: bool, what is the interval for outputting state
@@ -454,7 +455,7 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     cdef double [:] states_ensemble_view = state_ensemble
 
 
-    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam)
+    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, anomaly_interval, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam)
     
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -717,7 +718,7 @@ cpdef _cold_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
 
 
 
-cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3,double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodal=False):
+cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarray[np.int64_t, ndim=1, mode='c'] ts_stack,np.ndarray[np.int64_t, ndim=1, mode='c'] qas, int32_t valid_num_scenes, int32_t nbands, double t_cg, double max_t_cg, int32_t conse=6, int32_t pos=1, bint b_c2=True, bint output_anomaly=False, double anomaly_tcg=9.236, int anomaly_conse=3, int anomaly_interval=90, double predictability_tcg=9.236, bint b_output_state=False, double state_intervaldays=1, int32_t tmask_b1_index=1, int32_t tmask_b2_index=1, bint fitting_coefs=False, double lam=20, bool trimodal=False):
     """
     Helper function to do COLD algorithm.
 
@@ -736,6 +737,7 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
         output_anomaly: indicate whether to output anomalies
         anomaly_tcg: the gate change magnitude threshold for defining anomalies
         anomaly_conse: the consecutive observation number for defining anomalies
+        anomaly_interval: the minimum interval days between two anomalies
         starting_date: the starting date of the whole dataset to enable reconstruct CM_date,
                     all pixels for a tile should have the same date, only for output_cm is True
         cm_output_interval: the temporal interval of outputting change magnitudes
@@ -805,7 +807,8 @@ cpdef _sccd_detect_flex(np.ndarray[np.int64_t, ndim=1, mode='c'] dates, np.ndarr
                         valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
                         conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, 
-                        anomaly_tcg, anomaly_conse, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam, n_coefs)
+                        anomaly_tcg, anomaly_conse, anomaly_interval, predictability_tcg, b_output_state, state_intervaldays, 
+                        &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam, n_coefs)
 
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
