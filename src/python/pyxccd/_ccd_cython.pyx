@@ -455,7 +455,10 @@ cpdef _sccd_detect(np.ndarray[np.int64_t, ndim=1, mode='c'] dates,
     cdef double [:] states_ensemble_view = state_ensemble
 
 
-    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, anomaly_interval, predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam)
+    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0], &ts_t_view[0], &qas_view[0], 
+            &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0], &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], 
+            &min_rmse_view[0], conse, b_c2, output_anomaly, &rec_cg_anomaly_view[0], &num_fc_anomaly, anomaly_tcg, anomaly_conse, anomaly_interval, 
+            predictability_tcg, b_output_state, state_intervaldays, &n_state, &states_days_view[0], &states_ensemble_view[0], fitting_coefs, lam)
     
     if result != 0:
         raise RuntimeError("S-CCD function fails for pos = {} ".format(pos))
@@ -616,7 +619,10 @@ cpdef _sccd_update(sccd_pack,
     cdef int64_t [:] states_days_view = state_days
     cdef double [:] states_ensemble_view = state_ensemble
 
-    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0],&ts_t_view[0], &qas_view[0], &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],&nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], conse, b_c2, False,rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 3, predictability_tcg, False, 1, &n_state, &states_days_view[0], &states_ensemble_view[0], False, lam)
+    result = sccd(&ts_b_view[0], &ts_g_view[0], &ts_r_view[0], &ts_n_view[0], &ts_s1_view[0], &ts_s2_view[0],&ts_t_view[0], &qas_view[0], 
+                &dates_view[0], valid_num_scenes, t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],&nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], 
+                &min_rmse_view[0], conse, b_c2, False,rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 3, 90, predictability_tcg, False, 1, &n_state, 
+                &states_days_view[0], &states_ensemble_view[0], False, lam)
 
     PyMem_Free(rec_cg_anomaly)
     if result != 0:
@@ -981,7 +987,8 @@ cpdef _sccd_update_flex(sccd_pack,
     result = sccd_flex(&ts_stack_view[0], &qas_view[0], &dates_view[0], nbands, tmask_b1_index, tmask_b2_index, 
                         valid_num_scenes, t_cg, max_t_cg, &num_fc, &nrt_mode, &rec_cg_view[0],
                         &nrt_model_view[0], &num_nrt_queue, &nrt_queue_view[0], &min_rmse_view[0], 
-                        conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 3, predictability_tcg, False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
+                        conse, b_c2, False, rec_cg_anomaly, &num_fc_anomaly, anomaly_tcg, 3, 90, predictability_tcg, 
+                        False, 1, &n_state, &states_days_view[0],&states_ensemble_view[0], False, lam, n_coefs)
 
     PyMem_Free(rec_cg_anomaly)
     if result != 0:
