@@ -204,7 +204,7 @@ Zhou, C. (2020). Continuous monitoring of land disturbance based on
 Landsat time series. *Remote Sensing of Environment*, *238*, 111116.
 
 7. Application
-------------
+----------------
 
 The recent applications of S-CCD could be found in `China's Forest Disturbance Watcher <https://forestwatch.com.cn>`_
 
