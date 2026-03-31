@@ -194,14 +194,14 @@ Technical details and performance: `pyxccd paper <https://eartharxiv.org/reposit
 If you make use of the algorithms in this repo (or to read more about them),
 please cite (/see) the relevant publications from the following list:
 
+`[PYXCCD] <https://eartharxiv.org/repository/view/12261/>`_
+Ye, S., & Hu, Y. (2026). Pyxccd: An Efficient Python Package for Break-aware Time Series Analysis of Earth Observation Data.
+
 `[S-CCD] <https://www.sciencedirect.com/science/article/pii/S003442572030540X>`_
 Ye, S., Rogan, J., Zhu, Z., & Eastman, J. R. (2021). A near-real-time
 approach for monitoring forest disturbance using Landsat time series:
 Stochastic continuous change detection. *Remote Sensing of Environment*,
 *252*, 112167.
-
-`[PYXCCD] <https://eartharxiv.org/repository/view/12261/>`_
-Ye, S., & Hu, Y. (2026). Pyxccd: An Efficient Python Package for Break-aware Time Series Analysis of Earth Observation Data.
 
 `[COLD] <https://www.sciencedirect.com/science/article/am/pii/S0034425719301002>`_ 
 Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., &
