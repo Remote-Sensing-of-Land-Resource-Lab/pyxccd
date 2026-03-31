@@ -38,7 +38,7 @@ jobs:
       with:
         fetch-depth: 0 # fetch all history for accurate version calculation
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v4
       if: runner.os == 'Linux' && matrix.arch != 'auto'
       with:
         platforms: all
@@ -85,7 +85,7 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v6
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v4
       if: runner.os == 'Linux' && matrix.arch != 'auto'
       with:
         platforms: all
