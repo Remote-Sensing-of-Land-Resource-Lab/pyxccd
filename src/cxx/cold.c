@@ -2708,10 +2708,7 @@ int stand_procedure(
                         clry[k][n_clr] = (float)buf_s2[i];
                     else if (k == 6)
                     {
-                        if ((b_c2 == TRUE) && (buf_t[i] == 0))
-                            clry[k][n_clr] = 0;
-                        else
-                            clry[k][n_clr] = (float)(buf_t[i] * 10 - 27320);
+                        clry[k][n_clr] = (float)buf_t[i];
                     }
 
                     // printf("%3.2f\n", clry[k][n_clr]);
@@ -4905,14 +4902,7 @@ int inefficientobs_procedure(
                         clry[k][n_sn] = (float)buf_s2[i];
                     else if (k == 6)
                     {
-                        if (b_c2 == TRUE)
-                        {
-                            clry[k][n_sn] = 0;
-                        }
-                        else
-                        {
-                            clry[k][n_sn] = (float)(buf_t[i] * 10 - 27320);
-                        }
+                        clry[k][n_sn] = (float)buf_t[i];
                     }
                 }
                 n_sn++;
@@ -5159,14 +5149,7 @@ int inefficientobs_procedure(
                         clry[k][n_clr] = (float)buf_s2[i];
                     else if (k == 6)
                     {
-                        if (b_c2 == TRUE)
-                        {
-                            clry[k][n_sn] = 0;
-                        }
-                        else
-                        {
-                            clry[k][n_sn] = (float)(buf_t[i] * 10 - 27320);
-                        }
+                        clry[k][n_clr] = (float)buf_t[i];
                     }
                 }
                 n_clr++;
@@ -5495,7 +5478,7 @@ int obcold_reconstruction_procedure(
                     else if (k == 5)
                         clry[k][n_clr] = (float)buf_s2[i];
                     else if (k == 6)
-                        clry[k][n_clr] = (float)(buf_t[i] * 10 - 27320);
+                        clry[k][n_clr] = (float)buf_t[i];
                     // printf("%3.2f\n", clry[k][n_clr]);
                 }
                 n_clr++;
