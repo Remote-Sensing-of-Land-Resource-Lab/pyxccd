@@ -186,6 +186,8 @@ We provided GUI to quickly test S-CCD or COLD algorithms using point-based time 
 ----------------
 API documents: `readthedocs <https://pyxccd.readthedocs.io/en/latest>`_
 
+Technical details and performance: `pyxccd paper <https://eartharxiv.org/repository/view/12261/>`_
+
 6. Citations
 ------------
 
@@ -198,12 +200,19 @@ approach for monitoring forest disturbance using Landsat time series:
 Stochastic continuous change detection. *Remote Sensing of Environment*,
 *252*, 112167.
 
+`[PYXCCD] <https://eartharxiv.org/repository/view/12261/>`_
+Ye, S., & Hu, Y. (2026). Pyxccd: An Efficient Python Package for Break-aware Time Series Analysis of Earth Observation Data.
+
 `[COLD] <https://www.sciencedirect.com/science/article/am/pii/S0034425719301002>`_ 
 Zhu, Z., Zhang, J., Yang, Z., Aljaddani, A. H., Cohen, W. B., Qiu, S., &
 Zhou, C. (2020). Continuous monitoring of land disturbance based on
 Landsat time series. *Remote Sensing of Environment*, *238*, 111116.
 
-The recent applications of S-CCD could be found in `CONUS Land Watcher <https://gers.users.earthengine.app/view/nrt-conus>`_
+
+7. Application
+----------------
+
+The recent applications of S-CCD could be found in `China's Forest Disturbance Watcher <https://forestwatch.com.cn>`_
 
 Q&A
 ---
