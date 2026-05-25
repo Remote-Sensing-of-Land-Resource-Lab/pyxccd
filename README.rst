@@ -1,7 +1,7 @@
 PYXCCD
 ======
 
-|GithubActions| |Pypi| |badge_downloads| |ReadTheDocs| |badge_license|
+|GithubActions| |Pypi| |badge_downloads| |ReadTheDocs|
 
 .. |badge_downloads| image:: https://pepy.tech/badge/pyxccd
    :target: https://pepy.tech/project/pyxccd
