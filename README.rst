@@ -1,8 +1,11 @@
 PYXCCD
 ======
 
-|GithubActions| |Pypi| |Downloads| |ReadTheDocs|
+|GithubActions| |Pypi| |badge_downloads| |ReadTheDocs|
 
+.. |badge_downloads| image:: https://pepy.tech/badge/pyxccd
+   :target: https://pepy.tech/project/pyxccd
+   :alt: Downloads
 
 A PYthon library for latest and eXtended Continuous Change Detection
 =============================================================================================================================
