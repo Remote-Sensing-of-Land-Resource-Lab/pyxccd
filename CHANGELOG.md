@@ -3,6 +3,9 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 1.0.3] - Released 2026-5-27
+* Fix the bug of thermal band scaling problem, and add efficiency and accuracy test notebook
+
 ## [Version 1.0.2] - Released 2026-1-7
 * add anomaly interval into S-CCD to better control anomaly behavior
 
