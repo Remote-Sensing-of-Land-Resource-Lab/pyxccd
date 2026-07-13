@@ -41,6 +41,81 @@ void filter1step_missingobs(
     return;
 }
 
+// void filter1step_validobs(
+//     float yt,        /*I */
+//     gsl_vector *zt,  /*I */
+//     float *ht,       /*I */
+//     gsl_matrix *tt,  /*I */
+//     gsl_matrix *rqr, /*I */
+//     gsl_vector *at,  /*I/O*/
+//     gsl_matrix *pt,  /*I/O*/
+//     double *vt,      /*I/O*/
+//     double *ft,      /*I/O*/
+//     gsl_vector *kt,  /*I/O*/
+//     int m,
+//     gsl_vector *att)
+// {
+//     double finv;
+//     double tmp;
+//     double p;
+//     gsl_vector *ahelp;
+//     gsl_matrix *mm;
+
+//     ahelp = gsl_vector_alloc(m);
+//     mm = gsl_matrix_alloc(m, m);
+
+//     /*kt = zt*pt*/
+//     gsl_blas_dsymv(CblasUpper, 1.0, pt,
+//                    zt, 0.0, kt);
+
+//     /*ft = kt *ztt + ht*/
+//     gsl_blas_ddot(zt, kt, &p);
+//     *ft = p + *ht;
+
+//     gsl_blas_ddot(zt, at, &tmp);
+//     *vt = yt - tmp;
+
+//     if (*ft > KFAS_TOL)
+//     {
+//         finv = 1.0 / *ft;
+//         gsl_blas_daxpy((*vt) * finv, kt, at);
+//         gsl_blas_dsyr(CblasUpper, -finv,
+//                       kt, pt);
+//         // Joseph's form covariance update
+//         // pt = [I - k * z] * pt * [I - k * z]' + k * HT\ * kt
+//     }
+//     else
+//     {
+//         *ft = 0.0;
+//     }
+
+//     gsl_vector_memcpy(att, at);
+
+//     gsl_blas_dgemv(CblasNoTrans, 1.0, tt, at, 0.0, ahelp);
+
+//     gsl_vector_memcpy(at, ahelp);
+
+//     /* mm = tt*pt*/
+//     gsl_blas_dsymm(CblasRight, CblasUpper, 1.0, pt, tt, 0.0, mm);
+//     /* pt = mm * tt^T */
+//     gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, mm, tt, 0.0, pt);
+
+//     gsl_matrix_add(pt, rqr);
+
+//     //     // force to be non negative
+//     //    for(k1 = 0; k1 < m; k1++){
+//     //        for(k2 = 0; k2 < m; k2++){
+//     //            if (gsl_matrix_get(pt, k1, k2) < 0){
+//     //                gsl_matrix_set(pt, k1, k2, 0.0);
+//     //            }
+//     //        }
+//     //    }
+//     gsl_vector_free(ahelp);
+//     gsl_matrix_free(mm);
+
+//     return;
+// }
+
 void filter1step_validobs(
     float yt,        /*I */
     gsl_vector *zt,  /*I */
@@ -60,15 +135,17 @@ void filter1step_validobs(
     double p;
     gsl_vector *ahelp;
     gsl_matrix *mm;
+    gsl_matrix *m_mat; // Added for Joseph form configuration
 
     ahelp = gsl_vector_alloc(m);
     mm = gsl_matrix_alloc(m, m);
+    m_mat = gsl_matrix_alloc(m, m);
 
-    /*kt = zt*pt*/
+    /*kt = pt * zt*/
     gsl_blas_dsymv(CblasUpper, 1.0, pt,
                    zt, 0.0, kt);
 
-    /*ft = kt *ztt + ht*/
+    /*ft = zt^T * kt + ht*/
     gsl_blas_ddot(zt, kt, &p);
     *ft = p + *ht;
 
@@ -78,11 +155,29 @@ void filter1step_validobs(
     if (*ft > KFAS_TOL)
     {
         finv = 1.0 / *ft;
+
+        // Update state vector: at = at + (vt * finv) * kt
         gsl_blas_daxpy((*vt) * finv, kt, at);
-        gsl_blas_dsyr(CblasUpper, -finv,
-                      kt, pt);
-        // Joseph's form covariance update
-        // pt = [I - k * z] * pt * [I - k * z]' + k * HT\ * kt
+
+        // -----------------------------------------------------------------
+        // JOSEPH FORM COVARIANCE MEASUREMENT UPDATE
+        // -----------------------------------------------------------------
+        // 1. Construct M = I - finv * kt * zt^T
+        gsl_matrix_set_identity(m_mat);
+        gsl_blas_dger(-finv, kt, zt, m_mat);
+
+        // 2. Compute mm = M * pt
+        gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, m_mat, pt, 0.0, mm);
+
+        // 3. Compute pt = mm * M^T = (I - K*H) * pt * (I - K*H)^T
+        gsl_blas_dgemm(CblasNoTrans, CblasTrans, 1.0, mm, m_mat, 0.0, pt);
+
+        // 4. Add the noise component: pt = pt + (finv^2 * (*ht)) * kt * kt^T
+        // Note: We use dger with CblasUpper symmetry preservation in mind later,
+        // or just add it globally since dger writes the whole matrix.
+        double r_factor = finv * finv * (*ht);
+        gsl_blas_dger(r_factor, kt, kt, pt);
+        // -----------------------------------------------------------------
     }
     else
     {
@@ -102,16 +197,9 @@ void filter1step_validobs(
 
     gsl_matrix_add(pt, rqr);
 
-    //     // force to be non negative
-    //    for(k1 = 0; k1 < m; k1++){
-    //        for(k2 = 0; k2 < m; k2++){
-    //            if (gsl_matrix_get(pt, k1, k2) < 0){
-    //                gsl_matrix_set(pt, k1, k2, 0.0);
-    //            }
-    //        }
-    //    }
     gsl_vector_free(ahelp);
     gsl_matrix_free(mm);
+    gsl_matrix_free(m_mat); // Free the newly allocated helper matrix
 
     return;
 }
