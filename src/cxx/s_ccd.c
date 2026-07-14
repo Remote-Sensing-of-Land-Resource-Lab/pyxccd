@@ -306,7 +306,7 @@ int sccd(
         result = sccd_snow(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, lambda);
     }
 
-    days = clrx[0];
+    days = (double)coefs_records[0].clrx;
     if (b_output_state)
     {
         while (cur_coefs < n_coefs_records)
