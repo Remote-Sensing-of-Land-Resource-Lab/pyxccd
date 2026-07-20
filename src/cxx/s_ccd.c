@@ -306,41 +306,69 @@ int sccd(
         result = sccd_snow(clrx, clry, n_clr, nrt_mode, nrt_model, num_obs_queue, obs_queue, b_output_state, &n_coefs_records, coefs_records, lambda);
     }
 
-    days = (double)coefs_records[0].clrx;
-    if (b_output_state)
+    if (b_output_state && n_coefs_records > 0)
     {
-        while (cur_coefs < n_coefs_records)
-        {
-            state_days[*n_state] = days;
+        int n_coefs = 6;
+        int state_stride = TOTAL_IMAGE_BANDS_SCCD * (n_coefs / 2);
+        double days = (double)coefs_records[0].clrx;
+        int cur_coefs = 0;
 
+        double state_end_day;
+
+        if (*nrt_mode % 10 == NRT_QUEUE_STANDARD)
+        {
+            state_end_day = (double)clrx[n_clr - *num_obs_queue];
+        }
+        else
+        {
+            state_end_day = (double)clrx[n_clr - conse];
+        }
+
+        while (days <= state_end_day)
+        {
+            /*
+             * Select the latest coefficient record whose date
+             * is not later than the requested state date.
+             */
+            while ((cur_coefs + 1 < n_coefs_records) &&
+                   (days >= (double)coefs_records[cur_coefs + 1].clrx))
+            {
+                cur_coefs++;
+            }
+
+            state_days[*n_state] = (int64_t)llround(days);
+
+            /* Trend */
             for (i = 0; i < TOTAL_IMAGE_BANDS_SCCD; i++)
             {
-                states_ensemble[*n_state * 3 * TOTAL_IMAGE_BANDS_SCCD + i] = (double)coefs_records[cur_coefs].nrt_coefs[i][0] + (double)coefs_records[cur_coefs].nrt_coefs[i][1] * days / SLOPE_SCALE;
+                states_ensemble[(*n_state) * state_stride + i] =
+                    (double)coefs_records[cur_coefs].nrt_coefs[i][0] +
+                    (double)coefs_records[cur_coefs].nrt_coefs[i][1] *
+                        days / SLOPE_SCALE;
             }
+
+            /* Annual */
             for (i = 0; i < TOTAL_IMAGE_BANDS_SCCD; i++)
             {
-                states_ensemble[*n_state * 3 * TOTAL_IMAGE_BANDS_SCCD + TOTAL_IMAGE_BANDS_SCCD + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][2] * cos((double)days * w) + coefs_records[cur_coefs].nrt_coefs[i][3] * sin((double)days * w));
+                states_ensemble[(*n_state) * state_stride + TOTAL_IMAGE_BANDS_SCCD + i] =
+                    (double)coefs_records[cur_coefs].nrt_coefs[i][2] *
+                        cos(days * w) +
+                    (double)coefs_records[cur_coefs].nrt_coefs[i][3] *
+                        sin(days * w);
             }
+
+            /* Semiannual */
             for (i = 0; i < TOTAL_IMAGE_BANDS_SCCD; i++)
             {
-                states_ensemble[*n_state * 3 * TOTAL_IMAGE_BANDS_SCCD + 2 * TOTAL_IMAGE_BANDS_SCCD + i] = (double)(coefs_records[cur_coefs].nrt_coefs[i][4] * cos((double)days * w * 2) + coefs_records[cur_coefs].nrt_coefs[i][5] * sin((double)days * w * 2));
+                states_ensemble[(*n_state) * state_stride + 2 * TOTAL_IMAGE_BANDS_SCCD + i] =
+                    (double)coefs_records[cur_coefs].nrt_coefs[i][4] *
+                        cos(days * w * 2.0) +
+                    (double)coefs_records[cur_coefs].nrt_coefs[i][5] *
+                        sin(days * w * 2.0);
             }
-            *n_state = *n_state + 1;
-            days = days + state_intervaldays;
-            if ((cur_coefs < n_coefs_records - 1) & (days >= coefs_records[cur_coefs + 1].clrx))
-            {
-                cur_coefs = cur_coefs + 1;
-            }
-            if (*nrt_mode % 10 == NRT_QUEUE_STANDARD)
-            {
-                if (days > clrx[n_clr - *num_obs_queue])
-                    break;
-            }
-            else
-            {
-                if (days > clrx[n_clr - conse]) // we will output the states for the last obs that can't reach conse observations
-                    break;
-            }
+
+            (*n_state)++;
+            days += state_intervaldays;
         }
     }
 

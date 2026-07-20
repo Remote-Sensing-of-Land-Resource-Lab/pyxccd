@@ -858,69 +858,159 @@ def sccd_detect_flex(
     trimodal=False,
 ):
     """
-    Offline SCCD algorithm for processing historical time series for any band combination.
-
+    Offline SCCD algorithm for processing historical time series for any
+    band combination.
 
     Parameters
     ----------
-    dates: numpy.ndarray
-        1d time series of ordinal dates of shape(n_obs,)
-    ts_stack: numpy.ndarray
-        2d array of shape (n_obs, nbands), horizontally stacked multispectral time series. The maximum band number is 10..
-    qas: numpy.ndarray
-        1d time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    lam: float
-        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
-    p_cg: float
-        Probability threshold of change magnitude, by default 0.99
-    conse: int
-        Consecutive observation number, by default 6
-    pos: int
-        Position id of the pixel, by default 1
-    b_c2: bool
-        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
-        pixel test due to the current low quality. by default True
-    output_anomaly: bool
-        If true, output anomaly breaks where a anomaly is an overdetection of break using conse 3 and threshold = anomaly_tcg, which overdetects anomalies to simulate the situation of NRT scenario and for training a retrospective model, by default False.
-        Note that anomalys is a type of breaks that do not trigger model initialization, against structural breaks (i.e., normal breaks).
-    anomaly_pcg: float
-        Change probability threshold for defining spectral anomalies anomalys, by default 0.90.
-    anomaly_conse: int
-        Consecutive observation number to determine anomaly identification, by default 3
-    anomaly_interval:int
-        The minimum interval between two anomaly outputs. Should be in the range [7, 365]
-    state_intervaldays: float
-        If larger than 0, output states at a day interval of state_intervaldays, by default 0.0 (meaning that no states will be outputted). For more details, refer to state-space models (e.g., http://www.scholarpedia.org/article/State_space_model)
-    fitting_coefs: bool
-        If True, use curve fitting to get harmonic coefficients for the temporal segment, otherwise use the local coefficients from kalman filter, by default False.
-    tmask_b1_index: int
-        The first band id for tmask. Started from 1. The default CCDC is 2 (green)
-    tmask_b2_index: int
-        The second band id for tmask. Started from 1. The default CCDC is 5 (swir1)
-    trimodal: bool
-        indicate if trimodal component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
+    dates : numpy.ndarray
+        One-dimensional time series of ordinal dates with shape (n_obs,).
+
+    ts_stack : numpy.ndarray
+        Two-dimensional multispectral time series with shape
+        (n_obs, nbands). The maximum number of bands is 10.
+
+    qas : numpy.ndarray
+        One-dimensional QA time series with shape (n_obs,).
+        0: clear, 1: water, 2: shadow, 3: snow, 4: cloud.
+
+    lam : float or array-like of float
+        Lasso regularization parameter.
+
+        When a numeric scalar is provided, the same lambda is used for every
+        input band.
+
+        When a list or array is provided, it must contain exactly one lambda
+        value for each input band.
+
+        A lambda value of 0 uses OLS regression. For Landsat-like data with
+        values in the range [0, 10000], 20 is generally suggested.
+
+    p_cg : float
+        Probability threshold of change magnitude.
+
+    conse : int
+        Number of consecutive observations required to confirm a change.
+
+    pos : int
+        Pixel position identifier.
+
+    b_c2 : bool
+        Whether Collection 2 behavior should be used.
+
+    output_anomaly : bool
+        Whether anomaly breaks should be returned.
+
+    anomaly_pcg : float
+        Change probability threshold used to identify anomalies.
+
+    anomaly_conse : int
+        Number of consecutive observations required to identify an anomaly.
+
+    anomaly_interval : int
+        Minimum interval, in days, between anomaly outputs.
+
+    state_intervaldays : float
+        State-output interval in days. A value of 0 disables state output.
+
+    tmask_b1_index : int
+        One-based index of the first TMask band.
+
+    tmask_b2_index : int
+        One-based index of the second TMask band.
+
+    fitting_coefs : bool
+        If True, use curve fitting to calculate harmonic coefficients.
+        Otherwise, use local coefficients from the Kalman filter.
+
+    trimodal : bool
+        Whether to include the four-month harmonic component.
 
     Returns
-    ----------
-    :py:type:`~pyxccd.common.SccdOutput` | (:py:type:`~pyxccd.common.SccdOutput`, pd.DataFrame)
-
-    If b_output_state is False, sccdoutput will be returned (by default);
-    if b_output_state is True,  (sccdoutput, states_info) will be returned;
-        sccdoutput: :py:type:`~pyxccd.common.SccdOutput`
-            A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
-
-        states_info: pd.DataFrame
-            A table of three state time series (trend, annual, semiannual) for nbands inputted spectral bands
+    -------
+    SccdOutput or tuple
+        SCCD results and, when requested, state information.
     """
 
-    # Check whether the dates are arranged in ascending order
+    # Check whether dates are arranged in ascending order.
     if not numpy.all(numpy.diff(dates) >= 0):
         data = numpy.column_stack((dates, ts_stack, qas))
         sorted_data = data[data[:, 0].argsort()]
+
         dates = sorted_data[:, 0]
         ts_stack = sorted_data[:, 1:-1]
         qas = sorted_data[:, -1]
 
+    # Ensure the input arrays have the required types and memory layout.
+    dates, ts_stack, qas = _validate_data_flex(
+        dates,
+        ts_stack,
+        qas,
+    )
+
+    valid_num_scenes = ts_stack.shape[0]
+    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
+
+    if nbands > MAX_FLEX_BAND_SCCD:
+        raise RuntimeError(
+            f"Can't input more than {MAX_FLEX_BAND_SCCD} bands "
+            f"({nbands} > {MAX_FLEX_BAND_SCCD})"
+        )
+
+    if tmask_b1_index > nbands or tmask_b2_index > nbands:
+        raise RuntimeError(
+            "tmask_b1_index or tmask_b2_index is larger than " "the input band number"
+        )
+
+    # Convert lam into a one-dimensional float64 array.
+    try:
+        lam_array = numpy.asarray(lam, dtype=numpy.float64)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            "lam must be a numeric value or a one-dimensional "
+            "list or array of numeric values"
+        ) from exc
+
+    if lam_array.ndim == 0:
+        # A scalar lambda is repeated for every band.
+        lam_array = numpy.full(
+            nbands,
+            float(lam_array),
+            dtype=numpy.float64,
+        )
+
+    elif lam_array.ndim == 1:
+        if lam_array.size != nbands:
+            raise ValueError(
+                "When lam is a list or array, it must contain exactly "
+                f"one value per band: expected {nbands}, "
+                f"received {lam_array.size}"
+            )
+
+        lam_array = numpy.ascontiguousarray(
+            lam_array,
+            dtype=numpy.float64,
+        )
+
+    else:
+        raise ValueError(
+            "lam must be a numeric scalar or a one-dimensional " "list or array"
+        )
+
+    if not numpy.all(numpy.isfinite(lam_array)):
+        raise ValueError("All lam values must be finite")
+
+    if numpy.any(lam_array < 0):
+        raise ValueError("All lam values must be greater than or equal to 0")
+
+    # Ensure the final array is C-contiguous before passing it to Cython.
+    lam_array = numpy.ascontiguousarray(
+        lam_array,
+        dtype=numpy.float64,
+    )
+
+    # Preserve the existing scalar parameter validation. The checks above
+    # validate every lambda value in the array.
     _validate_params(
         func_name="sccd_detect_flex",
         p_cg=p_cg,
@@ -932,35 +1022,21 @@ def sccd_detect_flex(
         anomaly_conse=anomaly_conse,
         anomaly_interval=anomaly_interval,
         state_intervaldays=state_intervaldays,
-        lam=lam,
+        lam=float(lam_array[0]),
         trimodal=trimodal,
     )
-    # make sure it is c contiguous array and 64 bit
-    dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
-    valid_num_scenes = ts_stack.shape[0]
-    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
-    if nbands > MAX_FLEX_BAND_SCCD:
-        raise RuntimeError(
-            f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
-        )
-    if (tmask_b1_index > nbands) or (tmask_b2_index > nbands):
-        raise RuntimeError(
-            f"tmask_b1_index or tmask_b2_index is larger than the input band number"
-        )
 
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
     anomaly_tcg = chi2.ppf(anomaly_pcg, nbands)
-    # sccd_wrapper = SccdDetectWrapper()
-    # tmp = copy.deepcopy(sccd_wrapper.sccd_detect(dates, ts_b, ts_g, ts_r, ts_n, ts_s1, ts_s2, ts_t, qas, t_cg,
-    #                                 pos, conse, b_c2, output_anomaly, anomaly_tcg, b_monitor_init))
-    # return tmp
-    b_output_state = False if state_intervaldays == 0 else True
+
+    b_output_state = state_intervaldays != 0
 
     return _sccd_detect_flex(
         dates,
         ts_stack.flatten(),
         qas,
+        lam_array,
         valid_num_scenes,
         nbands,
         t_cg,
@@ -978,7 +1054,6 @@ def sccd_detect_flex(
         tmask_b1_index,
         tmask_b2_index,
         fitting_coefs,
-        lam,
         trimodal,
     )
 
@@ -1000,43 +1075,172 @@ def sccd_update_flex(
     trimodal=False,
 ):
     """
-    SCCD online update for new observations for any band combination
+    SCCD online update for new observations for any band combination.
 
     Parameters
     ----------
-    sccd_pack: namedtuple
-    dates: numpy.ndarray
-        1d new time series of ordinal dates of shape(n_obs,)
-    ts_stack: numpy.ndarray
-        2d array of shape (n_obs,), horizontally stacked multispectral time series. The maximum band number is 10.
-    qas: numpy.ndarray
-        1d new time series of QA cfmask band of shape(n_obs,). '0' - clear; '1' - water; '2' - shadow; '3' - snow; '4' - cloud
-    lam: float
-        The lamba parameter used for lasso fitting that controls the regularization of the regression model. When lambda is 0, it is OLS regression.For landsat-like images (i.e., range is [0, 10000]), lambda is suggested to be 20.
-    p_cg: float
-        Probability threshold of change magnitude, by default 0.99
-    conse: int
-        Consecutive observation number, by default 6
-    pos: int
-        Position id of the pixel, by default 1
-    b_c2: bool
-        A temporal parameter to indicate if collection 2. C2 needs ignoring thermal band for valid
-        pixel test due to the current low quality. by default True
-    anomaly_pcg: float
-        Change probability threshold for defining spectral anomalies /anomaly, by default 0.90.
-    predictability_pcg: float
-        Probability threshold for predictability test. If not passed, the nrt_mode will return 11. by default 0.90.
-    trimodal: bool
-        indicate if trimodal component (the period is four months) is added into the temporal coefficients. If true, the harmonic models will be 8-coefs; if false, the harmonic models will be 6-coefs;
+    sccd_pack : namedtuple
+        Existing SCCD output package.
+
+    dates : numpy.ndarray
+        One-dimensional new time series of ordinal dates with shape
+        (n_obs,).
+
+    ts_stack : numpy.ndarray
+        Two-dimensional multispectral time series with shape
+        (n_obs, nbands). The maximum number of bands is 10.
+
+    qas : numpy.ndarray
+        One-dimensional QA time series with shape (n_obs,).
+        0: clear, 1: water, 2: shadow, 3: snow, 4: cloud.
+
+    lam : float or array-like of float
+        Lasso regularization parameter.
+
+        When a numeric scalar is provided, the same lambda value is used for
+        every input band.
+
+        When a list or array is provided, it must contain exactly one lambda
+        value for each input band.
+
+        A lambda value of 0 uses OLS regression. For Landsat-like data with
+        values in the range [0, 10000], a value of 20 is generally suggested.
+
+    p_cg : float
+        Probability threshold of change magnitude, by default 0.99.
+
+    conse : int
+        Consecutive observation number, by default 6.
+
+    pos : int
+        Position identifier of the pixel, by default 1.
+
+    b_c2 : bool
+        Whether Collection 2 behavior should be used.
+
+    anomaly_pcg : float
+        Change probability threshold for defining spectral anomalies,
+        by default 0.90.
+
+    predictability_pcg : float
+        Probability threshold for the predictability test, by default 0.90.
+
+    tmask_b1_index : int
+        One-based index of the first TMask band.
+
+    tmask_b2_index : int
+        One-based index of the second TMask band.
+
+    trimodal : bool
+        Whether the four-month harmonic component should be included.
+
     Returns
-    ----------
-    :py:type:`~pyxccd.common.SccdOutput`
-        A namedtuple (position, rec_cg, min_rmse, nrt_mode, nrt_model, nrt_queue)
-
+    -------
+    SccdOutput
+        A namedtuple containing position, change records, minimum RMSE,
+        NRT mode, NRT model, and NRT queue.
     """
-    # if not isinstance(sccd_pack, SccdOutput):
-    #     raise ValueError("The type of sccd_pack has to be namedtuple 'SccdOutput'!")
 
+    # Ensure input arrays have the required data types and memory layout.
+    dates, ts_stack, qas = _validate_data_flex(
+        dates,
+        ts_stack,
+        qas,
+    )
+
+    # Arrange observations in ascending date order.
+    if not numpy.all(numpy.diff(dates) >= 0):
+        data = numpy.column_stack((dates, ts_stack, qas))
+        sorted_data = data[data[:, 0].argsort()]
+
+        dates = numpy.ascontiguousarray(
+            sorted_data[:, 0],
+            dtype=numpy.int64,
+        )
+        ts_stack = numpy.ascontiguousarray(
+            sorted_data[:, 1:-1],
+            dtype=numpy.int64,
+        )
+        qas = numpy.ascontiguousarray(
+            sorted_data[:, -1],
+            dtype=numpy.int64,
+        )
+
+    valid_num_scenes = ts_stack.shape[0]
+    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
+
+    if nbands > MAX_FLEX_BAND_SCCD:
+        raise RuntimeError(
+            f"Can't input more than {MAX_FLEX_BAND_SCCD} bands "
+            f"({nbands} > {MAX_FLEX_BAND_SCCD})"
+        )
+
+    if tmask_b1_index > nbands or tmask_b2_index > nbands:
+        raise RuntimeError(
+            "tmask_b1_index or tmask_b2_index is larger than " "the input band number"
+        )
+
+    # Do not interpret Boolean values as numeric lambda values.
+    if isinstance(lam, (bool, numpy.bool_)):
+        raise TypeError(
+            "lam must be a numeric value or a one-dimensional "
+            "list or array of numeric values"
+        )
+
+    # Convert lam to a NumPy float64 array.
+    try:
+        lam_array = numpy.asarray(
+            lam,
+            dtype=numpy.float64,
+        )
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            "lam must be a numeric value or a one-dimensional "
+            "list or array of numeric values"
+        ) from exc
+
+    if lam_array.ndim == 0:
+        # Repeat a scalar lambda for every input band.
+        lam_array = numpy.full(
+            nbands,
+            float(lam_array),
+            dtype=numpy.float64,
+        )
+
+    elif lam_array.ndim == 1:
+        # A sequence must contain one lambda value per band.
+        if lam_array.size != nbands:
+            raise ValueError(
+                "When lam is a list or array, it must contain exactly "
+                f"one value per band: expected {nbands}, "
+                f"received {lam_array.size}"
+            )
+
+        lam_array = numpy.ascontiguousarray(
+            lam_array,
+            dtype=numpy.float64,
+        )
+
+    else:
+        raise ValueError(
+            "lam must be a numeric scalar or a one-dimensional " "list or array"
+        )
+
+    if not numpy.all(numpy.isfinite(lam_array)):
+        raise ValueError("All lam values must be finite")
+
+    if numpy.any(lam_array < 0):
+        raise ValueError("All lam values must be greater than or equal to 0")
+
+    # Ensure the array passed to Cython is C-contiguous.
+    lam_array = numpy.ascontiguousarray(
+        lam_array,
+        dtype=numpy.float64,
+    )
+
+    # The existing parameter validator expects a scalar lambda. Every element
+    # of lam_array has already been validated above, so use its first value
+    # for the existing scalar-level validation.
     _validate_params(
         func_name="sccd_update_flex",
         p_cg=p_cg,
@@ -1046,39 +1250,24 @@ def sccd_update_flex(
         output_anomaly=False,
         anomaly_pcg=anomaly_pcg,
         predictability_pcg=predictability_pcg,
-        lam=lam,
+        lam=float(lam_array[0]),
         trimodal=trimodal,
     )
-
-    dates, ts_stack, qas = _validate_data_flex(dates, ts_stack, qas)
-    if not numpy.all(numpy.diff(dates) >= 0):
-        data = numpy.column_stack((dates, ts_stack, qas))
-        sorted_data = data[data[:, 0].argsort()]
-        dates = sorted_data[:, 0]
-        ts_stack = sorted_data[:, 1:-1]
-        qas = sorted_data[:, -1]
-
-    valid_num_scenes = ts_stack.shape[0]
-    nbands = ts_stack.shape[1] if ts_stack.ndim > 1 else 1
-    if nbands > MAX_FLEX_BAND_SCCD:
-        raise RuntimeError(
-            f"Can't input more than {MAX_FLEX_BAND_SCCD} bands ({nbands} > {MAX_FLEX_BAND_SCCD})"
-        )
-    if (tmask_b1_index > nbands) or (tmask_b2_index > nbands):
-        raise RuntimeError(
-            f"tmask_b1_index or tmask_b2_index is larger than the input band number"
-        )
 
     t_cg = chi2.ppf(p_cg, nbands)
     max_t_cg = chi2.ppf(0.9999, nbands)
     anomaly_tcg = chi2.ppf(anomaly_pcg, nbands)
-    predictability_tcg = chi2.ppf(predictability_pcg, nbands)
+    predictability_tcg = chi2.ppf(
+        predictability_pcg,
+        nbands,
+    )
 
     return _sccd_update_flex(
         sccd_pack,
         dates,
         ts_stack.flatten(),
         qas,
+        lam_array,
         valid_num_scenes,
         nbands,
         t_cg,
@@ -1090,6 +1279,5 @@ def sccd_update_flex(
         predictability_tcg,
         tmask_b1_index,
         tmask_b2_index,
-        lam,
         trimodal,
     )

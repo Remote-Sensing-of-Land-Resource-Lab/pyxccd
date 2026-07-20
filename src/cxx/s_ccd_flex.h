@@ -37,7 +37,7 @@ int sccd_flex(
     int64_t *state_days,
     double *states_ensemble, /* O: states records for blue band */
     bool fitting_coefs,
-    double lambda,
+    double *lambda,
     int n_coefs);
 
 int step1_ssm_initialize_flex(
@@ -77,7 +77,7 @@ int step1_cold_initialize_flex(
     int nbands,
     int tmask_b1,
     int tmask_b2,
-    double lambda);
+    double *lambda);
 
 int step2_KF_ChangeDetection_flex(
     ssmodel_constants *instance, /* I: ssm constant structure */
@@ -109,7 +109,7 @@ int step2_KF_ChangeDetection_flex(
     nrt_coefs_records_flex *coefs_records,
     int nbands,
     bool fitting_coefs,
-    double lambda,
+    double *lambda,
     int anomaly_conse,
     int anomaly_interval,
     int n_coefs);
@@ -147,7 +147,7 @@ int step3_processing_end_flex(
     bool change_detected,
     double predictability_tcg,
     int nbands,
-    double lambda,
+    double *lambda,
     bool fitting_coefs,
     int n_coefs,
     int *num_curve,
@@ -165,7 +165,7 @@ int sccd_snow_flex(
     int *n_coefs_records,
     nrt_coefs_records_flex *coefs_records,
     int nbands,
-    double lambda,
+    double *lambda,
     int n_coefs);
 
 int sccd_standard_flex(
@@ -196,6 +196,6 @@ int sccd_standard_flex(
     int tmask_b1,
     int tmask_b2,
     bool fitting_coefs,
-    double lambda,
+    double *lambda,
     int n_coefs);
 #endif // CCD_STOCHASTIC_F
