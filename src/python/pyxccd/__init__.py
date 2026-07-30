@@ -10,7 +10,7 @@ from . import monkey  # NOQA
 #     obcold_reconstruct, sccd_detect, sccd_update)
 
 from . import ccd
-
+from . import phenology
 # from . import _colds_cythons
 from .ccd import (
     cold_detect,
@@ -22,4 +22,8 @@ from .ccd import (
     calculate_sccd_cm,
     sccd_detect_flex,
     sccd_update_flex
+)
+from .phenology import (
+    cold_detect_phenology,
+    sccd_detect_phenology,
 )
