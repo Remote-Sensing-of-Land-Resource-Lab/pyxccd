@@ -1,22 +1,22 @@
-"""Phenology extraction for COLD and SCCD outputs.
+"""Phenology extraction on the COLD and SCCD outputs.
 
-The public API consists of :func:`cold_detect_phenology` and
-:func:`sccd_detect_phenology`. 
+The public API consists of :func:`cold_extract_phenology` and
+:func:`sccd_extract_phenology`.
 
 Both routines use the same public phenology parameters while preserving the
 method-specific peak-window logic of the original COLD and SCCD
 implementations.
 """
+
 from typing import List, Optional
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
 from .utils import coefficient_matrix
 
-
 __all__ = [
-    "cold_detect_phenology",
-    "sccd_detect_phenology",
+    "cold_extract_phenology",
+    "sccd_extract_phenology",
 ]
 
 PHENOLOGY_COLUMNS = [
@@ -39,6 +39,7 @@ _LANDSAT_REFERENCE_ORDINAL = 723742
 # Preserve the original SCCD behavior of ending the active NRT segment six
 # valid observations before the final valid state date when possible.
 _NRT_TAIL_BUFFER_OBS = 6
+
 
 def _empty_output() -> pd.DataFrame:
     """Return an empty phenology table with the public output schema."""
@@ -67,10 +68,7 @@ def _first_ge(values: np.ndarray, threshold: float) -> int:
     """Return the first finite index at or above a threshold."""
     values = np.asarray(values)
 
-    indices = np.flatnonzero(
-        np.isfinite(values)
-        & (values >= float(threshold))
-    )
+    indices = np.flatnonzero(np.isfinite(values) & (values >= float(threshold)))
 
     return int(indices[0]) if indices.size else -1
 
@@ -79,10 +77,7 @@ def _first_le(values: np.ndarray, threshold: float) -> int:
     """Return the first finite index at or below a threshold."""
     values = np.asarray(values)
 
-    indices = np.flatnonzero(
-        np.isfinite(values)
-        & (values <= float(threshold))
-    )
+    indices = np.flatnonzero(np.isfinite(values) & (values <= float(threshold)))
 
     return int(indices[0]) if indices.size else -1
 
@@ -94,10 +89,7 @@ def _first_downcrossing(values: np.ndarray, threshold: float) -> int:
     if values.size < 2:
         return -1
 
-    finite_pair = (
-        np.isfinite(values[:-1])
-        & np.isfinite(values[1:])
-    )
+    finite_pair = np.isfinite(values[:-1]) & np.isfinite(values[1:])
 
     crossings = np.flatnonzero(
         finite_pair
@@ -110,9 +102,8 @@ def _first_downcrossing(values: np.ndarray, threshold: float) -> int:
 
 def _years_months_from_ordinal(dates_ord: np.ndarray):
     """Convert Python ordinal dates to year and month arrays."""
-    d64 = (
-        np.datetime64("1970-01-01")
-        + (dates_ord.astype(np.int64) - 719163).astype("timedelta64[D]")
+    d64 = np.datetime64("1970-01-01") + (dates_ord.astype(np.int64) - 719163).astype(
+        "timedelta64[D]"
     )
 
     y64 = d64.astype("datetime64[Y]")
@@ -207,8 +198,7 @@ def _clip_peak_window_to_floor(
     left_values = values[left : peak + 1]
 
     invalid_left = np.flatnonzero(
-        (~np.isfinite(left_values))
-        | (left_values < floor_value)
+        (~np.isfinite(left_values)) | (left_values < floor_value)
     )
 
     if invalid_left.size > 0:
@@ -217,8 +207,7 @@ def _clip_peak_window_to_floor(
     right_values = values[peak : right + 1]
 
     invalid_right = np.flatnonzero(
-        (~np.isfinite(right_values))
-        | (right_values < floor_value)
+        (~np.isfinite(right_values)) | (right_values < floor_value)
     )
 
     if invalid_right.size > 0:
@@ -262,9 +251,7 @@ def _validate_parameters(
         raise ValueError("peak_ratio must be between 0 and 1.")
 
     if peak_month_filter_mode not in ("keep", "drop"):
-        raise ValueError(
-            'peak_month_filter_mode must be either "keep" or "drop".'
-        )
+        raise ValueError('peak_month_filter_mode must be either "keep" or "drop".')
 
 
 def _postprocess_output(
@@ -278,22 +265,14 @@ def _postprocess_output(
         return out_df.reindex(columns=PHENOLOGY_COLUMNS).fillna(0)
 
     if peak_month_filter:
-        fitted_peak_dates = out_df[
-            "fitted_peak_date"
-        ].to_numpy(
+        fitted_peak_dates = out_df["fitted_peak_date"].to_numpy(
             dtype=np.int64,
             copy=False,
         )
 
-        months = _years_months_from_ordinal(
-            fitted_peak_dates
-        )[1]
+        months = _years_months_from_ordinal(fitted_peak_dates)[1]
 
-        month_set = {
-            int(month)
-            for month in peak_month_filter
-            if 1 <= int(month) <= 12
-        }
+        month_set = {int(month) for month in peak_month_filter if 1 <= int(month) <= 12}
 
         if month_set:
             month_values = np.fromiter(
@@ -311,9 +290,7 @@ def _postprocess_output(
             else:
                 keep_month = ~in_set
 
-            out_df = out_df.loc[
-                keep_month
-            ].reset_index(drop=True)
+            out_df = out_df.loc[keep_month].reset_index(drop=True)
 
     if out_df.empty:
         return out_df.reindex(columns=PHENOLOGY_COLUMNS).fillna(0)
@@ -323,16 +300,12 @@ def _postprocess_output(
         kind="mergesort",
     ).reset_index(drop=True)
 
-    fitted_peak_dates = out_df[
-        "fitted_peak_date"
-    ].to_numpy(
+    fitted_peak_dates = out_df["fitted_peak_date"].to_numpy(
         dtype=np.int64,
         copy=False,
     )
 
-    fitted_peak_values = out_df[
-        "fitted_peak"
-    ].to_numpy(
+    fitted_peak_values = out_df["fitted_peak"].to_numpy(
         dtype=np.float32,
         copy=False,
     )
@@ -354,18 +327,14 @@ def _postprocess_output(
             last_index = current_index
             continue
 
-        peak_gap = (
-            fitted_peak_dates[current_index]
-            - fitted_peak_dates[last_index]
-        )
+        peak_gap = fitted_peak_dates[current_index] - fitted_peak_dates[last_index]
 
         if peak_gap >= minimum_gap:
             keep[current_index] = True
             last_index = current_index
 
-        elif (
-            float(fitted_peak_values[current_index])
-            > float(fitted_peak_values[last_index])
+        elif float(fitted_peak_values[current_index]) > float(
+            fitted_peak_values[last_index]
         ):
             keep[last_index] = False
             keep[current_index] = True
@@ -379,11 +348,10 @@ def _postprocess_output(
     )
 
 
-def sccd_detect_phenology(
+def sccd_extract_phenology(
     state_output: pd.DataFrame,
-    sccd_result,
+    sccd_pack,
     band: int,
-    *,
     threshold1: float = 0.15,
     threshold2: float = 0.90,
     min_peak_gap_days: int = 75,
@@ -402,7 +370,7 @@ def sccd_detect_phenology(
         The table must contain ``dates`` and may contain band-specific fitted
         components such as ``b5_trend``, ``b5_annual``,
         ``b5_semiannual``, and ``b5_trimodal``.
-    sccd_result
+    sccd_pack: :py:type:`~pyxccd.common.SccdOutput`,
         SCCD output containing ``rec_cg``, ``position``, ``nrt_mode`` and,
         when applicable, ``nrt_model``.
     band : int
@@ -511,7 +479,7 @@ def sccd_detect_phenology(
 
     position = int(
         getattr(
-            sccd_result,
+            sccd_pack,
             "position",
             0,
         )
@@ -523,7 +491,7 @@ def sccd_detect_phenology(
     actual_break_dates = []
 
     rcg = getattr(
-        sccd_result,
+        sccd_pack,
         "rec_cg",
         None,
     )
@@ -542,10 +510,7 @@ def sccd_detect_phenology(
                 None,
             )
 
-            if (
-                t0_value is None
-                or t_break_value is None
-            ):
+            if t0_value is None or t_break_value is None:
                 continue
 
             try:
@@ -563,20 +528,18 @@ def sccd_detect_phenology(
                     )
                 )
 
-            actual_break_dates.append(
-                int(t_break)
-            )
+            actual_break_dates.append(int(t_break))
 
     # Add the active SCCD NRT model as the final segment.
     nrt_mode = getattr(
-        sccd_result,
+        sccd_pack,
         "nrt_mode",
         None,
     )
 
     if nrt_mode in (1, 3):
         nrt = getattr(
-            sccd_result,
+            sccd_pack,
             "nrt_model",
             None,
         )
@@ -591,9 +554,7 @@ def sccd_detect_phenology(
                     and "t_start_since1982" in nrt.dtype.names
                 ):
                     t_start_since1982 = int(
-                        np.atleast_1d(
-                            nrt["t_start_since1982"]
-                        ).astype(np.int64)[0]
+                        np.atleast_1d(nrt["t_start_since1982"]).astype(np.int64)[0]
                     )
 
                 elif isinstance(nrt, dict):
@@ -609,10 +570,7 @@ def sccd_detect_phenology(
                 t_start_since1982 = None
 
         if t_start_since1982 is not None:
-            t_start = (
-                int(t_start_since1982)
-                + _LANDSAT_REFERENCE_ORDINAL
-            )
+            t_start = int(t_start_since1982) + _LANDSAT_REFERENCE_ORDINAL
 
             if "qa" in state_output.columns:
                 qa = np.asarray(
@@ -620,18 +578,13 @@ def sccd_detect_phenology(
                     dtype=np.int8,
                 )[order]
 
-                valid_dates = dates[
-                    (qa == 0)
-                    | (qa == 1)
-                ]
+                valid_dates = dates[(qa == 0) | (qa == 1)]
 
             else:
                 valid_dates = dates
 
             if valid_dates.size >= _NRT_TAIL_BUFFER_OBS:
-                t_end = int(
-                    valid_dates[-_NRT_TAIL_BUFFER_OBS]
-                )
+                t_end = int(valid_dates[-_NRT_TAIL_BUFFER_OBS])
 
             elif valid_dates.size > 0:
                 t_end = int(valid_dates[0])
@@ -666,9 +619,7 @@ def sccd_detect_phenology(
     if not segments:
         return _empty_output()
 
-    segments.sort(
-        key=lambda item: item[0]
-    )
+    segments.sort(key=lambda item: item[0])
 
     # Sort/deduplicate state dates after component reconstruction.
     dates = np.asarray(
@@ -686,9 +637,7 @@ def sccd_detect_phenology(
         return_index=True,
     )
 
-    unique_idx = np.sort(
-        unique_idx
-    )
+    unique_idx = np.sort(unique_idx)
 
     dates = dates[unique_idx]
     vals = vals[unique_idx]
@@ -703,16 +652,11 @@ def sccd_detect_phenology(
 
     if actual_break_dates.size > 0:
         actual_break_dates = actual_break_dates[
-            (actual_break_dates > dates[0])
-            & (actual_break_dates < dates[-1])
+            (actual_break_dates > dates[0]) & (actual_break_dates < dates[-1])
         ]
 
         actual_break_dates = np.asarray(
-            sorted(
-                set(
-                    actual_break_dates.tolist()
-                )
-            ),
+            sorted(set(actual_break_dates.tolist())),
             dtype=np.int64,
         )
 
@@ -758,22 +702,14 @@ def sccd_detect_phenology(
         )
 
         if trough_insert > 0:
-            left = int(
-                troughs_all[
-                    trough_insert - 1
-                ]
-            )
+            left = int(troughs_all[trough_insert - 1])
             edge_head_global = 0
         else:
             left = 0
             edge_head_global = 1
 
         if trough_insert < troughs_all.size:
-            right = int(
-                troughs_all[
-                    trough_insert
-                ]
-            )
+            right = int(troughs_all[trough_insert])
             edge_tail_global = 0
         else:
             right = n - 1
@@ -835,20 +771,12 @@ def sccd_detect_phenology(
             edge_tail_global,
         ) in global_windows:
 
-            if not (
-                t0
-                <= peak_date
-                <= t1
-            ):
+            if not (t0 <= peak_date <= t1):
                 continue
 
-            raw_left = int(
-                global_left
-            )
+            raw_left = int(global_left)
 
-            raw_right = int(
-                global_right
-            )
+            raw_right = int(global_right)
 
             left_clip = max(
                 raw_left,
@@ -860,11 +788,7 @@ def sccd_detect_phenology(
                 right_segment,
             )
 
-            if not (
-                left_clip
-                < peak
-                < right_clip
-            ):
+            if not (left_clip < peak < right_clip):
                 continue
 
             # Preserve the original SCCD treatment of a high first rising
@@ -872,40 +796,19 @@ def sccd_detect_phenology(
             forced_edge_head = False
             found_complete_rising_trough = False
 
-            peak_above_floor = (
-                float(vals[peak])
-                - float(state_floor)
-            )
+            peak_above_floor = float(vals[peak]) - float(state_floor)
 
             if peak_above_floor > 0:
-                start_above_floor = (
-                    float(vals[left_clip])
-                    - float(state_floor)
-                )
+                start_above_floor = float(vals[left_clip]) - float(state_floor)
 
-                start_peak_ratio = (
-                    start_above_floor
-                    / peak_above_floor
-                )
+                start_peak_ratio = start_above_floor / peak_above_floor
 
-                days_from_segment_start = (
-                    int(dates[peak])
-                    - int(t0)
-                )
+                days_from_segment_start = int(dates[peak]) - int(t0)
 
-                near_segment_head = (
-                    days_from_segment_start
-                    <= 200
-                )
+                near_segment_head = days_from_segment_start <= 200
 
-                if (
-                    start_peak_ratio
-                    > float(peak_ratio)
-                ):
-                    earliest_date = (
-                        int(dates[peak])
-                        - 200
-                    )
+                if start_peak_ratio > float(peak_ratio):
+                    earliest_date = int(dates[peak]) - 200
 
                     lookback_left = max(
                         int(left_segment),
@@ -919,81 +822,45 @@ def sccd_detect_phenology(
                     )
 
                     previous_troughs = troughs_all[
-                        (troughs_all >= lookback_left)
-                        & (troughs_all < peak)
+                        (troughs_all >= lookback_left) & (troughs_all < peak)
                     ].astype(
                         np.int64,
                         copy=False,
                     )
 
                     if previous_troughs.size > 0:
-                        trough_values = vals[
-                            previous_troughs
-                        ]
+                        trough_values = vals[previous_troughs]
 
                         maximum_start_value = (
-                            float(state_floor)
-                            + float(peak_ratio)
-                            * peak_above_floor
+                            float(state_floor) + float(peak_ratio) * peak_above_floor
                         )
 
-                        acceptable = (
-                            np.isfinite(
-                                trough_values
-                            )
-                            & (
-                                trough_values
-                                <= maximum_start_value
-                            )
+                        acceptable = np.isfinite(trough_values) & (
+                            trough_values <= maximum_start_value
                         )
 
-                        acceptable_troughs = (
-                            previous_troughs[
-                                acceptable
-                            ]
-                        )
+                        acceptable_troughs = previous_troughs[acceptable]
 
-                        if (
-                            acceptable_troughs.size
-                            > 0
-                        ):
-                            repaired_left = int(
-                                acceptable_troughs[-1]
-                            )
+                        if acceptable_troughs.size > 0:
+                            repaired_left = int(acceptable_troughs[-1])
 
                             if repaired_left < peak:
-                                left_clip = (
-                                    repaired_left
-                                )
+                                left_clip = repaired_left
 
-                                found_complete_rising_trough = (
-                                    True
-                                )
+                                found_complete_rising_trough = True
 
-                    if (
-                        near_segment_head
-                        and not found_complete_rising_trough
-                    ):
+                    if near_segment_head and not found_complete_rising_trough:
                         forced_edge_head = True
 
-            clipped_by_segment_head = (
-                raw_left < left_segment
-            )
+            clipped_by_segment_head = raw_left < left_segment
 
-            clipped_by_segment_tail = (
-                raw_right > right_segment
-            )
+            clipped_by_segment_tail = raw_right > right_segment
 
             edge_head = int(
-                edge_head_global
-                or clipped_by_segment_head
-                or forced_edge_head
+                edge_head_global or clipped_by_segment_head or forced_edge_head
             )
 
-            edge_tail = int(
-                edge_tail_global
-                or clipped_by_segment_tail
-            )
+            edge_tail = int(edge_tail_global or clipped_by_segment_tail)
 
             floor_clipped = _clip_peak_window_to_floor(
                 values=vals,
@@ -1006,9 +873,7 @@ def sccd_detect_phenology(
             if floor_clipped is None:
                 continue
 
-            left_clip, right_clip = (
-                floor_clipped
-            )
+            left_clip, right_clip = floor_clipped
 
             candidate_windows.append(
                 (
@@ -1035,17 +900,11 @@ def sccd_detect_phenology(
             is_segment_tail,
         ) in candidate_windows:
 
-            peak_value = float(
-                vals[peak]
-            )
+            peak_value = float(vals[peak])
 
-            start_value = float(
-                vals[left]
-            )
+            start_value = float(vals[left])
 
-            end_value = float(
-                vals[right]
-            )
+            end_value = float(vals[right])
 
             if not (
                 np.isfinite(peak_value)
@@ -1064,30 +923,17 @@ def sccd_detect_phenology(
                 peak_value - end_value,
             )
 
-            if (
-                not is_segment_head
-                and not is_segment_tail
-            ):
+            if not is_segment_head and not is_segment_tail:
                 amplitude = min(
                     rising_amplitude,
                     falling_amplitude,
                 )
 
-            elif (
-                is_segment_head
-                and not is_segment_tail
-            ):
-                amplitude = (
-                    falling_amplitude
-                )
+            elif is_segment_head and not is_segment_tail:
+                amplitude = falling_amplitude
 
-            elif (
-                is_segment_tail
-                and not is_segment_head
-            ):
-                amplitude = (
-                    rising_amplitude
-                )
+            elif is_segment_tail and not is_segment_head:
+                amplitude = rising_amplitude
 
             else:
                 amplitude = max(
@@ -1095,49 +941,24 @@ def sccd_detect_phenology(
                     falling_amplitude,
                 )
 
-            if (
-                not np.isfinite(amplitude)
-                or amplitude <= 0
-            ):
+            if not np.isfinite(amplitude) or amplitude <= 0:
                 continue
 
-            greenup_threshold = (
-                start_value
-                + float(threshold1)
-                * rising_amplitude
-            )
+            greenup_threshold = start_value + float(threshold1) * rising_amplitude
 
-            maturity_threshold = (
-                start_value
-                + float(threshold2)
-                * rising_amplitude
-            )
+            maturity_threshold = start_value + float(threshold2) * rising_amplitude
 
             senescence_threshold = (
-                peak_value
-                - (
-                    1.0
-                    - float(threshold2)
-                )
-                * falling_amplitude
+                peak_value - (1.0 - float(threshold2)) * falling_amplitude
             )
 
             dormancy_threshold = (
-                peak_value
-                - (
-                    1.0
-                    - float(threshold1)
-                )
-                * falling_amplitude
+                peak_value - (1.0 - float(threshold1)) * falling_amplitude
             )
 
-            rising_values = vals[
-                left : peak + 1
-            ]
+            rising_values = vals[left : peak + 1]
 
-            falling_values = vals[
-                peak : right + 1
-            ]
+            falling_values = vals[peak : right + 1]
 
             greenup_relative = _first_ge(
                 rising_values,
@@ -1161,47 +982,21 @@ def sccd_detect_phenology(
             )
 
             greenup = (
-                int(
-                    dates[
-                        left
-                        + greenup_relative
-                    ]
-                )
-                if greenup_relative >= 0
-                else 0
+                int(dates[left + greenup_relative]) if greenup_relative >= 0 else 0
             )
 
             maturity = (
-                int(
-                    dates[
-                        left
-                        + maturity_relative
-                    ]
-                )
-                if maturity_relative >= 0
-                else 0
+                int(dates[left + maturity_relative]) if maturity_relative >= 0 else 0
             )
 
             senescence = (
-                int(
-                    dates[
-                        peak
-                        + senescence_relative
-                    ]
-                )
+                int(dates[peak + senescence_relative])
                 if senescence_relative >= 0
                 else 0
             )
 
             dormancy = (
-                int(
-                    dates[
-                        peak
-                        + dormancy_relative
-                    ]
-                )
-                if dormancy_relative >= 0
-                else 0
+                int(dates[peak + dormancy_relative]) if dormancy_relative >= 0 else 0
             )
 
             if is_segment_head:
@@ -1213,85 +1008,41 @@ def sccd_detect_phenology(
                 dormancy = 0
 
             if actual_break_dates.size > 0:
-                left_date = int(
-                    dates[left]
-                )
+                left_date = int(dates[left])
 
-                current_peak_date = int(
-                    dates[peak]
-                )
+                current_peak_date = int(dates[peak])
 
-                right_date = int(
-                    dates[right]
-                )
+                right_date = int(dates[right])
 
                 rising_breaks = actual_break_dates[
-                    (
-                        actual_break_dates
-                        > left_date
-                    )
-                    & (
-                        actual_break_dates
-                        < current_peak_date
-                    )
+                    (actual_break_dates > left_date)
+                    & (actual_break_dates < current_peak_date)
                 ]
 
                 falling_breaks = actual_break_dates[
-                    (
-                        actual_break_dates
-                        > current_peak_date
-                    )
-                    & (
-                        actual_break_dates
-                        < right_date
-                    )
+                    (actual_break_dates > current_peak_date)
+                    & (actual_break_dates < right_date)
                 ]
 
                 if rising_breaks.size > 0:
-                    first_rising_break = int(
-                        np.min(
-                            rising_breaks
-                        )
-                    )
+                    first_rising_break = int(np.min(rising_breaks))
 
-                    if (
-                        greenup != 0
-                        and greenup
-                        >= first_rising_break
-                    ):
+                    if greenup != 0 and greenup >= first_rising_break:
                         greenup = 0
 
-                    if (
-                        maturity != 0
-                        and maturity
-                        >= first_rising_break
-                    ):
+                    if maturity != 0 and maturity >= first_rising_break:
                         maturity = 0
 
                 if falling_breaks.size > 0:
-                    first_falling_break = int(
-                        np.min(
-                            falling_breaks
-                        )
-                    )
+                    first_falling_break = int(np.min(falling_breaks))
 
-                    if (
-                        senescence != 0
-                        and senescence
-                        >= first_falling_break
-                    ):
+                    if senescence != 0 and senescence >= first_falling_break:
                         senescence = 0
 
-                    if (
-                        dormancy != 0
-                        and dormancy
-                        >= first_falling_break
-                    ):
+                    if dormancy != 0 and dormancy >= first_falling_break:
                         dormancy = 0
 
-            segment_peak_indices.append(
-                int(peak)
-            )
+            segment_peak_indices.append(int(peak))
 
             segment_peak_metadata.append(
                 (
@@ -1302,9 +1053,7 @@ def sccd_detect_phenology(
                 )
             )
 
-            segment_amplitudes.append(
-                float(amplitude)
-            )
+            segment_amplitudes.append(float(amplitude))
 
         if not segment_peak_indices:
             continue
@@ -1314,35 +1063,17 @@ def sccd_detect_phenology(
             dtype=np.float32,
         )
 
-        valid_amplitude = (
-            np.isfinite(amplitudes)
-            & (amplitudes > 0)
-        )
+        valid_amplitude = np.isfinite(amplitudes) & (amplitudes > 0)
 
-        if not np.any(
-            valid_amplitude
-        ):
+        if not np.any(valid_amplitude):
             continue
 
-        reference_amplitude = float(
-            np.max(
-                amplitudes[
-                    valid_amplitude
-                ]
-            )
-        )
+        reference_amplitude = float(np.max(amplitudes[valid_amplitude]))
 
         keep_mask = (
             valid_amplitude
-            & (
-                amplitudes
-                >= float(peak_threshold)
-            )
-            & (
-                amplitudes
-                >= float(peak_ratio)
-                * reference_amplitude
-            )
+            & (amplitudes >= float(peak_threshold))
+            & (amplitudes >= float(peak_ratio) * reference_amplitude)
         )
 
         for (
@@ -1369,27 +1100,13 @@ def sccd_detect_phenology(
                     "position": int(position),
                     "t_start": int(t0),
                     "t_end": int(t1),
-                    "break_date": int(
-                        segment_break_date
-                    ),
-                    "fitted_peak_date": int(
-                        dates[peak]
-                    ),
-                    "fitted_peak": float(
-                        vals[peak]
-                    ),
-                    "greenup": int(
-                        greenup
-                    ),
-                    "maturity": int(
-                        maturity
-                    ),
-                    "senescence": int(
-                        senescence
-                    ),
-                    "dormancy": int(
-                        dormancy
-                    ),
+                    "break_date": int(segment_break_date),
+                    "fitted_peak_date": int(dates[peak]),
+                    "fitted_peak": float(vals[peak]),
+                    "greenup": int(greenup),
+                    "maturity": int(maturity),
+                    "senescence": int(senescence),
+                    "dormancy": int(dormancy),
                 }
             )
 
@@ -1407,10 +1124,9 @@ def sccd_detect_phenology(
     )
 
 
-def cold_detect_phenology(
-    cold_rec_cg,
+def cold_extract_phenology(
+    cold_results,
     band: int,
-    *,
     threshold1: float = 0.15,
     threshold2: float = 0.90,
     min_peak_gap_days: int = 75,
@@ -1424,9 +1140,10 @@ def cold_detect_phenology(
 
     Parameters
     ----------
-    cold_rec_cg
-        COLD record collection containing ``t_start``, ``t_end`` (or
-        ``t_break`` as a fallback), ``t_break``, and ``coefs``.
+    cold_results
+        A structured array of dtype = :py:type:`~pyxccd.common.cold_rec_cg`.
+        historical temporal segment info obtained from S-CCD algorithm as a
+        structured array, a composition of simple datatypes
     band : int
         One-based band index.
     threshold1 : float, default=0.15
@@ -1467,10 +1184,7 @@ def cold_detect_phenology(
         peak_month_filter_mode=peak_month_filter_mode,
     )
 
-    if (
-        cold_rec_cg is None
-        or len(cold_rec_cg) == 0
-    ):
+    if cold_results is None or len(cold_results) == 0:
         return _empty_output()
 
     band0 = int(band) - 1
@@ -1482,9 +1196,7 @@ def cold_detect_phenology(
     for (
         original_seg_id,
         segment,
-    ) in enumerate(
-        cold_rec_cg
-    ):
+    ) in enumerate(cold_results):
         t_start_value = _field(
             segment,
             "t_start",
@@ -1504,9 +1216,7 @@ def cold_detect_phenology(
         )
 
         if t_end_value is None:
-            t_end_value = (
-                t_break_value
-            )
+            t_end_value = t_break_value
 
         coefs_value = _field(
             segment,
@@ -1514,21 +1224,13 @@ def cold_detect_phenology(
             None,
         )
 
-        if (
-            t_start_value is None
-            or t_end_value is None
-            or coefs_value is None
-        ):
+        if t_start_value is None or t_end_value is None or coefs_value is None:
             continue
 
         try:
-            t0 = int(
-                t_start_value
-            )
+            t0 = int(t_start_value)
 
-            t1 = int(
-                t_end_value
-            )
+            t1 = int(t_end_value)
         except (
             TypeError,
             ValueError,
@@ -1542,18 +1244,12 @@ def cold_detect_phenology(
 
         if t_break_value is not None:
             try:
-                candidate_break = int(
-                    t_break_value
-                )
+                candidate_break = int(t_break_value)
 
                 if candidate_break > 0:
-                    break_date = (
-                        candidate_break
-                    )
+                    break_date = candidate_break
 
-                    actual_break_dates.append(
-                        candidate_break
-                    )
+                    actual_break_dates.append(candidate_break)
 
             except (
                 TypeError,
@@ -1576,26 +1272,19 @@ def cold_detect_phenology(
 
         if position_value is not None:
             try:
-                default_position = int(
-                    position_value
-                )
+                default_position = int(position_value)
             except (
                 TypeError,
                 ValueError,
             ):
                 pass
 
-        coefficients = (
-            _select_band_coefficients(
-                coefs=coefs_value,
-                band_index=band0,
-            )
+        coefficients = _select_band_coefficients(
+            coefs=coefs_value,
+            band_index=band0,
         )
 
-        if (
-            coefficients is None
-            or coefficients.size == 0
-        ):
+        if coefficients is None or coefficients.size == 0:
             continue
 
         coefficients = np.asarray(
@@ -1604,9 +1293,7 @@ def cold_detect_phenology(
         ).ravel()
 
         ncoef = min(
-            int(
-                coefficients.size
-            ),
+            int(coefficients.size),
             8,
         )
 
@@ -1631,9 +1318,7 @@ def cold_detect_phenology(
         for (
             index,
             current_date,
-        ) in enumerate(
-            segment_dates
-        ):
+        ) in enumerate(segment_dates):
             design_vector = np.asarray(
                 coefficient_matrix(
                     int(current_date),
@@ -1644,56 +1329,32 @@ def cold_detect_phenology(
 
             usable_count = min(
                 int(ncoef),
-                int(
-                    design_vector.size
-                ),
-                int(
-                    coefficients.size
-                ),
+                int(design_vector.size),
+                int(coefficients.size),
             )
 
             if usable_count <= 0:
                 continue
 
-            segment_values[
-                index
-            ] = float(
+            segment_values[index] = float(
                 np.dot(
-                    design_vector[
-                        :usable_count
-                    ],
-                    coefficients[
-                        :usable_count
-                    ],
+                    design_vector[:usable_count],
+                    coefficients[:usable_count],
                 )
             )
 
-        if not np.any(
-            np.isfinite(
-                segment_values
-            )
-        ):
+        if not np.any(np.isfinite(segment_values)):
             continue
 
         segment_records.append(
             {
-                "original_seg_id": int(
-                    original_seg_id
-                ),
+                "original_seg_id": int(original_seg_id),
                 "t_start": int(t0),
                 "t_end": int(t1),
-                "break_date": int(
-                    break_date
-                ),
-                "position": int(
-                    default_position
-                ),
-                "dates": (
-                    segment_dates
-                ),
-                "values": (
-                    segment_values
-                ),
+                "break_date": int(break_date),
+                "position": int(default_position),
+                "dates": (segment_dates),
+                "values": (segment_values),
             }
         )
 
@@ -1704,9 +1365,7 @@ def cold_detect_phenology(
         key=lambda record: (
             record["t_start"],
             record["t_end"],
-            record[
-                "original_seg_id"
-            ],
+            record["original_seg_id"],
         )
     )
 
@@ -1717,24 +1376,14 @@ def cold_detect_phenology(
     for (
         segment_rank,
         record,
-    ) in enumerate(
-        segment_records
-    ):
-        segment_dates = (
-            record["dates"]
-        )
+    ) in enumerate(segment_records):
+        segment_dates = record["dates"]
 
-        segment_values = (
-            record["values"]
-        )
+        segment_values = record["values"]
 
-        all_dates.append(
-            segment_dates
-        )
+        all_dates.append(segment_dates)
 
-        all_values.append(
-            segment_values
-        )
+        all_values.append(segment_values)
 
         all_segment_ranks.append(
             np.full(
@@ -1744,23 +1393,17 @@ def cold_detect_phenology(
             )
         )
 
-    dates = np.concatenate(
-        all_dates
-    ).astype(
+    dates = np.concatenate(all_dates).astype(
         np.int64,
         copy=False,
     )
 
-    vals = np.concatenate(
-        all_values
-    ).astype(
+    vals = np.concatenate(all_values).astype(
         np.float32,
         copy=False,
     )
 
-    segment_ranks = np.concatenate(
-        all_segment_ranks
-    ).astype(
+    segment_ranks = np.concatenate(all_segment_ranks).astype(
         np.int32,
         copy=False,
     )
@@ -1772,40 +1415,23 @@ def cold_detect_phenology(
         )
     )
 
-    dates = dates[
-        sort_index
-    ]
+    dates = dates[sort_index]
 
-    vals = vals[
-        sort_index
-    ]
+    vals = vals[sort_index]
 
-    segment_ranks = (
-        segment_ranks[
-            sort_index
-        ]
-    )
+    segment_ranks = segment_ranks[sort_index]
 
     if dates.size > 1:
         keep_last_duplicate = np.r_[
-            dates[1:]
-            != dates[:-1],
+            dates[1:] != dates[:-1],
             True,
         ]
 
-        dates = dates[
-            keep_last_duplicate
-        ]
+        dates = dates[keep_last_duplicate]
 
-        vals = vals[
-            keep_last_duplicate
-        ]
+        vals = vals[keep_last_duplicate]
 
-        segment_ranks = (
-            segment_ranks[
-                keep_last_duplicate
-            ]
-        )
+        segment_ranks = segment_ranks[keep_last_duplicate]
 
     if dates.size == 0:
         return _empty_output()
@@ -1816,41 +1442,22 @@ def cold_detect_phenology(
     )
 
     if actual_break_dates.size > 0:
-        actual_break_dates = (
-            actual_break_dates[
-                (
-                    actual_break_dates
-                    > dates[0]
-                )
-                & (
-                    actual_break_dates
-                    < dates[-1]
-                )
-            ]
-        )
+        actual_break_dates = actual_break_dates[
+            (actual_break_dates > dates[0]) & (actual_break_dates < dates[-1])
+        ]
 
         actual_break_dates = np.asarray(
-            sorted(
-                set(
-                    actual_break_dates.tolist()
-                )
-            ),
+            sorted(set(actual_break_dates.tolist())),
             dtype=np.int64,
         )
 
-    n = int(
-        dates.size
-    )
+    n = int(dates.size)
 
-    search_sorted = (
-        np.searchsorted
-    )
+    search_sorted = np.searchsorted
 
     troughs_all, _ = find_peaks(
         -vals,
-        prominence=float(
-            peak_threshold
-        ),
+        prominence=float(peak_threshold),
     )
 
     troughs_all = np.asarray(
@@ -1860,9 +1467,7 @@ def cold_detect_phenology(
 
     peaks_all, _ = find_peaks(
         vals,
-        prominence=float(
-            peak_threshold
-        ),
+        prominence=float(peak_threshold),
     )
 
     peaks_all = np.asarray(
@@ -1879,97 +1484,47 @@ def cold_detect_phenology(
     global_windows = []
 
     peaks_sorted = np.asarray(
-        np.sort(
-            peaks_all
-        ),
+        np.sort(peaks_all),
         dtype=np.int32,
     )
 
     for (
         peak_order,
         peak_index,
-    ) in enumerate(
-        peaks_sorted
-    ):
-        peak_index = int(
-            peak_index
-        )
+    ) in enumerate(peaks_sorted):
+        peak_index = int(peak_index)
 
         if peak_order > 0:
-            previous_peak = int(
-                peaks_sorted[
-                    peak_order - 1
-                ]
-            )
+            previous_peak = int(peaks_sorted[peak_order - 1])
 
-            valley_start = (
-                previous_peak + 1
-            )
+            valley_start = previous_peak + 1
 
-            valley_stop = (
-                peak_index
-            )
+            valley_stop = peak_index
 
-            valley_values = vals[
-                valley_start:
-                valley_stop
-            ]
+            valley_values = vals[valley_start:valley_stop]
 
-            finite_mask = (
-                np.isfinite(
-                    valley_values
-                )
-            )
+            finite_mask = np.isfinite(valley_values)
 
-            if (
-                valley_values.size > 0
-                and np.any(
-                    finite_mask
-                )
-            ):
-                valley_search = (
-                    np.where(
-                        finite_mask,
-                        valley_values,
-                        np.inf,
-                    )
+            if valley_values.size > 0 and np.any(finite_mask):
+                valley_search = np.where(
+                    finite_mask,
+                    valley_values,
+                    np.inf,
                 )
 
-                left_index = (
-                    valley_start
-                    + int(
-                        np.argmin(
-                            valley_search
-                        )
-                    )
-                )
+                left_index = valley_start + int(np.argmin(valley_search))
 
             else:
-                left_index = (
-                    previous_peak
-                    + 1
-                )
+                left_index = previous_peak + 1
 
             left_is_interpeak = 1
             edge_head_global = 0
 
         else:
-            preceding_troughs = (
-                troughs_all[
-                    troughs_all
-                    < peak_index
-                ]
-            )
+            preceding_troughs = troughs_all[troughs_all < peak_index]
 
-            if (
-                preceding_troughs.size
-                > 0
-            ):
-                left_index = int(
-                    preceding_troughs[
-                        -1
-                    ]
-                )
+            if preceding_troughs.size > 0:
+                left_index = int(preceding_troughs[-1])
 
                 edge_head_global = 0
 
@@ -1979,130 +1534,60 @@ def cold_detect_phenology(
 
             left_is_interpeak = 0
 
-        if (
-            peak_order
-            < peaks_sorted.size - 1
-        ):
-            next_peak = int(
-                peaks_sorted[
-                    peak_order + 1
-                ]
-            )
+        if peak_order < peaks_sorted.size - 1:
+            next_peak = int(peaks_sorted[peak_order + 1])
 
-            valley_start = (
-                peak_index + 1
-            )
+            valley_start = peak_index + 1
 
-            valley_stop = (
-                next_peak
-            )
+            valley_stop = next_peak
 
-            valley_values = vals[
-                valley_start:
-                valley_stop
-            ]
+            valley_values = vals[valley_start:valley_stop]
 
-            finite_mask = (
-                np.isfinite(
-                    valley_values
-                )
-            )
+            finite_mask = np.isfinite(valley_values)
 
-            if (
-                valley_values.size > 0
-                and np.any(
-                    finite_mask
-                )
-            ):
-                valley_search = (
-                    np.where(
-                        finite_mask,
-                        valley_values,
-                        np.inf,
-                    )
+            if valley_values.size > 0 and np.any(finite_mask):
+                valley_search = np.where(
+                    finite_mask,
+                    valley_values,
+                    np.inf,
                 )
 
-                right_index = (
-                    valley_start
-                    + int(
-                        np.argmin(
-                            valley_search
-                        )
-                    )
-                )
+                right_index = valley_start + int(np.argmin(valley_search))
 
             else:
-                right_index = (
-                    next_peak - 1
-                )
+                right_index = next_peak - 1
 
             right_is_interpeak = 1
             edge_tail_global = 0
 
         else:
-            following_troughs = (
-                troughs_all[
-                    troughs_all
-                    > peak_index
-                ]
-            )
+            following_troughs = troughs_all[troughs_all > peak_index]
 
-            if (
-                following_troughs.size
-                > 0
-            ):
-                right_index = int(
-                    following_troughs[
-                        0
-                    ]
-                )
+            if following_troughs.size > 0:
+                right_index = int(following_troughs[0])
 
                 edge_tail_global = 0
 
             else:
-                right_index = (
-                    n - 1
-                )
+                right_index = n - 1
 
                 edge_tail_global = 1
 
             right_is_interpeak = 0
 
-        if not (
-            left_index
-            < peak_index
-            < right_index
-        ):
+        if not (left_index < peak_index < right_index):
             continue
 
         global_windows.append(
             (
-                int(
-                    left_index
-                ),
-                int(
-                    right_index
-                ),
-                int(
-                    peak_index
-                ),
-                int(
-                    dates[
-                        peak_index
-                    ]
-                ),
-                int(
-                    edge_head_global
-                ),
-                int(
-                    edge_tail_global
-                ),
-                int(
-                    left_is_interpeak
-                ),
-                int(
-                    right_is_interpeak
-                ),
+                int(left_index),
+                int(right_index),
+                int(peak_index),
+                int(dates[peak_index]),
+                int(edge_head_global),
+                int(edge_tail_global),
+                int(left_is_interpeak),
+                int(right_is_interpeak),
             )
         )
 
@@ -2112,21 +1597,13 @@ def cold_detect_phenology(
     output_rows = []
 
     for record in segment_records:
-        t0 = int(
-            record["t_start"]
-        )
+        t0 = int(record["t_start"])
 
-        t1 = int(
-            record["t_end"]
-        )
+        t1 = int(record["t_end"])
 
-        segment_break_date = int(
-            record["break_date"]
-        )
+        segment_break_date = int(record["break_date"])
 
-        segment_position = int(
-            record["position"]
-        )
+        segment_position = int(record["position"])
 
         left_segment = int(
             search_sorted(
@@ -2145,10 +1622,7 @@ def cold_detect_phenology(
             - 1
         )
 
-        if (
-            left_segment
-            > right_segment
-        ):
+        if left_segment > right_segment:
             continue
 
         candidate_windows = []
@@ -2164,20 +1638,12 @@ def cold_detect_phenology(
             right_is_interpeak,
         ) in global_windows:
 
-            if not (
-                t0
-                <= peak_date
-                <= t1
-            ):
+            if not (t0 <= peak_date <= t1):
                 continue
 
-            raw_left = int(
-                global_left
-            )
+            raw_left = int(global_left)
 
-            raw_right = int(
-                global_right
-            )
+            raw_right = int(global_right)
 
             left_clip = max(
                 raw_left,
@@ -2189,62 +1655,23 @@ def cold_detect_phenology(
                 right_segment,
             )
 
-            if not (
-                left_clip
-                < peak
-                < right_clip
-            ):
+            if not (left_clip < peak < right_clip):
                 continue
 
-            peak_above_floor = (
-                float(vals[peak])
-                - float(state_floor)
-            )
+            peak_above_floor = float(vals[peak]) - float(state_floor)
 
-            if (
-                not bool(
-                    left_is_interpeak
-                )
-                and peak_above_floor > 0
-            ):
-                start_above_floor = (
-                    float(
-                        vals[
-                            left_clip
-                        ]
-                    )
-                    - float(
-                        state_floor
-                    )
-                )
+            if not bool(left_is_interpeak) and peak_above_floor > 0:
+                start_above_floor = float(vals[left_clip]) - float(state_floor)
 
-                start_peak_ratio = (
-                    start_above_floor
-                    / peak_above_floor
-                )
+                start_peak_ratio = start_above_floor / peak_above_floor
 
-                if (
-                    np.isfinite(
-                        start_peak_ratio
-                    )
-                    and start_peak_ratio
-                    > float(
-                        peak_ratio
-                    )
+                if np.isfinite(start_peak_ratio) and start_peak_ratio > float(
+                    peak_ratio
                 ):
-                    earliest_date = (
-                        int(
-                            dates[
-                                peak
-                            ]
-                        )
-                        - 200
-                    )
+                    earliest_date = int(dates[peak]) - 200
 
                     lookback_left = max(
-                        int(
-                            left_segment
-                        ),
+                        int(left_segment),
                         int(
                             np.searchsorted(
                                 dates,
@@ -2255,105 +1682,48 @@ def cold_detect_phenology(
                     )
 
                     previous_troughs = troughs_all[
-                        (
-                            troughs_all
-                            >= lookback_left
-                        )
-                        & (
-                            troughs_all
-                            < peak
-                        )
+                        (troughs_all >= lookback_left) & (troughs_all < peak)
                     ].astype(
                         np.int64,
                         copy=False,
                     )
 
-                    if (
-                        previous_troughs.size
-                        > 0
-                    ):
-                        trough_values = vals[
-                            previous_troughs
-                        ]
+                    if previous_troughs.size > 0:
+                        trough_values = vals[previous_troughs]
 
                         maximum_start_value = (
-                            float(
-                                state_floor
-                            )
-                            + float(
-                                peak_ratio
-                            )
-                            * peak_above_floor
+                            float(state_floor) + float(peak_ratio) * peak_above_floor
                         )
 
-                        acceptable = (
-                            np.isfinite(
-                                trough_values
-                            )
-                            & (
-                                trough_values
-                                <= maximum_start_value
-                            )
+                        acceptable = np.isfinite(trough_values) & (
+                            trough_values <= maximum_start_value
                         )
 
-                        acceptable_troughs = (
-                            previous_troughs[
-                                acceptable
-                            ]
-                        )
+                        acceptable_troughs = previous_troughs[acceptable]
 
-                        if (
-                            acceptable_troughs.size
-                            > 0
-                        ):
-                            repaired_left = int(
-                                acceptable_troughs[
-                                    -1
-                                ]
-                            )
+                        if acceptable_troughs.size > 0:
+                            repaired_left = int(acceptable_troughs[-1])
 
-                            if (
-                                repaired_left
-                                < peak
-                            ):
-                                left_clip = (
-                                    repaired_left
-                                )
+                            if repaired_left < peak:
+                                left_clip = repaired_left
 
-            clipped_by_segment_head = (
-                raw_left
-                < left_segment
+            clipped_by_segment_head = raw_left < left_segment
+
+            clipped_by_segment_tail = raw_right > right_segment
+
+            edge_head = int(edge_head_global or clipped_by_segment_head)
+
+            edge_tail = int(edge_tail_global or clipped_by_segment_tail)
+
+            floor_clipped = _clip_peak_window_to_floor(
+                values=vals,
+                left=left_clip,
+                peak=peak,
+                right=right_clip,
+                floor_value=state_floor,
             )
 
-            clipped_by_segment_tail = (
-                raw_right
-                > right_segment
-            )
-
-            edge_head = int(
-                edge_head_global
-                or clipped_by_segment_head
-            )
-
-            edge_tail = int(
-                edge_tail_global
-                or clipped_by_segment_tail
-            )
-
-            floor_clipped = (
-                _clip_peak_window_to_floor(
-                    values=vals,
-                    left=left_clip,
-                    peak=peak,
-                    right=right_clip,
-                    floor_value=state_floor,
-                )
-            )
-
-            if (
-                floor_clipped
-                is None
-            ):
+            if floor_clipped is None:
                 continue
 
             (
@@ -2363,19 +1733,11 @@ def cold_detect_phenology(
 
             candidate_windows.append(
                 (
-                    int(
-                        left_clip
-                    ),
-                    int(
-                        right_clip
-                    ),
+                    int(left_clip),
+                    int(right_clip),
                     int(peak),
-                    int(
-                        edge_head
-                    ),
-                    int(
-                        edge_tail
-                    ),
+                    int(edge_head),
+                    int(edge_tail),
                 )
             )
 
@@ -2394,67 +1756,40 @@ def cold_detect_phenology(
             is_segment_tail,
         ) in candidate_windows:
 
-            peak_value = float(
-                vals[peak]
-            )
+            peak_value = float(vals[peak])
 
-            start_value = float(
-                vals[left]
-            )
+            start_value = float(vals[left])
 
-            end_value = float(
-                vals[right]
-            )
+            end_value = float(vals[right])
 
             if not (
-                np.isfinite(
-                    peak_value
-                )
-                and np.isfinite(
-                    start_value
-                )
-                and np.isfinite(
-                    end_value
-                )
+                np.isfinite(peak_value)
+                and np.isfinite(start_value)
+                and np.isfinite(end_value)
             ):
                 continue
 
             rising_amplitude = max(
                 0.0,
-                peak_value
-                - start_value,
+                peak_value - start_value,
             )
 
             falling_amplitude = max(
                 0.0,
-                peak_value
-                - end_value,
+                peak_value - end_value,
             )
 
-            if (
-                not is_segment_head
-                and not is_segment_tail
-            ):
+            if not is_segment_head and not is_segment_tail:
                 amplitude = min(
                     rising_amplitude,
                     falling_amplitude,
                 )
 
-            elif (
-                is_segment_head
-                and not is_segment_tail
-            ):
-                amplitude = (
-                    falling_amplitude
-                )
+            elif is_segment_head and not is_segment_tail:
+                amplitude = falling_amplitude
 
-            elif (
-                is_segment_tail
-                and not is_segment_head
-            ):
-                amplitude = (
-                    rising_amplitude
-                )
+            elif is_segment_tail and not is_segment_head:
+                amplitude = rising_amplitude
 
             else:
                 amplitude = max(
@@ -2462,143 +1797,62 @@ def cold_detect_phenology(
                     falling_amplitude,
                 )
 
-            if (
-                not np.isfinite(
-                    amplitude
-                )
-                or amplitude <= 0
-            ):
+            if not np.isfinite(amplitude) or amplitude <= 0:
                 continue
 
-            greenup_threshold = (
-                start_value
-                + float(
-                    threshold1
-                )
-                * rising_amplitude
-            )
+            greenup_threshold = start_value + float(threshold1) * rising_amplitude
 
-            maturity_threshold = (
-                start_value
-                + float(
-                    threshold2
-                )
-                * rising_amplitude
-            )
+            maturity_threshold = start_value + float(threshold2) * rising_amplitude
 
             senescence_threshold = (
-                peak_value
-                - (
-                    1.0
-                    - float(
-                        threshold2
-                    )
-                )
-                * falling_amplitude
+                peak_value - (1.0 - float(threshold2)) * falling_amplitude
             )
 
             dormancy_threshold = (
-                peak_value
-                - (
-                    1.0
-                    - float(
-                        threshold1
-                    )
-                )
-                * falling_amplitude
+                peak_value - (1.0 - float(threshold1)) * falling_amplitude
             )
 
-            rising_values = vals[
-                left : peak + 1
-            ]
+            rising_values = vals[left : peak + 1]
 
-            falling_values = vals[
-                peak : right + 1
-            ]
+            falling_values = vals[peak : right + 1]
 
-            greenup_relative = (
-                _first_ge(
-                    rising_values,
-                    greenup_threshold,
-                )
+            greenup_relative = _first_ge(
+                rising_values,
+                greenup_threshold,
             )
 
-            maturity_relative = (
-                _first_ge(
-                    rising_values,
-                    maturity_threshold,
-                )
+            maturity_relative = _first_ge(
+                rising_values,
+                maturity_threshold,
             )
 
             # Preserve the COLD implementation's first-at-or-below rule.
-            senescence_relative = (
-                _first_le(
-                    falling_values,
-                    senescence_threshold,
-                )
+            senescence_relative = _first_le(
+                falling_values,
+                senescence_threshold,
             )
 
-            dormancy_relative = (
-                _first_le(
-                    falling_values,
-                    dormancy_threshold,
-                )
+            dormancy_relative = _first_le(
+                falling_values,
+                dormancy_threshold,
             )
 
             greenup = (
-                int(
-                    dates[
-                        left
-                        + greenup_relative
-                    ]
-                )
-                if (
-                    greenup_relative
-                    >= 0
-                )
-                else 0
+                int(dates[left + greenup_relative]) if (greenup_relative >= 0) else 0
             )
 
             maturity = (
-                int(
-                    dates[
-                        left
-                        + maturity_relative
-                    ]
-                )
-                if (
-                    maturity_relative
-                    >= 0
-                )
-                else 0
+                int(dates[left + maturity_relative]) if (maturity_relative >= 0) else 0
             )
 
             senescence = (
-                int(
-                    dates[
-                        peak
-                        + senescence_relative
-                    ]
-                )
-                if (
-                    senescence_relative
-                    >= 0
-                )
+                int(dates[peak + senescence_relative])
+                if (senescence_relative >= 0)
                 else 0
             )
 
             dormancy = (
-                int(
-                    dates[
-                        peak
-                        + dormancy_relative
-                    ]
-                )
-                if (
-                    dormancy_relative
-                    >= 0
-                )
-                else 0
+                int(dates[peak + dormancy_relative]) if (dormancy_relative >= 0) else 0
             )
 
             if is_segment_head:
@@ -2609,122 +1863,53 @@ def cold_detect_phenology(
                 senescence = 0
                 dormancy = 0
 
-            if (
-                actual_break_dates.size
-                > 0
-            ):
-                left_date = int(
-                    dates[left]
-                )
+            if actual_break_dates.size > 0:
+                left_date = int(dates[left])
 
-                current_peak_date = int(
-                    dates[peak]
-                )
+                current_peak_date = int(dates[peak])
 
-                right_date = int(
-                    dates[right]
-                )
+                right_date = int(dates[right])
 
-                rising_breaks = (
-                    actual_break_dates[
-                        (
-                            actual_break_dates
-                            > left_date
-                        )
-                        & (
-                            actual_break_dates
-                            < current_peak_date
-                        )
-                    ]
-                )
+                rising_breaks = actual_break_dates[
+                    (actual_break_dates > left_date)
+                    & (actual_break_dates < current_peak_date)
+                ]
 
-                falling_breaks = (
-                    actual_break_dates[
-                        (
-                            actual_break_dates
-                            > current_peak_date
-                        )
-                        & (
-                            actual_break_dates
-                            < right_date
-                        )
-                    ]
-                )
+                falling_breaks = actual_break_dates[
+                    (actual_break_dates > current_peak_date)
+                    & (actual_break_dates < right_date)
+                ]
 
-                if (
-                    rising_breaks.size
-                    > 0
-                ):
-                    first_rising_break = int(
-                        np.min(
-                            rising_breaks
-                        )
-                    )
+                if rising_breaks.size > 0:
+                    first_rising_break = int(np.min(rising_breaks))
 
-                    if (
-                        greenup != 0
-                        and greenup
-                        >= first_rising_break
-                    ):
+                    if greenup != 0 and greenup >= first_rising_break:
                         greenup = 0
 
-                    if (
-                        maturity != 0
-                        and maturity
-                        >= first_rising_break
-                    ):
+                    if maturity != 0 and maturity >= first_rising_break:
                         maturity = 0
 
-                if (
-                    falling_breaks.size
-                    > 0
-                ):
-                    first_falling_break = int(
-                        np.min(
-                            falling_breaks
-                        )
-                    )
+                if falling_breaks.size > 0:
+                    first_falling_break = int(np.min(falling_breaks))
 
-                    if (
-                        senescence != 0
-                        and senescence
-                        >= first_falling_break
-                    ):
+                    if senescence != 0 and senescence >= first_falling_break:
                         senescence = 0
 
-                    if (
-                        dormancy != 0
-                        and dormancy
-                        >= first_falling_break
-                    ):
+                    if dormancy != 0 and dormancy >= first_falling_break:
                         dormancy = 0
 
-            segment_peak_indices.append(
-                int(peak)
-            )
+            segment_peak_indices.append(int(peak))
 
             segment_peak_metadata.append(
                 (
-                    int(
-                        greenup
-                    ),
-                    int(
-                        maturity
-                    ),
-                    int(
-                        senescence
-                    ),
-                    int(
-                        dormancy
-                    ),
+                    int(greenup),
+                    int(maturity),
+                    int(senescence),
+                    int(dormancy),
                 )
             )
 
-            segment_amplitudes.append(
-                float(
-                    amplitude
-                )
-            )
+            segment_amplitudes.append(float(amplitude))
 
         if not segment_peak_indices:
             continue
@@ -2734,44 +1919,17 @@ def cold_detect_phenology(
             dtype=np.float32,
         )
 
-        valid_amplitude = (
-            np.isfinite(
-                amplitudes
-            )
-            & (
-                amplitudes
-                > 0
-            )
-        )
+        valid_amplitude = np.isfinite(amplitudes) & (amplitudes > 0)
 
-        if not np.any(
-            valid_amplitude
-        ):
+        if not np.any(valid_amplitude):
             continue
 
-        reference_amplitude = float(
-            np.max(
-                amplitudes[
-                    valid_amplitude
-                ]
-            )
-        )
+        reference_amplitude = float(np.max(amplitudes[valid_amplitude]))
 
         keep_mask = (
             valid_amplitude
-            & (
-                amplitudes
-                >= float(
-                    peak_threshold
-                )
-            )
-            & (
-                amplitudes
-                >= float(
-                    peak_ratio
-                )
-                * reference_amplitude
-            )
+            & (amplitudes >= float(peak_threshold))
+            & (amplitudes >= float(peak_ratio) * reference_amplitude)
         )
 
         for (
@@ -2783,9 +1941,7 @@ def cold_detect_phenology(
             segment_peak_indices,
             segment_peak_metadata,
         ):
-            if not bool(
-                retained
-            ):
+            if not bool(retained):
                 continue
 
             (
@@ -2797,40 +1953,16 @@ def cold_detect_phenology(
 
             output_rows.append(
                 {
-                    "position": int(
-                        segment_position
-                    ),
-                    "t_start": int(
-                        t0
-                    ),
-                    "t_end": int(
-                        t1
-                    ),
-                    "break_date": int(
-                        segment_break_date
-                    ),
-                    "fitted_peak_date": int(
-                        dates[
-                            peak
-                        ]
-                    ),
-                    "fitted_peak": float(
-                        vals[
-                            peak
-                        ]
-                    ),
-                    "greenup": int(
-                        greenup
-                    ),
-                    "maturity": int(
-                        maturity
-                    ),
-                    "senescence": int(
-                        senescence
-                    ),
-                    "dormancy": int(
-                        dormancy
-                    ),
+                    "position": int(segment_position),
+                    "t_start": int(t0),
+                    "t_end": int(t1),
+                    "break_date": int(segment_break_date),
+                    "fitted_peak_date": int(dates[peak]),
+                    "fitted_peak": float(vals[peak]),
+                    "greenup": int(greenup),
+                    "maturity": int(maturity),
+                    "senescence": int(senescence),
+                    "dormancy": int(dormancy),
                 }
             )
 
