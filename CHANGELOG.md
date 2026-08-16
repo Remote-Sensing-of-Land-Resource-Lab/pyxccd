@@ -3,6 +3,9 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 1.1.0] - Released 2026-8-16
+* Add new module for phenology extraction; redefine lambda for S-CCD and allow band-specific lambda input
+
 ## [Version 1.0.3] - Released 2026-5-27
 * Fix the bug of thermal band scaling problem, and add efficiency and accuracy test notebook
 
