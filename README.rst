@@ -126,41 +126,55 @@ S-CCD for outputting continuous seasonal and trend states:
      - HLS2.0
      - 30 m
      - 2–3 days
-   * - 5
+   * - 5-1
      - `State analysis 1`_
      - Greening
      - Tibet, China
      - MODIS
      - 500 m
      - 16 days
-   * - 6
+   * - 5-2
      - `State analysis 2`_
      - Precipitation seasonality
      - Arctic
      - GPCP
      - 2.5°
      - Monthly
-   * - 7
+   * - 6
      - `Anomalies vs. breaks`_
      - Agricultural drought
      - Rajasthan, India
      - GOSIF
      - 0.05°
      - 8 days
-   * - 8
+   * - 7
      - `Near real-time monitoring`_
      - Forest logging
      - Sichuan, China
      - HLS2.0
      - 30 m
      - 2–3 days
-   * - 9
+   * - 8
      - `Gap filling`_
      - Soil moisture
      - Henan, China
      - FY3B
      - 25 km
      - Daily
+   * - 9
+     - `Phenology`_
+     - Phenology extaction
+     - MI, USA
+     - HLS2.0
+     - 30 m
+     - 2–3 days
+   * - 10
+     - `Evaluation`_
+     - Efficiency & accuracy test
+     - CONUS
+     - Landsat
+     - 30 m
+     - 8–16 days
 
 .. _Introduction: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/0_intro.ipynb
 .. _Break detection: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/1_break_detection_fire_hls.ipynb
@@ -172,6 +186,8 @@ S-CCD for outputting continuous seasonal and trend states:
 .. _Anomalies vs. breaks: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/6_anomalies_break_drought_gosif.ipynb
 .. _Near real-time monitoring: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/7_near_realtime_logging_hls.ipynb
 .. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
+.. _Phenology: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/9_phenology_extract_hls.ipynb
+.. _Evaluation: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/10_performance_eval_general_landsat.ipynb
 
 Tutorial datasets: `Github link <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/tree/devel/tutorials/datasets>`_, `夸克硬盘 (for China mainland) <https://pan.quark.cn/s/091eda7c76ff>`_
 
