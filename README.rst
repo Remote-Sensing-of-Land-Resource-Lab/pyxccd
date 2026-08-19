@@ -186,7 +186,7 @@ S-CCD for outputting continuous seasonal and trend states:
 .. _Anomalies vs. breaks: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/6_anomalies_break_drought_gosif.ipynb
 .. _Near real-time monitoring: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/7_near_realtime_logging_hls.ipynb
 .. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
-.. _Phenology: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/9_phenology_extraction_hls.ipynb
+.. _Phenology: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/9_phenology_extract_cropland_hls.ipynb
 .. _Evaluation: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/10_performance_eval_general_landsat.ipynb
 
 Tutorial datasets: `Github link <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/tree/devel/tutorials/datasets>`_, `夸克硬盘 (for China mainland) <https://pan.quark.cn/s/091eda7c76ff>`_
