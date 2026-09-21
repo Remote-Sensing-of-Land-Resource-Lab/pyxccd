@@ -920,6 +920,65 @@ def getcategory_cold(cold_plot: np.ndarray, i_curve: int, t_c: float = -200.0) -
     else:
         return 1  # land disturbance
 
+def getcategory_cold_flex(
+    cold_plot: np.ndarray,
+    i_curve: int,
+    band1_index: int,
+    band2_index: int,
+    band3_index: int,
+    t_c: float = -200.0,
+) -> int:
+    """an empirical way to get break category for COLD algorithm in flexible mode
+
+    Parameters
+    ----------
+    cold_plot : np.ndarray
+        Cold result for a single pixel, a structured array of dtype =
+        :py:type:`~pyxccd.common.cold_rec_cg`
+    i_curve : int
+        Curve number to be classified
+    band1_index : int
+        Band index used for the first band in the empirical rule, started
+        from 0. This corresponds to the NIR band in the original function.
+    band2_index : int
+        Band index used for the second band in the empirical rule, started
+        from 0. This corresponds to the red band in the original function.
+    band3_index : int
+        Band index used for the third band in the empirical rule, started
+        from 0. This corresponds to the SWIR1 band in the original function.
+    t_c : float, optional
+        The threshold to be used, by default -200.0
+
+    Returns
+    -------
+    int
+        break category
+
+            1 - land disturbance
+
+            2 - regrowth
+
+            3 - aforestation
+
+    """
+    if (
+        cold_plot[i_curve]["magnitude"][band1_index] > t_c
+        and cold_plot[i_curve]["magnitude"][band2_index] < -t_c
+        and cold_plot[i_curve]["magnitude"][band3_index] < -t_c
+    ):
+        if (
+            cold_plot[i_curve + 1]["coefs"][band1_index, 1]
+            > np.abs(cold_plot[i_curve]["coefs"][band1_index, 1])
+            and cold_plot[i_curve + 1]["coefs"][band2_index, 1]
+            < -np.abs(cold_plot[i_curve]["coefs"][band2_index, 1])
+            and cold_plot[i_curve + 1]["coefs"][band3_index, 1]
+            < -np.abs(cold_plot[i_curve]["coefs"][band3_index, 1])
+        ):
+            return 3  # aforestation
+        else:
+            return 2  # regrowth
+    else:
+        return 1  # land disturbance
 
 def getcategory_sccd(sccd_plot: np.ndarray, i_curve: int, t_c: float = -200.0) -> int:
     """an empirical way to get break category for COLD algorithm
@@ -953,6 +1012,53 @@ def getcategory_sccd(sccd_plot: np.ndarray, i_curve: int, t_c: float = -200.0) -
     else:
         return 1  # land disturbance
 
+def getcategory_sccd_flex(
+    sccd_plot: np.ndarray,
+    i_curve: int,
+    band1_index: int,
+    band2_index: int,
+    band3_index: int,
+    t_c: float = -200.0,
+) -> int:
+    """an empirical way to get break category for S-CCD algorithm in flexible mode
+
+    Parameters
+    ----------
+    sccd_plot : np.ndarray
+        S-CCD offline result for a single pixel, a structured array of dtype =
+        :py:type:`~pyxccd.common.rec_cg`
+    i_curve : int
+        Curve number to be classified
+    band1_index : int
+        Band index used for the first band in the empirical rule, started
+        from 0. This corresponds to the NIR band in the original function.
+    band2_index : int
+        Band index used for the second band in the empirical rule, started
+        from 0. This corresponds to the red band in the original function.
+    band3_index : int
+        Band index used for the third band in the empirical rule, started
+        from 0. This corresponds to the SWIR1 band in the original function.
+    t_c : float, optional
+        The threshold to be used, by default -200.0
+
+    Returns
+    -------
+    int
+        break category
+
+            1 - land disturbance
+
+            2 - regrowth
+
+    """
+    if (
+        sccd_plot[i_curve]["magnitude"][band1_index] > t_c
+        and sccd_plot[i_curve]["magnitude"][band2_index] < -t_c
+        and sccd_plot[i_curve]["magnitude"][band3_index] < -t_c
+    ):
+        return 2  # regrowth
+    else:
+        return 1  # land disturbance
 
 def extract_features(
     cold_plot: np.ndarray,

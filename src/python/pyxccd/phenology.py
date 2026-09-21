@@ -348,6 +348,672 @@ def _postprocess_output(
     )
 
 
+def _extract_phenology_from_curve(
+    dates,
+    vals,
+    segments,
+    actual_break_dates,
+    method,
+    band,
+    threshold1,
+    threshold2,
+    min_peak_gap_days,
+    peak_threshold,
+    peak_month_filter,
+    peak_month_filter_mode,
+    peak_ratio,
+    state_floor,
+):
+    """Extract phenology cycles from a fitted curve.
+
+    This is the shared engine behind :func:`sccd_extract_phenology` and
+    :func:`cold_extract_phenology`.  Both callers rebuild their fitted curve
+    differently (SCCD sums fitted state components; COLD evaluates harmonic
+    coefficients) and then hand the resulting ``dates`` / ``vals`` pair to this
+    routine.
+
+    Parameters
+    ----------
+    dates : numpy.ndarray
+        Sorted, duplicate-free ordinal dates of the fitted curve.
+    vals : numpy.ndarray
+        Fitted values aligned with ``dates``.
+    segments : list[tuple[int, int, int, int]]
+        ``(t_start, t_end, break_date, position)`` for every candidate segment.
+        The position is written to the output table verbatim.
+    actual_break_dates : numpy.ndarray
+        Real structural break dates used to zero out dates that fall beyond a
+        break inside a window.
+    method : {"sccd", "cold"}
+        Which caller this run belongs to.  The original SCCD and COLD
+        implementations differ in three places, and this switch selects the
+        matching behaviour.
+    band : int
+        One-based band index.
+    threshold1, threshold2 : float
+        Relative thresholds for greenup/dormancy and maturity/senescence.
+    min_peak_gap_days : int
+        Minimum allowed date gap between retained peaks.
+    peak_threshold : float
+        Peak prominence threshold, also the minimum effective peak amplitude.
+    peak_month_filter : list[int] or None
+        Optional months to retain or remove based on fitted peak date.
+    peak_month_filter_mode : {"keep", "drop"}
+        Determines how ``peak_month_filter`` is applied.
+    peak_ratio : float
+        Relative peak threshold.
+    state_floor : float
+        Values below this fitted-state level cannot form window boundaries.
+
+    Notes
+    -----
+    The three differences selected by ``method`` are:
+
+    * **Falling-edge rule.**  ``"sccd"`` reproduces the strict-above to
+      at-or-below crossing; ``"cold"`` reproduces first-at-or-below.  The two
+      only diverge when the falling window opens at or below the target
+      threshold.  The falling window always starts at the peak, so for
+      senescence this requires ``threshold2 == 1``.
+    * **Forced segment-head boundary (SCCD only).**  A legacy guard that needs a
+      peak within 200 days of the segment start, a rising-boundary ratio above
+      ``peak_ratio``, and no qualifying trough between the segment start and
+      that peak.  Because a qualifying trough is exactly what suppresses the
+      branch, and because peaks that close to a segment start usually already
+      carry ``clipped_by_segment_head``, it rarely changes the returned dates.
+      It is preserved for fidelity with the original SCCD behaviour.
+    * **Finite-ratio guard (COLD only).**  A redundant ``np.isfinite`` check on
+      the rising-boundary ratio.  Inside the enclosing ``peak_above_floor > 0``
+      branch, ``left_clip`` and ``peak`` are both guaranteed finite
+      (``_clip_peak_window_to_floor`` has already rejected non-finite
+      boundaries) and the denominator is strictly positive, so the ratio is
+      always finite and the guard never changes the outcome.  It is retained so
+      the COLD code path stays faithful to its original wording.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Phenology metrics with columns given by ``PHENOLOGY_COLUMNS``.
+    """
+    _validate_parameters(
+        band=band,
+        threshold1=threshold1,
+        threshold2=threshold2,
+        min_peak_gap_days=min_peak_gap_days,
+        peak_threshold=peak_threshold,
+        peak_ratio=peak_ratio,
+        peak_month_filter_mode=peak_month_filter_mode,
+    )
+
+    if method == "sccd":
+        falling_crossing = _first_downcrossing
+        forced_edge_head_enabled = True
+        guard_start_peak_ratio = False
+    elif method == "cold":
+        falling_crossing = _first_le
+        forced_edge_head_enabled = False
+        guard_start_peak_ratio = True
+    else:
+        raise ValueError('method must be either "sccd" or "cold".')
+
+    dates = np.asarray(
+        dates,
+        dtype=np.int64,
+    )
+
+    vals = np.asarray(
+        vals,
+        dtype=np.float32,
+    )
+
+    if dates.size == 0:
+        return _empty_output()
+
+    actual_break_dates = np.asarray(
+        actual_break_dates,
+        dtype=np.int64,
+    )
+
+    if actual_break_dates.size > 0:
+        actual_break_dates = actual_break_dates[
+            (actual_break_dates > dates[0]) & (actual_break_dates < dates[-1])
+        ]
+
+        actual_break_dates = np.asarray(
+            sorted(set(actual_break_dates.tolist())),
+            dtype=np.int64,
+        )
+
+    n = int(dates.size)
+    search_sorted = np.searchsorted
+
+    # Detect prominent troughs for the outermost/edge cycles.  For adjacent
+    # detected peaks, however, use the actual minimum fitted value between the
+    # two peaks as their shared cycle boundary.  This prevents one crop cycle
+    # from borrowing a trough that belongs to a neighboring cycle when the
+    # inter-peak valley itself is not prominent enough to pass peak_threshold.
+    troughs_all, _ = find_peaks(
+        -vals,
+        prominence=float(peak_threshold),
+    )
+
+    troughs_all = np.asarray(
+        troughs_all,
+        dtype=np.int32,
+    )
+
+    peaks_all, _ = find_peaks(
+        vals,
+        prominence=float(peak_threshold),
+    )
+
+    peaks_all = np.asarray(
+        np.sort(peaks_all),
+        dtype=np.int32,
+    )
+
+    if peaks_all.size == 0:
+        return _empty_output()
+
+    global_windows = []
+
+    for peak_order, peak in enumerate(peaks_all):
+        peak = int(peak)
+
+        # For an interior cycle, the boundary with the previous cycle is the
+        # minimum fitted state between the two neighboring peaks.
+        if peak_order > 0:
+            previous_peak = int(peaks_all[peak_order - 1])
+            valley_start = previous_peak + 1
+            valley_stop = peak
+            valley_values = vals[valley_start:valley_stop]
+            finite_mask = np.isfinite(valley_values)
+
+            if valley_values.size > 0 and np.any(finite_mask):
+                valley_search = np.where(
+                    finite_mask,
+                    valley_values,
+                    np.inf,
+                )
+                left = valley_start + int(np.argmin(valley_search))
+            else:
+                left = previous_peak + 1
+
+            left_is_interpeak = 1
+            edge_head_global = 0
+        else:
+            preceding_troughs = troughs_all[troughs_all < peak]
+
+            if preceding_troughs.size > 0:
+                left = int(preceding_troughs[-1])
+                edge_head_global = 0
+            else:
+                left = 0
+                edge_head_global = 1
+
+            left_is_interpeak = 0
+
+        # Likewise, adjacent cycles share the minimum between this peak and
+        # the following peak.
+        if peak_order < peaks_all.size - 1:
+            next_peak = int(peaks_all[peak_order + 1])
+            valley_start = peak + 1
+            valley_stop = next_peak
+            valley_values = vals[valley_start:valley_stop]
+            finite_mask = np.isfinite(valley_values)
+
+            if valley_values.size > 0 and np.any(finite_mask):
+                valley_search = np.where(
+                    finite_mask,
+                    valley_values,
+                    np.inf,
+                )
+                right = valley_start + int(np.argmin(valley_search))
+            else:
+                right = next_peak - 1
+
+            right_is_interpeak = 1
+            edge_tail_global = 0
+        else:
+            following_troughs = troughs_all[troughs_all > peak]
+
+            if following_troughs.size > 0:
+                right = int(following_troughs[0])
+                edge_tail_global = 0
+            else:
+                right = n - 1
+                edge_tail_global = 1
+
+            right_is_interpeak = 0
+
+        if not (left < peak < right):
+            continue
+
+        global_windows.append(
+            (
+                int(left),
+                int(right),
+                int(peak),
+                int(dates[peak]),
+                int(edge_head_global),
+                int(edge_tail_global),
+                int(left_is_interpeak),
+                int(right_is_interpeak),
+            )
+        )
+
+    if not global_windows:
+        return _empty_output()
+
+    output_rows = []
+
+    for (
+        t0,
+        t1,
+        segment_break_date,
+        segment_position,
+    ) in segments:
+
+        left_segment = int(
+            search_sorted(
+                dates,
+                t0,
+                side="left",
+            )
+        )
+
+        right_segment = int(
+            search_sorted(
+                dates,
+                t1,
+                side="right",
+            )
+            - 1
+        )
+
+        if left_segment > right_segment:
+            continue
+
+        candidate_windows = []
+
+        for (
+            global_left,
+            global_right,
+            peak,
+            peak_date,
+            edge_head_global,
+            edge_tail_global,
+            left_is_interpeak,
+            right_is_interpeak,
+        ) in global_windows:
+
+            if not (t0 <= peak_date <= t1):
+                continue
+
+            raw_left = int(global_left)
+
+            raw_right = int(global_right)
+
+            left_clip = max(
+                raw_left,
+                left_segment,
+            )
+
+            right_clip = min(
+                raw_right,
+                right_segment,
+            )
+
+            if not (left_clip < peak < right_clip):
+                continue
+
+            # Preserve the original SCCD treatment of a high first rising
+            # boundary after a segment break.
+            forced_edge_head = False
+            found_complete_rising_trough = False
+
+            peak_above_floor = float(vals[peak]) - float(state_floor)
+
+            # Do not repair an inter-peak boundary by looking farther back:
+            # doing so would let the current cycle cross into the previous one.
+            if not bool(left_is_interpeak) and peak_above_floor > 0:
+                start_above_floor = float(vals[left_clip]) - float(state_floor)
+
+                start_peak_ratio = start_above_floor / peak_above_floor
+
+                if guard_start_peak_ratio:
+                    rising_boundary_high = (
+                        np.isfinite(start_peak_ratio)
+                        and start_peak_ratio > float(peak_ratio)
+                    )
+                else:
+                    rising_boundary_high = start_peak_ratio > float(peak_ratio)
+
+                if rising_boundary_high:
+                    days_from_segment_start = int(dates[peak]) - int(t0)
+
+                    near_segment_head = days_from_segment_start <= 200
+
+                    earliest_date = int(dates[peak]) - 200
+
+                    lookback_left = max(
+                        int(left_segment),
+                        int(
+                            np.searchsorted(
+                                dates,
+                                earliest_date,
+                                side="left",
+                            )
+                        ),
+                    )
+
+                    previous_troughs = troughs_all[
+                        (troughs_all >= lookback_left) & (troughs_all < peak)
+                    ].astype(
+                        np.int64,
+                        copy=False,
+                    )
+
+                    if previous_troughs.size > 0:
+                        trough_values = vals[previous_troughs]
+
+                        maximum_start_value = (
+                            float(state_floor) + float(peak_ratio) * peak_above_floor
+                        )
+
+                        acceptable = np.isfinite(trough_values) & (
+                            trough_values <= maximum_start_value
+                        )
+
+                        acceptable_troughs = previous_troughs[acceptable]
+
+                        if acceptable_troughs.size > 0:
+                            repaired_left = int(acceptable_troughs[-1])
+
+                            if repaired_left < peak:
+                                left_clip = repaired_left
+
+                                found_complete_rising_trough = True
+
+                    if (
+                        forced_edge_head_enabled
+                        and near_segment_head
+                        and not found_complete_rising_trough
+                    ):
+                        forced_edge_head = True
+
+            clipped_by_segment_head = raw_left < left_segment
+
+            clipped_by_segment_tail = raw_right > right_segment
+
+            edge_head = int(
+                edge_head_global
+                or clipped_by_segment_head
+                or forced_edge_head
+            )
+
+            edge_tail = int(edge_tail_global or clipped_by_segment_tail)
+
+            floor_clipped = _clip_peak_window_to_floor(
+                values=vals,
+                left=left_clip,
+                peak=peak,
+                right=right_clip,
+                floor_value=state_floor,
+            )
+
+            if floor_clipped is None:
+                continue
+
+            left_clip, right_clip = floor_clipped
+
+            candidate_windows.append(
+                (
+                    int(left_clip),
+                    int(right_clip),
+                    int(peak),
+                    int(edge_head),
+                    int(edge_tail),
+                )
+            )
+
+        if not candidate_windows:
+            continue
+
+        segment_peak_indices = []
+        segment_peak_metadata = []
+        segment_amplitudes = []
+
+        for (
+            left,
+            right,
+            peak,
+            is_segment_head,
+            is_segment_tail,
+        ) in candidate_windows:
+
+            peak_value = float(vals[peak])
+
+            start_value = float(vals[left])
+
+            end_value = float(vals[right])
+
+            if not (
+                np.isfinite(peak_value)
+                and np.isfinite(start_value)
+                and np.isfinite(end_value)
+            ):
+                continue
+
+            rising_amplitude = max(
+                0.0,
+                peak_value - start_value,
+            )
+
+            falling_amplitude = max(
+                0.0,
+                peak_value - end_value,
+            )
+
+            if not is_segment_head and not is_segment_tail:
+                amplitude = min(
+                    rising_amplitude,
+                    falling_amplitude,
+                )
+
+            elif is_segment_head and not is_segment_tail:
+                amplitude = falling_amplitude
+
+            elif is_segment_tail and not is_segment_head:
+                amplitude = rising_amplitude
+
+            else:
+                amplitude = max(
+                    rising_amplitude,
+                    falling_amplitude,
+                )
+
+            if not np.isfinite(amplitude) or amplitude <= 0:
+                continue
+
+            greenup_threshold = start_value + float(threshold1) * rising_amplitude
+
+            maturity_threshold = start_value + float(threshold2) * rising_amplitude
+
+            senescence_threshold = (
+                peak_value - (1.0 - float(threshold2)) * falling_amplitude
+            )
+
+            dormancy_threshold = (
+                peak_value - (1.0 - float(threshold1)) * falling_amplitude
+            )
+
+            rising_values = vals[left : peak + 1]
+
+            falling_values = vals[peak : right + 1]
+
+            greenup_relative = _first_ge(
+                rising_values,
+                greenup_threshold,
+            )
+
+            maturity_relative = _first_ge(
+                rising_values,
+                maturity_threshold,
+            )
+
+            senescence_relative = falling_crossing(
+                falling_values,
+                senescence_threshold,
+            )
+
+            dormancy_relative = falling_crossing(
+                falling_values,
+                dormancy_threshold,
+            )
+
+            greenup = (
+                int(dates[left + greenup_relative]) if greenup_relative >= 0 else 0
+            )
+
+            maturity = (
+                int(dates[left + maturity_relative]) if maturity_relative >= 0 else 0
+            )
+
+            senescence = (
+                int(dates[peak + senescence_relative])
+                if senescence_relative >= 0
+                else 0
+            )
+
+            dormancy = (
+                int(dates[peak + dormancy_relative]) if dormancy_relative >= 0 else 0
+            )
+
+            if is_segment_head:
+                greenup = 0
+                maturity = 0
+
+            if is_segment_tail:
+                senescence = 0
+                dormancy = 0
+
+            if actual_break_dates.size > 0:
+                left_date = int(dates[left])
+
+                current_peak_date = int(dates[peak])
+
+                right_date = int(dates[right])
+
+                rising_breaks = actual_break_dates[
+                    (actual_break_dates > left_date)
+                    & (actual_break_dates < current_peak_date)
+                ]
+
+                falling_breaks = actual_break_dates[
+                    (actual_break_dates > current_peak_date)
+                    & (actual_break_dates < right_date)
+                ]
+
+                if rising_breaks.size > 0:
+                    first_rising_break = int(np.min(rising_breaks))
+
+                    if greenup != 0 and greenup >= first_rising_break:
+                        greenup = 0
+
+                    if maturity != 0 and maturity >= first_rising_break:
+                        maturity = 0
+
+                if falling_breaks.size > 0:
+                    first_falling_break = int(np.min(falling_breaks))
+
+                    if senescence != 0 and senescence >= first_falling_break:
+                        senescence = 0
+
+                    if dormancy != 0 and dormancy >= first_falling_break:
+                        dormancy = 0
+
+            segment_peak_indices.append(int(peak))
+
+            segment_peak_metadata.append(
+                (
+                    int(greenup),
+                    int(maturity),
+                    int(senescence),
+                    int(dormancy),
+                )
+            )
+
+            segment_amplitudes.append(float(amplitude))
+
+        if not segment_peak_indices:
+            continue
+
+        amplitudes = np.asarray(
+            segment_amplitudes,
+            dtype=np.float32,
+        )
+
+        valid_amplitude = np.isfinite(amplitudes) & (amplitudes > 0)
+
+        if not np.any(valid_amplitude):
+            continue
+
+        reference_amplitude = float(np.max(amplitudes[valid_amplitude]))
+
+        keep_mask = (
+            valid_amplitude
+            & (amplitudes >= float(peak_threshold))
+            & (amplitudes >= float(peak_ratio) * reference_amplitude)
+        )
+
+        for (
+            retained,
+            peak,
+            metadata,
+        ) in zip(
+            keep_mask,
+            segment_peak_indices,
+            segment_peak_metadata,
+        ):
+            if not bool(retained):
+                continue
+
+            (
+                greenup,
+                maturity,
+                senescence,
+                dormancy,
+            ) = metadata
+
+            output_rows.append(
+                {
+                    "position": int(segment_position),
+                    "t_start": int(t0),
+                    "t_end": int(t1),
+                    "break_date": int(segment_break_date),
+                    "fitted_peak_date": int(dates[peak]),
+                    "fitted_peak": float(vals[peak]),
+                    "greenup": int(greenup),
+                    "maturity": int(maturity),
+                    "senescence": int(senescence),
+                    "dormancy": int(dormancy),
+                }
+            )
+
+    if not output_rows:
+        return _empty_output()
+
+    return _postprocess_output(
+        pd.DataFrame(
+            output_rows,
+            columns=PHENOLOGY_COLUMNS,
+        ),
+        peak_month_filter=peak_month_filter,
+        peak_month_filter_mode=peak_month_filter_mode,
+        min_peak_gap_days=min_peak_gap_days,
+    )
+
+
 def sccd_extract_phenology(
     state_output: pd.DataFrame,
     sccd_pack,
@@ -611,6 +1277,7 @@ def sccd_extract_phenology(
             int(t0),
             int(t1),
             int(break_date),
+            int(position),
         )
         for t0, t1, break_date in segments
         if int(t1) >= int(t0)
@@ -645,482 +1312,21 @@ def sccd_extract_phenology(
     if dates.size == 0:
         return _empty_output()
 
-    actual_break_dates = np.asarray(
-        actual_break_dates,
-        dtype=np.int64,
-    )
-
-    if actual_break_dates.size > 0:
-        actual_break_dates = actual_break_dates[
-            (actual_break_dates > dates[0]) & (actual_break_dates < dates[-1])
-        ]
-
-        actual_break_dates = np.asarray(
-            sorted(set(actual_break_dates.tolist())),
-            dtype=np.int64,
-        )
-
-    n = int(dates.size)
-    search_sorted = np.searchsorted
-
-    # SCCD behavior is intentionally preserved: every global peak window is
-    # bounded by the nearest sufficiently prominent troughs.
-    troughs_all, _ = find_peaks(
-        -vals,
-        prominence=float(peak_threshold),
-    )
-
-    troughs_all = np.asarray(
-        troughs_all,
-        dtype=np.int32,
-    )
-
-    peaks_all, _ = find_peaks(
-        vals,
-        prominence=float(peak_threshold),
-    )
-
-    peaks_all = np.asarray(
-        peaks_all,
-        dtype=np.int32,
-    )
-
-    if peaks_all.size == 0:
-        return _empty_output()
-
-    global_windows = []
-
-    for peak in peaks_all:
-        peak = int(peak)
-
-        trough_insert = int(
-            np.searchsorted(
-                troughs_all,
-                peak,
-                side="left",
-            )
-        )
-
-        if trough_insert > 0:
-            left = int(troughs_all[trough_insert - 1])
-            edge_head_global = 0
-        else:
-            left = 0
-            edge_head_global = 1
-
-        if trough_insert < troughs_all.size:
-            right = int(troughs_all[trough_insert])
-            edge_tail_global = 0
-        else:
-            right = n - 1
-            edge_tail_global = 1
-
-        if not (left < peak < right):
-            continue
-
-        global_windows.append(
-            (
-                int(left),
-                int(right),
-                int(peak),
-                int(dates[peak]),
-                int(edge_head_global),
-                int(edge_tail_global),
-            )
-        )
-
-    if not global_windows:
-        return _empty_output()
-
-    output_rows = []
-
-    for (
-        t0,
-        t1,
-        segment_break_date,
-    ) in segments:
-
-        left_segment = int(
-            search_sorted(
-                dates,
-                t0,
-                side="left",
-            )
-        )
-
-        right_segment = int(
-            search_sorted(
-                dates,
-                t1,
-                side="right",
-            )
-            - 1
-        )
-
-        if left_segment > right_segment:
-            continue
-
-        candidate_windows = []
-
-        for (
-            global_left,
-            global_right,
-            peak,
-            peak_date,
-            edge_head_global,
-            edge_tail_global,
-        ) in global_windows:
-
-            if not (t0 <= peak_date <= t1):
-                continue
-
-            raw_left = int(global_left)
-
-            raw_right = int(global_right)
-
-            left_clip = max(
-                raw_left,
-                left_segment,
-            )
-
-            right_clip = min(
-                raw_right,
-                right_segment,
-            )
-
-            if not (left_clip < peak < right_clip):
-                continue
-
-            # Preserve the original SCCD treatment of a high first rising
-            # boundary after a segment break.
-            forced_edge_head = False
-            found_complete_rising_trough = False
-
-            peak_above_floor = float(vals[peak]) - float(state_floor)
-
-            if peak_above_floor > 0:
-                start_above_floor = float(vals[left_clip]) - float(state_floor)
-
-                start_peak_ratio = start_above_floor / peak_above_floor
-
-                days_from_segment_start = int(dates[peak]) - int(t0)
-
-                near_segment_head = days_from_segment_start <= 200
-
-                if start_peak_ratio > float(peak_ratio):
-                    earliest_date = int(dates[peak]) - 200
-
-                    lookback_left = max(
-                        int(left_segment),
-                        int(
-                            np.searchsorted(
-                                dates,
-                                earliest_date,
-                                side="left",
-                            )
-                        ),
-                    )
-
-                    previous_troughs = troughs_all[
-                        (troughs_all >= lookback_left) & (troughs_all < peak)
-                    ].astype(
-                        np.int64,
-                        copy=False,
-                    )
-
-                    if previous_troughs.size > 0:
-                        trough_values = vals[previous_troughs]
-
-                        maximum_start_value = (
-                            float(state_floor) + float(peak_ratio) * peak_above_floor
-                        )
-
-                        acceptable = np.isfinite(trough_values) & (
-                            trough_values <= maximum_start_value
-                        )
-
-                        acceptable_troughs = previous_troughs[acceptable]
-
-                        if acceptable_troughs.size > 0:
-                            repaired_left = int(acceptable_troughs[-1])
-
-                            if repaired_left < peak:
-                                left_clip = repaired_left
-
-                                found_complete_rising_trough = True
-
-                    if near_segment_head and not found_complete_rising_trough:
-                        forced_edge_head = True
-
-            clipped_by_segment_head = raw_left < left_segment
-
-            clipped_by_segment_tail = raw_right > right_segment
-
-            edge_head = int(
-                edge_head_global or clipped_by_segment_head or forced_edge_head
-            )
-
-            edge_tail = int(edge_tail_global or clipped_by_segment_tail)
-
-            floor_clipped = _clip_peak_window_to_floor(
-                values=vals,
-                left=left_clip,
-                peak=peak,
-                right=right_clip,
-                floor_value=state_floor,
-            )
-
-            if floor_clipped is None:
-                continue
-
-            left_clip, right_clip = floor_clipped
-
-            candidate_windows.append(
-                (
-                    int(left_clip),
-                    int(right_clip),
-                    int(peak),
-                    int(edge_head),
-                    int(edge_tail),
-                )
-            )
-
-        if not candidate_windows:
-            continue
-
-        segment_peak_indices = []
-        segment_peak_metadata = []
-        segment_amplitudes = []
-
-        for (
-            left,
-            right,
-            peak,
-            is_segment_head,
-            is_segment_tail,
-        ) in candidate_windows:
-
-            peak_value = float(vals[peak])
-
-            start_value = float(vals[left])
-
-            end_value = float(vals[right])
-
-            if not (
-                np.isfinite(peak_value)
-                and np.isfinite(start_value)
-                and np.isfinite(end_value)
-            ):
-                continue
-
-            rising_amplitude = max(
-                0.0,
-                peak_value - start_value,
-            )
-
-            falling_amplitude = max(
-                0.0,
-                peak_value - end_value,
-            )
-
-            if not is_segment_head and not is_segment_tail:
-                amplitude = min(
-                    rising_amplitude,
-                    falling_amplitude,
-                )
-
-            elif is_segment_head and not is_segment_tail:
-                amplitude = falling_amplitude
-
-            elif is_segment_tail and not is_segment_head:
-                amplitude = rising_amplitude
-
-            else:
-                amplitude = max(
-                    rising_amplitude,
-                    falling_amplitude,
-                )
-
-            if not np.isfinite(amplitude) or amplitude <= 0:
-                continue
-
-            greenup_threshold = start_value + float(threshold1) * rising_amplitude
-
-            maturity_threshold = start_value + float(threshold2) * rising_amplitude
-
-            senescence_threshold = (
-                peak_value - (1.0 - float(threshold2)) * falling_amplitude
-            )
-
-            dormancy_threshold = (
-                peak_value - (1.0 - float(threshold1)) * falling_amplitude
-            )
-
-            rising_values = vals[left : peak + 1]
-
-            falling_values = vals[peak : right + 1]
-
-            greenup_relative = _first_ge(
-                rising_values,
-                greenup_threshold,
-            )
-
-            maturity_relative = _first_ge(
-                rising_values,
-                maturity_threshold,
-            )
-
-            # Preserve the SCCD implementation's explicit crossing rule.
-            senescence_relative = _first_downcrossing(
-                falling_values,
-                senescence_threshold,
-            )
-
-            dormancy_relative = _first_downcrossing(
-                falling_values,
-                dormancy_threshold,
-            )
-
-            greenup = (
-                int(dates[left + greenup_relative]) if greenup_relative >= 0 else 0
-            )
-
-            maturity = (
-                int(dates[left + maturity_relative]) if maturity_relative >= 0 else 0
-            )
-
-            senescence = (
-                int(dates[peak + senescence_relative])
-                if senescence_relative >= 0
-                else 0
-            )
-
-            dormancy = (
-                int(dates[peak + dormancy_relative]) if dormancy_relative >= 0 else 0
-            )
-
-            if is_segment_head:
-                greenup = 0
-                maturity = 0
-
-            if is_segment_tail:
-                senescence = 0
-                dormancy = 0
-
-            if actual_break_dates.size > 0:
-                left_date = int(dates[left])
-
-                current_peak_date = int(dates[peak])
-
-                right_date = int(dates[right])
-
-                rising_breaks = actual_break_dates[
-                    (actual_break_dates > left_date)
-                    & (actual_break_dates < current_peak_date)
-                ]
-
-                falling_breaks = actual_break_dates[
-                    (actual_break_dates > current_peak_date)
-                    & (actual_break_dates < right_date)
-                ]
-
-                if rising_breaks.size > 0:
-                    first_rising_break = int(np.min(rising_breaks))
-
-                    if greenup != 0 and greenup >= first_rising_break:
-                        greenup = 0
-
-                    if maturity != 0 and maturity >= first_rising_break:
-                        maturity = 0
-
-                if falling_breaks.size > 0:
-                    first_falling_break = int(np.min(falling_breaks))
-
-                    if senescence != 0 and senescence >= first_falling_break:
-                        senescence = 0
-
-                    if dormancy != 0 and dormancy >= first_falling_break:
-                        dormancy = 0
-
-            segment_peak_indices.append(int(peak))
-
-            segment_peak_metadata.append(
-                (
-                    int(greenup),
-                    int(maturity),
-                    int(senescence),
-                    int(dormancy),
-                )
-            )
-
-            segment_amplitudes.append(float(amplitude))
-
-        if not segment_peak_indices:
-            continue
-
-        amplitudes = np.asarray(
-            segment_amplitudes,
-            dtype=np.float32,
-        )
-
-        valid_amplitude = np.isfinite(amplitudes) & (amplitudes > 0)
-
-        if not np.any(valid_amplitude):
-            continue
-
-        reference_amplitude = float(np.max(amplitudes[valid_amplitude]))
-
-        keep_mask = (
-            valid_amplitude
-            & (amplitudes >= float(peak_threshold))
-            & (amplitudes >= float(peak_ratio) * reference_amplitude)
-        )
-
-        for (
-            retained,
-            peak,
-            metadata,
-        ) in zip(
-            keep_mask,
-            segment_peak_indices,
-            segment_peak_metadata,
-        ):
-            if not bool(retained):
-                continue
-
-            (
-                greenup,
-                maturity,
-                senescence,
-                dormancy,
-            ) = metadata
-
-            output_rows.append(
-                {
-                    "position": int(position),
-                    "t_start": int(t0),
-                    "t_end": int(t1),
-                    "break_date": int(segment_break_date),
-                    "fitted_peak_date": int(dates[peak]),
-                    "fitted_peak": float(vals[peak]),
-                    "greenup": int(greenup),
-                    "maturity": int(maturity),
-                    "senescence": int(senescence),
-                    "dormancy": int(dormancy),
-                }
-            )
-
-    if not output_rows:
-        return _empty_output()
-
-    return _postprocess_output(
-        pd.DataFrame(
-            output_rows,
-            columns=PHENOLOGY_COLUMNS,
-        ),
+    return _extract_phenology_from_curve(
+        dates=dates,
+        vals=vals,
+        segments=segments,
+        actual_break_dates=actual_break_dates,
+        method="sccd",
+        band=band,
+        threshold1=threshold1,
+        threshold2=threshold2,
+        min_peak_gap_days=min_peak_gap_days,
+        peak_threshold=peak_threshold,
         peak_month_filter=peak_month_filter,
         peak_month_filter_mode=peak_month_filter_mode,
-        min_peak_gap_days=min_peak_gap_days,
+        peak_ratio=peak_ratio,
+        state_floor=state_floor,
     )
 
 
@@ -1436,545 +1642,29 @@ def cold_extract_phenology(
     if dates.size == 0:
         return _empty_output()
 
-    actual_break_dates = np.asarray(
-        actual_break_dates,
-        dtype=np.int64,
-    )
-
-    if actual_break_dates.size > 0:
-        actual_break_dates = actual_break_dates[
-            (actual_break_dates > dates[0]) & (actual_break_dates < dates[-1])
-        ]
-
-        actual_break_dates = np.asarray(
-            sorted(set(actual_break_dates.tolist())),
-            dtype=np.int64,
+    segments = [
+        (
+            int(record["t_start"]),
+            int(record["t_end"]),
+            int(record["break_date"]),
+            int(record["position"]),
         )
-
-    n = int(dates.size)
-
-    search_sorted = np.searchsorted
-
-    troughs_all, _ = find_peaks(
-        -vals,
-        prominence=float(peak_threshold),
-    )
-
-    troughs_all = np.asarray(
-        troughs_all,
-        dtype=np.int32,
-    )
-
-    peaks_all, _ = find_peaks(
-        vals,
-        prominence=float(peak_threshold),
-    )
-
-    peaks_all = np.asarray(
-        peaks_all,
-        dtype=np.int32,
-    )
-
-    if peaks_all.size == 0:
-        return _empty_output()
-
-    # Preserve the original COLD behavior: minima between adjacent detected
-    # peaks form shared cycle boundaries even when those minima do not meet
-    # the trough prominence threshold.
-    global_windows = []
-
-    peaks_sorted = np.asarray(
-        np.sort(peaks_all),
-        dtype=np.int32,
-    )
-
-    for (
-        peak_order,
-        peak_index,
-    ) in enumerate(peaks_sorted):
-        peak_index = int(peak_index)
-
-        if peak_order > 0:
-            previous_peak = int(peaks_sorted[peak_order - 1])
-
-            valley_start = previous_peak + 1
-
-            valley_stop = peak_index
-
-            valley_values = vals[valley_start:valley_stop]
-
-            finite_mask = np.isfinite(valley_values)
-
-            if valley_values.size > 0 and np.any(finite_mask):
-                valley_search = np.where(
-                    finite_mask,
-                    valley_values,
-                    np.inf,
-                )
-
-                left_index = valley_start + int(np.argmin(valley_search))
-
-            else:
-                left_index = previous_peak + 1
-
-            left_is_interpeak = 1
-            edge_head_global = 0
-
-        else:
-            preceding_troughs = troughs_all[troughs_all < peak_index]
-
-            if preceding_troughs.size > 0:
-                left_index = int(preceding_troughs[-1])
-
-                edge_head_global = 0
-
-            else:
-                left_index = 0
-                edge_head_global = 1
-
-            left_is_interpeak = 0
-
-        if peak_order < peaks_sorted.size - 1:
-            next_peak = int(peaks_sorted[peak_order + 1])
-
-            valley_start = peak_index + 1
-
-            valley_stop = next_peak
-
-            valley_values = vals[valley_start:valley_stop]
-
-            finite_mask = np.isfinite(valley_values)
-
-            if valley_values.size > 0 and np.any(finite_mask):
-                valley_search = np.where(
-                    finite_mask,
-                    valley_values,
-                    np.inf,
-                )
-
-                right_index = valley_start + int(np.argmin(valley_search))
-
-            else:
-                right_index = next_peak - 1
-
-            right_is_interpeak = 1
-            edge_tail_global = 0
-
-        else:
-            following_troughs = troughs_all[troughs_all > peak_index]
-
-            if following_troughs.size > 0:
-                right_index = int(following_troughs[0])
-
-                edge_tail_global = 0
-
-            else:
-                right_index = n - 1
-
-                edge_tail_global = 1
-
-            right_is_interpeak = 0
-
-        if not (left_index < peak_index < right_index):
-            continue
-
-        global_windows.append(
-            (
-                int(left_index),
-                int(right_index),
-                int(peak_index),
-                int(dates[peak_index]),
-                int(edge_head_global),
-                int(edge_tail_global),
-                int(left_is_interpeak),
-                int(right_is_interpeak),
-            )
-        )
-
-    if not global_windows:
-        return _empty_output()
-
-    output_rows = []
-
-    for record in segment_records:
-        t0 = int(record["t_start"])
-
-        t1 = int(record["t_end"])
-
-        segment_break_date = int(record["break_date"])
-
-        segment_position = int(record["position"])
-
-        left_segment = int(
-            search_sorted(
-                dates,
-                t0,
-                side="left",
-            )
-        )
-
-        right_segment = int(
-            search_sorted(
-                dates,
-                t1,
-                side="right",
-            )
-            - 1
-        )
-
-        if left_segment > right_segment:
-            continue
-
-        candidate_windows = []
-
-        for (
-            global_left,
-            global_right,
-            peak,
-            peak_date,
-            edge_head_global,
-            edge_tail_global,
-            left_is_interpeak,
-            right_is_interpeak,
-        ) in global_windows:
-
-            if not (t0 <= peak_date <= t1):
-                continue
-
-            raw_left = int(global_left)
-
-            raw_right = int(global_right)
-
-            left_clip = max(
-                raw_left,
-                left_segment,
-            )
-
-            right_clip = min(
-                raw_right,
-                right_segment,
-            )
-
-            if not (left_clip < peak < right_clip):
-                continue
-
-            peak_above_floor = float(vals[peak]) - float(state_floor)
-
-            if not bool(left_is_interpeak) and peak_above_floor > 0:
-                start_above_floor = float(vals[left_clip]) - float(state_floor)
-
-                start_peak_ratio = start_above_floor / peak_above_floor
-
-                if np.isfinite(start_peak_ratio) and start_peak_ratio > float(
-                    peak_ratio
-                ):
-                    earliest_date = int(dates[peak]) - 200
-
-                    lookback_left = max(
-                        int(left_segment),
-                        int(
-                            np.searchsorted(
-                                dates,
-                                earliest_date,
-                                side="left",
-                            )
-                        ),
-                    )
-
-                    previous_troughs = troughs_all[
-                        (troughs_all >= lookback_left) & (troughs_all < peak)
-                    ].astype(
-                        np.int64,
-                        copy=False,
-                    )
-
-                    if previous_troughs.size > 0:
-                        trough_values = vals[previous_troughs]
-
-                        maximum_start_value = (
-                            float(state_floor) + float(peak_ratio) * peak_above_floor
-                        )
-
-                        acceptable = np.isfinite(trough_values) & (
-                            trough_values <= maximum_start_value
-                        )
-
-                        acceptable_troughs = previous_troughs[acceptable]
-
-                        if acceptable_troughs.size > 0:
-                            repaired_left = int(acceptable_troughs[-1])
-
-                            if repaired_left < peak:
-                                left_clip = repaired_left
-
-            clipped_by_segment_head = raw_left < left_segment
-
-            clipped_by_segment_tail = raw_right > right_segment
-
-            edge_head = int(edge_head_global or clipped_by_segment_head)
-
-            edge_tail = int(edge_tail_global or clipped_by_segment_tail)
-
-            floor_clipped = _clip_peak_window_to_floor(
-                values=vals,
-                left=left_clip,
-                peak=peak,
-                right=right_clip,
-                floor_value=state_floor,
-            )
-
-            if floor_clipped is None:
-                continue
-
-            (
-                left_clip,
-                right_clip,
-            ) = floor_clipped
-
-            candidate_windows.append(
-                (
-                    int(left_clip),
-                    int(right_clip),
-                    int(peak),
-                    int(edge_head),
-                    int(edge_tail),
-                )
-            )
-
-        if not candidate_windows:
-            continue
-
-        segment_peak_indices = []
-        segment_peak_metadata = []
-        segment_amplitudes = []
-
-        for (
-            left,
-            right,
-            peak,
-            is_segment_head,
-            is_segment_tail,
-        ) in candidate_windows:
-
-            peak_value = float(vals[peak])
-
-            start_value = float(vals[left])
-
-            end_value = float(vals[right])
-
-            if not (
-                np.isfinite(peak_value)
-                and np.isfinite(start_value)
-                and np.isfinite(end_value)
-            ):
-                continue
-
-            rising_amplitude = max(
-                0.0,
-                peak_value - start_value,
-            )
-
-            falling_amplitude = max(
-                0.0,
-                peak_value - end_value,
-            )
-
-            if not is_segment_head and not is_segment_tail:
-                amplitude = min(
-                    rising_amplitude,
-                    falling_amplitude,
-                )
-
-            elif is_segment_head and not is_segment_tail:
-                amplitude = falling_amplitude
-
-            elif is_segment_tail and not is_segment_head:
-                amplitude = rising_amplitude
-
-            else:
-                amplitude = max(
-                    rising_amplitude,
-                    falling_amplitude,
-                )
-
-            if not np.isfinite(amplitude) or amplitude <= 0:
-                continue
-
-            greenup_threshold = start_value + float(threshold1) * rising_amplitude
-
-            maturity_threshold = start_value + float(threshold2) * rising_amplitude
-
-            senescence_threshold = (
-                peak_value - (1.0 - float(threshold2)) * falling_amplitude
-            )
-
-            dormancy_threshold = (
-                peak_value - (1.0 - float(threshold1)) * falling_amplitude
-            )
-
-            rising_values = vals[left : peak + 1]
-
-            falling_values = vals[peak : right + 1]
-
-            greenup_relative = _first_ge(
-                rising_values,
-                greenup_threshold,
-            )
-
-            maturity_relative = _first_ge(
-                rising_values,
-                maturity_threshold,
-            )
-
-            # Preserve the COLD implementation's first-at-or-below rule.
-            senescence_relative = _first_le(
-                falling_values,
-                senescence_threshold,
-            )
-
-            dormancy_relative = _first_le(
-                falling_values,
-                dormancy_threshold,
-            )
-
-            greenup = (
-                int(dates[left + greenup_relative]) if (greenup_relative >= 0) else 0
-            )
-
-            maturity = (
-                int(dates[left + maturity_relative]) if (maturity_relative >= 0) else 0
-            )
-
-            senescence = (
-                int(dates[peak + senescence_relative])
-                if (senescence_relative >= 0)
-                else 0
-            )
-
-            dormancy = (
-                int(dates[peak + dormancy_relative]) if (dormancy_relative >= 0) else 0
-            )
-
-            if is_segment_head:
-                greenup = 0
-                maturity = 0
-
-            if is_segment_tail:
-                senescence = 0
-                dormancy = 0
-
-            if actual_break_dates.size > 0:
-                left_date = int(dates[left])
-
-                current_peak_date = int(dates[peak])
-
-                right_date = int(dates[right])
-
-                rising_breaks = actual_break_dates[
-                    (actual_break_dates > left_date)
-                    & (actual_break_dates < current_peak_date)
-                ]
-
-                falling_breaks = actual_break_dates[
-                    (actual_break_dates > current_peak_date)
-                    & (actual_break_dates < right_date)
-                ]
-
-                if rising_breaks.size > 0:
-                    first_rising_break = int(np.min(rising_breaks))
-
-                    if greenup != 0 and greenup >= first_rising_break:
-                        greenup = 0
-
-                    if maturity != 0 and maturity >= first_rising_break:
-                        maturity = 0
-
-                if falling_breaks.size > 0:
-                    first_falling_break = int(np.min(falling_breaks))
-
-                    if senescence != 0 and senescence >= first_falling_break:
-                        senescence = 0
-
-                    if dormancy != 0 and dormancy >= first_falling_break:
-                        dormancy = 0
-
-            segment_peak_indices.append(int(peak))
-
-            segment_peak_metadata.append(
-                (
-                    int(greenup),
-                    int(maturity),
-                    int(senescence),
-                    int(dormancy),
-                )
-            )
-
-            segment_amplitudes.append(float(amplitude))
-
-        if not segment_peak_indices:
-            continue
-
-        amplitudes = np.asarray(
-            segment_amplitudes,
-            dtype=np.float32,
-        )
-
-        valid_amplitude = np.isfinite(amplitudes) & (amplitudes > 0)
-
-        if not np.any(valid_amplitude):
-            continue
-
-        reference_amplitude = float(np.max(amplitudes[valid_amplitude]))
-
-        keep_mask = (
-            valid_amplitude
-            & (amplitudes >= float(peak_threshold))
-            & (amplitudes >= float(peak_ratio) * reference_amplitude)
-        )
-
-        for (
-            retained,
-            peak,
-            metadata,
-        ) in zip(
-            keep_mask,
-            segment_peak_indices,
-            segment_peak_metadata,
-        ):
-            if not bool(retained):
-                continue
-
-            (
-                greenup,
-                maturity,
-                senescence,
-                dormancy,
-            ) = metadata
-
-            output_rows.append(
-                {
-                    "position": int(segment_position),
-                    "t_start": int(t0),
-                    "t_end": int(t1),
-                    "break_date": int(segment_break_date),
-                    "fitted_peak_date": int(dates[peak]),
-                    "fitted_peak": float(vals[peak]),
-                    "greenup": int(greenup),
-                    "maturity": int(maturity),
-                    "senescence": int(senescence),
-                    "dormancy": int(dormancy),
-                }
-            )
-
-    if not output_rows:
-        return _empty_output()
-
-    return _postprocess_output(
-        pd.DataFrame(
-            output_rows,
-            columns=PHENOLOGY_COLUMNS,
-        ),
+        for record in segment_records
+    ]
+
+    return _extract_phenology_from_curve(
+        dates=dates,
+        vals=vals,
+        segments=segments,
+        actual_break_dates=actual_break_dates,
+        method="cold",
+        band=band,
+        threshold1=threshold1,
+        threshold2=threshold2,
+        min_peak_gap_days=min_peak_gap_days,
+        peak_threshold=peak_threshold,
         peak_month_filter=peak_month_filter,
         peak_month_filter_mode=peak_month_filter_mode,
-        min_peak_gap_days=min_peak_gap_days,
+        peak_ratio=peak_ratio,
+        state_floor=state_floor,
     )
