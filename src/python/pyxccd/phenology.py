@@ -353,6 +353,7 @@ def _extract_phenology_from_curve(
     vals,
     segments,
     actual_break_dates,
+    position,
     method,
     band,
     threshold1,
@@ -378,12 +379,15 @@ def _extract_phenology_from_curve(
         Sorted, duplicate-free ordinal dates of the fitted curve.
     vals : numpy.ndarray
         Fitted values aligned with ``dates``.
-    segments : list[tuple[int, int, int, int]]
-        ``(t_start, t_end, break_date, position)`` for every candidate segment.
-        The position is written to the output table verbatim.
+    segments : list[tuple[int, int, int]]
+        ``(t_start, t_end, break_date)`` for every candidate segment.
     actual_break_dates : numpy.ndarray
         Real structural break dates used to zero out dates that fall beyond a
         break inside a window.
+    position : int or list[int]
+        Segment position written to the output table verbatim.  SCCD reports a
+        single value for the whole pack and passes an ``int``; COLD keeps one
+        value per segment and passes a ``list`` aligned with ``segments``.
     method : {"sccd", "cold"}
         Which caller this run belongs to.  The original SCCD and COLD
         implementations differ in three places, and this switch selects the
@@ -604,14 +608,34 @@ def _extract_phenology_from_curve(
     if not global_windows:
         return _empty_output()
 
+    # Normalise the position argument to a per-segment lookup.  For SCCD the
+    # same pack-wide value is reported for every segment.
+    if isinstance(position, (list, tuple)):
+        position_list = [int(value) for value in position]
+    else:
+        position_list = [int(position)] * len(segments)
+
+    if method == "sccd":
+        # SCCD's original loop assignment only reads ``position`` from the
+        # enclosing scope, so a per-segment value is never re-read.
+        def re_read_position(_segment_position):
+            return segment_position
+
+    else:
+        # COLD's original loop assignment reads ``record["position"]`` for
+        # every emitted output row.
+        def re_read_position(segment_position):
+            return position_list[segment_index]
+
     output_rows = []
 
-    for (
+    for segment_index, (
         t0,
         t1,
         segment_break_date,
-        segment_position,
-    ) in segments:
+    ) in enumerate(segments):
+
+        position = position_list[segment_index]
 
         left_segment = int(
             search_sorted(
@@ -945,6 +969,13 @@ def _extract_phenology_from_curve(
 
             segment_amplitudes.append(float(amplitude))
 
+        # Hoisted before the amplitude filter, matching both originals: SCCD's
+        # loop assignment is keyed by (t0, t1, peak), so a ``continue`` leaves
+        # the previous iteration's value in place, exactly as reading it from
+        # the enclosing scope did.  COLD's is keyed by the emitted output row
+        # and re-reads ``record["position"]`` per row.
+        segment_position = position
+
         if not segment_peak_indices:
             continue
 
@@ -978,6 +1009,8 @@ def _extract_phenology_from_curve(
             if not bool(retained):
                 continue
 
+            record_position = re_read_position(segment_position)
+
             (
                 greenup,
                 maturity,
@@ -987,7 +1020,7 @@ def _extract_phenology_from_curve(
 
             output_rows.append(
                 {
-                    "position": int(segment_position),
+                    "position": int(record_position),
                     "t_start": int(t0),
                     "t_end": int(t1),
                     "break_date": int(segment_break_date),
@@ -1143,6 +1176,8 @@ def sccd_extract_phenology(
         copy=False,
     )
 
+    # SCCD reports a single ``position`` value for the whole pack, so the same
+    # value applies to every segment.
     position = int(
         getattr(
             sccd_pack,
@@ -1277,7 +1312,6 @@ def sccd_extract_phenology(
             int(t0),
             int(t1),
             int(break_date),
-            int(position),
         )
         for t0, t1, break_date in segments
         if int(t1) >= int(t0)
@@ -1317,6 +1351,7 @@ def sccd_extract_phenology(
         vals=vals,
         segments=segments,
         actual_break_dates=actual_break_dates,
+        position=position,
         method="sccd",
         band=band,
         threshold1=threshold1,
@@ -1647,7 +1682,6 @@ def cold_extract_phenology(
             int(record["t_start"]),
             int(record["t_end"]),
             int(record["break_date"]),
-            int(record["position"]),
         )
         for record in segment_records
     ]
@@ -1657,6 +1691,9 @@ def cold_extract_phenology(
         vals=vals,
         segments=segments,
         actual_break_dates=actual_break_dates,
+        position=[
+            int(record["position"]) for record in segment_records
+        ],
         method="cold",
         band=band,
         threshold1=threshold1,
