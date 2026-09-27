@@ -175,6 +175,13 @@ S-CCD for outputting continuous seasonal and trend states:
      - Landsat
      - 30 m
      - 8–16 days
+   * - 11
+     - `PCBF`_
+     - Post-break persistence assessment
+     - Example pixel
+     - Landsat
+     - 30 m
+     - 8–16 days
 
 .. _Introduction: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/0_intro.ipynb
 .. _Break detection: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/1_break_detection_fire_hls.ipynb
@@ -188,6 +195,7 @@ S-CCD for outputting continuous seasonal and trend states:
 .. _Gap filling: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/8_gapfilling_general_FY3B.ipynb
 .. _Phenology: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/9_phenology_extraction_hls.ipynb
 .. _Evaluation: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/10_performance_eval_general_landsat.ipynb
+.. _PCBF: https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/blob/devel/tutorials/notebooks/11_pcbf_landsat.ipynb
 
 Tutorial datasets: `Github link <https://github.com/Remote-Sensing-of-Land-Resource-Lab/pyxccd/tree/devel/tutorials/datasets>`_, `夸克硬盘 (for China mainland) <https://pan.quark.cn/s/091eda7c76ff>`_
 
