@@ -332,42 +332,32 @@ function pointWinnerForWindow(collection, pointGeometry, start, stop) {
     var blue = image.select('BLUE');
     var rnb = image.select('NIR').divide(blue)
       .updateMask(blue.gt(0))
-      .rename('RNB')
-      .toDouble();
-    var sourceTime = ee.Image.constant(
-      ee.Number(image.get('system:time_start'))
-    ).rename('SOURCE_TIME').toDouble();
-    return image.addBands([rnb, sourceTime]);
+      .rename('RNB');
+    var pointRnb = rnb.reduceRegion({
+      reducer: ee.Reducer.first(),
+      geometry: pointGeometry,
+      scale: 30,
+      maxPixels: 16
+    }).get('RNB');
+    return image.set('POINT_RNB', pointRnb);
   });
 
-  var maxRnb = scored.select('RNB').max();
-  var candidates = scored.map(function(image) {
-    return image.updateMask(image.select('RNB').eq(maxRnb));
-  });
-  var winnerTimeImage = candidates.map(function(image) {
-    return image.select('SOURCE_TIME').rename('WINNER_TIME');
-  }).select('WINNER_TIME').min();
-
-  var winner = candidates.map(function(image) {
-    return image.select(analysisBands).updateMask(
-      image.select('SOURCE_TIME').eq(winnerTimeImage)
-    );
-  }).mosaic().clip(pointGeometry.buffer(30));
-
-  var sampledTime = winnerTimeImage.reduceRegion({
-    reducer: ee.Reducer.first(),
-    geometry: pointGeometry,
-    scale: 30,
-    maxPixels: 16
-  });
-  var hasData = sampledTime.contains('WINNER_TIME');
+  var validCandidates = scored.filter(ee.Filter.notNull(['POINT_RNB']));
+  var hasData = validCandidates.size().gt(0);
+  var sortedCandidates = validCandidates.sort('POINT_RNB', false);
+  var winner = ee.Image(ee.Algorithms.If(
+    hasData,
+    sortedCandidates.first(),
+    emptyWindowImage(start)
+  ));
   var winnerTime = ee.Number(ee.Algorithms.If(
     hasData,
-    sampledTime.get('WINNER_TIME'),
+    ee.Image(sortedCandidates.first()).get('system:time_start'),
     start.millis()
   ));
 
-  return winner
+  return winner.select(analysisBands)
+    .clip(pointGeometry.buffer(30))
     .set('system:time_start', winnerTime)
     .set('HAS_DATA', ee.Number(ee.Algorithms.If(hasData, 1, 0)));
 }
@@ -399,12 +389,9 @@ function buildPointMaxRnb32(collection, pointGeometry) {
     var windowStop = firstWindow.advance(
       index.add(1).multiply(MAX_RNB_WINDOW_DAYS), 'day'
     );
-    var subset = collection.filterDate(windowStart, windowStop);
-    return ee.Image(ee.Algorithms.If(
-      subset.size().gt(0),
-      pointWinnerForWindow(subset, pointGeometry, windowStart, windowStop),
-      emptyWindowImage(windowStart)
-    ));
+    return pointWinnerForWindow(
+      collection, pointGeometry, windowStart, windowStop
+    );
   });
 
   return ee.ImageCollection.fromImages(winners)
