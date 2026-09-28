@@ -276,27 +276,34 @@ function applyPCBF(ccdcImage, userOptions) {
 // 2. USER SETTINGS
 // ============================================================================
 
-var point = ee.Geometry.Point([108.83949275954184, 36.91699927676264]);
+// Validated single-pixel example also used by the Jupyter tutorial.
+var point = ee.Geometry.Point([109.006790, 37.251270]);
 var roi = point.buffer(1500);
-var startDate = '2017-01-01';
-var endDate = '2026-01-01';
+var startDate = '1995-01-01';
+var endDate = '2007-01-01';
 var analysisBands = ['BLUE', 'GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
 var PLOT_BAND = 'SWIR2';
 var MAX_RNB_WINDOW_DAYS = 32;
+var COMPOSITING_ANCHOR = '1982-01-01';
 var MODEL_STEP_DAYS = 4;
 var CHART_Y_MIN = 500;
-var CHART_Y_MAX = 6000;
+var CHART_Y_MAX = 4500;
+var targetProjection = ee.Projection('EPSG:32649')
+  .atScale(30);
 
 
-function prepareLandsat89(image) {
+function landsatValidMask(image) {
   // Mask fill, dilated cloud, cirrus, cloud, shadow, snow, and saturation.
-  var clear = image.select('QA_PIXEL').bitwiseAnd(63).eq(0)
+  return image.select('QA_PIXEL').bitwiseAnd(63).eq(0)
     .and(image.select('QA_RADSAT').eq(0));
+}
 
+
+function prepareLandsat57(image) {
   // Landsat Collection 2 Level 2 surface reflectance on the x10,000 scale.
   var reflectance = image
     .select(
-      ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'],
+      ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7'],
       analysisBands
     )
     .multiply(0.0000275)
@@ -305,23 +312,27 @@ function prepareLandsat89(image) {
     .toFloat();
 
   return reflectance
-    .updateMask(clear)
-    .copyProperties(image, ['system:time_start', 'SPACECRAFT_ID']);
+    .updateMask(landsatValidMask(image))
+    .resample('bilinear')
+    .setDefaultProjection(targetProjection)
+    .copyProperties(
+      image, ['system:time_start', 'system:index', 'SPACECRAFT_ID']
+    );
 }
 
 
-var landsat8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
-  .filterBounds(roi)
+var landsat5 = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2')
+  .filterBounds(point.buffer(60))
   .filterDate(startDate, endDate)
-  .map(prepareLandsat89);
+  .map(prepareLandsat57);
 
-var landsat9 = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
-  .filterBounds(roi)
+var landsat7 = ee.ImageCollection('LANDSAT/LE07/C02/T1_L2')
+  .filterBounds(point.buffer(60))
   .filterDate(startDate, endDate)
-  .map(prepareLandsat89);
+  .map(prepareLandsat57);
 
-var inputCollection = landsat8
-  .merge(landsat9)
+var inputCollection = landsat5
+  .merge(landsat7)
   .sort('system:time_start');
 
 
@@ -368,18 +379,25 @@ function emptyWindowImage(windowStart) {
     .rename(analysisBands)
     .toFloat()
     .updateMask(ee.Image.constant(0))
+    .setDefaultProjection(targetProjection)
     .set('system:time_start', windowStart.millis())
     .set('HAS_DATA', 0);
 }
 
 
 function buildPointMaxRnb32(collection, pointGeometry) {
-  var firstWindow = ee.Date(startDate);
-  var totalDays = Math.floor(
-    (Date.parse(endDate) - Date.parse(startDate)) / (24 * 60 * 60 * 1000)
+  var millisPerDay = 24 * 60 * 60 * 1000;
+  var anchorMillis = Date.parse(COMPOSITING_ANCHOR);
+  var firstWindowIndex = Math.ceil(
+    (Date.parse(startDate) - anchorMillis) /
+      (MAX_RNB_WINDOW_DAYS * millisPerDay)
   );
-  var completeWindowCount = Math.floor(totalDays / MAX_RNB_WINDOW_DAYS);
-  var indices = ee.List.sequence(0, completeWindowCount - 1);
+  var stopWindowIndex = Math.floor(
+    (Date.parse(endDate) - anchorMillis) /
+      (MAX_RNB_WINDOW_DAYS * millisPerDay)
+  );
+  var firstWindow = ee.Date(COMPOSITING_ANCHOR);
+  var indices = ee.List.sequence(firstWindowIndex, stopWindowIndex - 1);
 
   var winners = indices.map(function(value) {
     var index = ee.Number(value);
@@ -478,6 +496,7 @@ function valueAtPoint(image) {
   return image.reduceRegion({
     reducer: ee.Reducer.first(),
     geometry: point,
+    crs: targetProjection,
     scale: 30,
     maxPixels: 1e6
   });
@@ -488,6 +507,7 @@ function scalarAtPoint(image, bandName) {
   return image.reduceRegion({
     reducer: ee.Reducer.first(),
     geometry: point,
+    crs: targetProjection,
     scale: 30,
     maxPixels: 1e6
   }).get(bandName);
