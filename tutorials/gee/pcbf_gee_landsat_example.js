@@ -3,7 +3,43 @@
 
 
 // ============================================================================
-// 1. PCBF
+// 1. USER SETTINGS
+// ============================================================================
+
+// Change these two values to inspect another pixel.
+var LON = 109.006790;
+var LAT = 37.251270;
+
+// The end date is exclusive.
+var startDate = '1995-01-01';
+var endDate = '2007-01-01';
+
+var PLOT_BAND = 'SWIR2';
+var CHART_Y_MIN = 500;
+var CHART_Y_MAX = 4500;
+
+
+function utmEpsg(lon, lat) {
+  if (lon < -180 || lon > 180 || lat < -80 || lat > 84) {
+    throw new Error('The example point must fall within the UTM domain.');
+  }
+  var zone = Math.min(60, Math.floor((lon + 180) / 6) + 1);
+  return 'EPSG:' + ((lat >= 0 ? 32600 : 32700) + zone);
+}
+
+
+var point = ee.Geometry.Point([LON, LAT]);
+var roi = point.buffer(1500);
+var analysisBands = ['BLUE', 'GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
+var MAX_RNB_WINDOW_DAYS = 32;
+var COMPOSITING_ANCHOR = '1982-01-01';
+var MODEL_STEP_DAYS = 4;
+var targetProjection = ee.Projection(utmEpsg(LON, LAT))
+  .atScale(30);
+
+
+// ============================================================================
+// 2. PCBF
 // ============================================================================
 
 var PCBF_BANDS = ['GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
@@ -273,23 +309,8 @@ function applyPCBF(ccdcImage, userOptions) {
 
 
 // ============================================================================
-// 2. USER SETTINGS
+// 3. LANDSAT INPUT AND CCDC
 // ============================================================================
-
-// Validated single-pixel example also used by the Jupyter tutorial.
-var point = ee.Geometry.Point([109.006790, 37.251270]);
-var roi = point.buffer(1500);
-var startDate = '1995-01-01';
-var endDate = '2007-01-01';
-var analysisBands = ['BLUE', 'GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
-var PLOT_BAND = 'SWIR2';
-var MAX_RNB_WINDOW_DAYS = 32;
-var COMPOSITING_ANCHOR = '1982-01-01';
-var MODEL_STEP_DAYS = 4;
-var CHART_Y_MIN = 500;
-var CHART_Y_MAX = 4500;
-var targetProjection = ee.Projection('EPSG:32649')
-  .atScale(30);
 
 
 function landsatValidMask(image) {
@@ -485,7 +506,7 @@ Map.addLayer(point, {color: '00FFFF'}, 'Sample point', true);
 
 
 // ============================================================================
-// 3. TIME-SERIES DISPLAY
+// 4. TIME-SERIES DISPLAY
 // ============================================================================
 
 var MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
