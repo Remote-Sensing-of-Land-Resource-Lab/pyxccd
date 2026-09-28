@@ -764,28 +764,23 @@ function buildComparisonChart(features, title, observationSeries,
 }
 
 
-ee.Dictionary({
-  removedDate: removedBreak.get('dateLabel'),
-  compositingDate: compositingBreak.get('dateLabel')
-}).evaluate(function(labels) {
-  print(buildComparisonChart(
-    pcbfChartRows,
-    '(a) CCDC+PCBF — candidate removed on ' + labels.removedDate,
-    'All valid observations',
-    'PCBF-removed candidate',
-    '#1593C4',
-    'circle',
-    '#6B6B6B',
-    true
-  ));
-  print(buildComparisonChart(
-    compositingChartRows,
-    '(b) CCDC+Compositing — retained break on ' + labels.compositingDate,
-    '32-day selected observations',
-    'Retained break',
-    '#E99A18',
-    'square',
-    '#D73027',
-    false
-  ));
-});
+print(buildComparisonChart(
+  pcbfChartRows,
+  '(a) CCDC+PCBF',
+  'All valid observations',
+  'PCBF-removed candidate',
+  '#1593C4',
+  'circle',
+  '#6B6B6B',
+  true
+));
+print(buildComparisonChart(
+  compositingChartRows,
+  '(b) CCDC+Compositing',
+  '32-day selected observations',
+  'Retained break',
+  '#E99A18',
+  'square',
+  '#D73027',
+  false
+));
