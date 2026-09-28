@@ -15,10 +15,13 @@ CCDC model coefficients.
 2. Create a script and paste the full contents of
    `pcbf_gee_landsat_example.js`.
 3. Run the example without changing the point, dates, or 1,500 m buffer.
-4. Inspect the retained and rejected break layers on the map and the segment
-   arrays printed in the Console.
-5. After the example runs, edit `point`, `startDate`, and `endDate` for a new
-   location.
+4. Inspect the map layers and the interactive SWIR2 chart in the Console. The
+   chart shows valid observations, the piecewise CCDC harmonic trajectory,
+   retained breaks, and PCBF-removed candidates.
+5. Hover over a marker to read its date and SWIR2 value. The compact `Break
+   summary` below the chart lists each date and its PCBF status.
+6. After the example runs, edit `point`, `startDate`, `endDate`, and optionally
+   `chartStepDays` for another location or display interval.
 
 The example does not create or start an export task.
 

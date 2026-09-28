@@ -1,12 +1,9 @@
-// GEE Code Editor 示例：公开 Landsat 8/9 -> CCDC -> PCBF
-//
-// 用途：让没有私有资产的读者先在一个 1.5 km 小范围内跑通完整流程。
-// 输出：地图预览、原始 SWIR2 时序、点位置的 CCDC/PCBF 数组诊断。
-// 注意：本脚本不会自动创建任何 Export 任务，也不会修改已有 CCDC 结果。
+// CCDC + PCBF example for the Earth Engine Code Editor.
+// Edit USER SETTINGS, then click Run.
 
 
 // ============================================================================
-// 1. PCBF 函数（与已核准的 pyxccd 规则保持一致）
+// 1. PCBF
 // ============================================================================
 
 var PCBF_BANDS = ['GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
@@ -111,8 +108,6 @@ function applyPCBF(ccdcImage, userOptions) {
   var followingEnd = allButFirst(tEnd);
 
   var hasFollowing = previousBreak.multiply(0).add(1).eq(1);
-  // GEE 原生 CCDC 使用 0/1；pyxccd 常见结果使用 0/100。
-  // 两种编码中，正值都表示该断点已确认，不改变 PCBF 判定规则。
   var confirmedPair = previousBreak.gt(0).and(previousProbability.gt(0));
 
   var previous = {};
@@ -128,7 +123,6 @@ function applyPCBF(ccdcImage, userOptions) {
     };
   });
 
-  // 与 getcategory_cold(t_c = -200) 一致的 category-2 排除。
   var redMagnitude = previous.RED.magnitude;
   var nirMagnitude = previous.NIR.magnitude;
   var swir1Magnitude = previous.SWIR1.magnitude;
@@ -207,7 +201,7 @@ function applyPCBF(ccdcImage, userOptions) {
   var rejectedPair = category2RejectedPair.or(recoveryRejectedPair);
   var retainedPair = confirmedPair.and(rejectedPair.not());
 
-  // 最末段没有后续段可供恢复判断，因此保守保留其已确认断点。
+  // A confirmed terminal break is retained because no following segment exists.
   var terminalBreak = lastElement(tBreak);
   var terminalProbability = lastElement(changeProb);
   var terminalConfirmed = terminalBreak.gt(0).and(terminalProbability.gt(0));
@@ -279,24 +273,23 @@ function applyPCBF(ccdcImage, userOptions) {
 
 
 // ============================================================================
-// 2. 可直接运行的公开数据示例
+// 2. USER SETTINGS
 // ============================================================================
 
-// 示例点位位于黄土高原。只需修改经纬度即可检查其他位置。
 var point = ee.Geometry.Point([108.83949275954184, 36.91699927676264]);
 var roi = point.buffer(1500);
 var startDate = '2017-01-01';
 var endDate = '2026-01-01';
 var analysisBands = ['BLUE', 'GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
+var chartStepDays = 8;
 
 
 function prepareLandsat89(image) {
-  // QA_PIXEL bits 0-5：fill、dilated cloud、cirrus、cloud、shadow、snow。
+  // Mask fill, dilated cloud, cirrus, cloud, shadow, snow, and saturation.
   var clear = image.select('QA_PIXEL').bitwiseAnd(63).eq(0)
     .and(image.select('QA_RADSAT').eq(0));
 
-  // Collection 2 L2: SR = DN * 0.0000275 - 0.2。
-  // 再乘 10000，使数据尺度与函数内部固定的 -200 类别规则保持一致。
+  // Landsat Collection 2 Level 2 surface reflectance on the x10,000 scale.
   var reflectance = image
     .select(
       ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'],
@@ -327,11 +320,10 @@ var inputCollection = landsat8
   .merge(landsat9)
   .sort('system:time_start');
 
-print('有效 Landsat 8/9 影像数量', inputCollection.size());
-print('第一景预处理后的波段', ee.Image(inputCollection.first()).bandNames());
+print('Valid Landsat 8/9 observations', inputCollection.size());
 
 
-// CCDC 的 dateFormat 必须为 0，PCBF 才能按天计算 spectral change persistence。
+// PCBF requires CCDC dates in Julian days (dateFormat 0).
 var ccdc = ee.Algorithms.TemporalSegmentation.Ccdc({
   collection: inputCollection,
   breakpointBands: analysisBands,
@@ -352,7 +344,7 @@ var pcbf = applyPCBF(ccdc, {
 });
 
 
-// 将数组沿 segment 轴压缩成单波段，便于地图预览。
+// Reduce record-aligned arrays for map display only.
 var originalBreakMask = ccdc.select('tBreak')
   .gt(0)
   .arrayReduce(ee.Reducer.max(), [0])
@@ -375,37 +367,26 @@ var category2Rejected = pcbf.category2Rejected
   .rename('category2_rejected');
 
 Map.centerObject(point, 13);
-Map.addLayer(roi, {color: 'FFFFFF'}, '示例范围', false);
+Map.addLayer(roi, {color: 'FFFFFF'}, 'Example area', false);
 Map.addLayer(originalBreakMask.selfMask().clip(roi),
-             {palette: ['BDBDBD']}, 'CCDC 检出的断点像元', false);
+             {palette: ['BDBDBD']}, 'CCDC break pixels', false);
 Map.addLayer(retainedBreak.selfMask().clip(roi),
-             {palette: ['E6550D']}, 'CCDC+PCBF 保留的断点像元', true);
+             {palette: ['D73027']}, 'CCDC+PCBF retained breaks', true);
 Map.addLayer(recoveryRejected.selfMask().clip(roi),
-             {palette: ['2B8CBE']}, '因光谱恢复而过滤', false);
+             {palette: ['6B6B6B']}, 'PCBF-removed candidates', false);
 Map.addLayer(category2Rejected.selfMask().clip(roi),
-             {palette: ['31A354']}, 'category-2 排除', false);
-Map.addLayer(point, {color: '00FFFF'}, '检查点', true);
+             {palette: ['31A354']}, 'Category-2 exclusions', false);
+Map.addLayer(point, {color: '00FFFF'}, 'Sample point', true);
 
 
-// 原始观测曲线用于确认输入数据是否合理；它不是拟合曲线。
-var swir2Chart = ui.Chart.image.series({
-  imageCollection: inputCollection.select('SWIR2'),
-  region: point,
-  reducer: ee.Reducer.first(),
-  scale: 30,
-  xProperty: 'system:time_start'
-}).setOptions({
-  title: '示例点原始 Landsat SWIR2 观测',
-  hAxis: {title: '日期'},
-  vAxis: {title: 'SWIR2 × 10000'},
-  pointSize: 4,
-  lineWidth: 0,
-  colors: ['#2B8CBE']
-});
-print(swir2Chart);
+// ============================================================================
+// 3. TIME-SERIES DISPLAY
+// ============================================================================
+
+var MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
+var CCDC_EPOCH_DAYS = 719163;
 
 
-// 在 Console 中查看点位置的完整数组。数组顺序与 CCDC segment 顺序一致。
 function valueAtPoint(image) {
   return image.reduceRegion({
     reducer: ee.Reducer.first(),
@@ -415,16 +396,217 @@ function valueAtPoint(image) {
   });
 }
 
-print('原始 CCDC：tBreak 与 changeProb',
-      valueAtPoint(ccdc.select(['tBreak', 'changeProb'])));
-print('PCBF：保留断点日期', valueAtPoint(pcbf.retainedTBreak));
-print('PCBF：恢复日期', valueAtPoint(pcbf.recoveryDate));
-print('PCBF：光谱变化持续天数', valueAtPoint(pcbf.persistenceDays));
-print('PCBF：恢复时满足条件的波段数',
-      valueAtPoint(pcbf.passingBandCountAtRecovery));
-print('PCBF：过滤与保留原因', valueAtPoint(ee.Image.cat([
-  pcbf.category2Rejected,
-  pcbf.recoveryRejected,
-  pcbf.persistentRetained,
-  pcbf.terminalRetained
-])));
+
+function scalarAtPoint(image, bandName) {
+  return image.reduceRegion({
+    reducer: ee.Reducer.first(),
+    geometry: point,
+    scale: 30,
+    maxPixels: 1e6
+  }).get(bandName);
+}
+
+
+function arrayBandAtPoint(image, bandName) {
+  return ee.Array(valueAtPoint(image.select(bandName)).get(bandName)).toList();
+}
+
+
+function ccdcPredictionAtDate(ccdcImage, bandName, jDay) {
+  jDay = ee.Number(jDay);
+  var starts = ccdcImage.select('tStart');
+  var ends = ccdcImage.select('tEnd');
+  var active = starts.lte(jDay).and(ends.gte(jDay));
+  var prediction = harmonicPrediction(
+    ccdcImage.select(bandName + '_coefs'),
+    jDay
+  );
+  var activeCount = active
+    .arrayReduce(ee.Reducer.sum(), [0])
+    .arrayGet([0]);
+  return prediction
+    .multiply(active)
+    .arrayReduce(ee.Reducer.sum(), [0])
+    .arrayGet([0])
+    .updateMask(activeCount.gt(0))
+    .rename('prediction');
+}
+
+
+function ccdcSegmentPredictionAtDate(ccdcImage, bandName, jDay, segmentIndex) {
+  var predictionArray = harmonicPrediction(
+    ccdcImage.select(bandName + '_coefs'),
+    ee.Number(jDay)
+  );
+  var values = ee.Array(
+    valueAtPoint(predictionArray).get(bandName + '_coefs')
+  ).toList();
+  return values.get(ee.Number(segmentIndex));
+}
+
+
+function buildObservationFeatures(collection) {
+  var images = collection.toList(collection.size());
+  return ee.FeatureCollection(images.map(function(element) {
+    var image = ee.Image(element);
+    var value = scalarAtPoint(image.select('SWIR2'), 'SWIR2');
+    return ee.Feature(null, {
+      'system:time_start': image.get('system:time_start'),
+      'Observations': value
+    });
+  })).filter(ee.Filter.notNull(['Observations']));
+}
+
+
+function buildModelFeatures(ccdcImage) {
+  var firstMillis = ee.Date(startDate).millis();
+  var lastMillis = ee.Date(endDate).advance(-1, 'day').millis();
+  var displayDates = ee.List.sequence(
+    firstMillis,
+    lastMillis,
+    chartStepDays * MILLIS_PER_DAY
+  );
+  return ee.FeatureCollection(displayDates.map(function(value) {
+    var millis = ee.Number(value);
+    var jDay = millis.divide(MILLIS_PER_DAY).add(CCDC_EPOCH_DAYS);
+    var prediction = scalarAtPoint(
+      ccdcPredictionAtDate(ccdcImage, 'SWIR2', jDay),
+      'prediction'
+    );
+    return ee.Feature(null, {
+      'system:time_start': millis,
+      'CCDC fitted trajectory': prediction
+    });
+  })).filter(ee.Filter.notNull(['CCDC fitted trajectory']));
+}
+
+
+function buildBreakMarkerFeatures(ccdcImage, pcbfResult) {
+  var breakDays = arrayBandAtPoint(ccdcImage, 'tBreak');
+  var retainedFlags = arrayBandAtPoint(
+    pcbfResult.retainedBreakMask,
+    'retainedBreakMask'
+  );
+  var recoveryRejectedFlags = arrayBandAtPoint(
+    pcbfResult.recoveryRejected,
+    'recoveryRejected'
+  );
+  var category2RejectedFlags = arrayBandAtPoint(
+    pcbfResult.category2Rejected,
+    'category2Rejected'
+  );
+
+  var indices = ee.List.sequence(0, breakDays.length().subtract(1));
+  return ee.FeatureCollection(indices.map(function(value) {
+    var index = ee.Number(value);
+    var breakDay = ee.Number(breakDays.get(index));
+    var retainedFlag = ee.Number(retainedFlags.get(index));
+    var removedFlag = ee.Number(recoveryRejectedFlags.get(index))
+      .max(ee.Number(category2RejectedFlags.get(index)));
+    var fittedValue = ccdcSegmentPredictionAtDate(
+      ccdcImage, 'SWIR2', breakDay, index
+    );
+    var date = ee.Date(
+      breakDay.subtract(CCDC_EPOCH_DAYS).multiply(MILLIS_PER_DAY)
+    );
+    var status = ee.String(ee.Algorithms.If(
+      retainedFlag.eq(1),
+      'Retained break',
+      'PCBF-removed candidate'
+    ));
+    return ee.Feature(null, {
+      'system:time_start': date.millis(),
+      dateLabel: date.format('YYYY-MM-dd'),
+      status: status,
+      breakDay: breakDay,
+      'Retained break': ee.Algorithms.If(
+        retainedFlag.eq(1), fittedValue, null
+      ),
+      'PCBF-removed candidate': ee.Algorithms.If(
+        removedFlag.eq(1), fittedValue, null
+      )
+    });
+  }))
+    .filter(ee.Filter.gt('breakDay', 0))
+    .filter(ee.Filter.or(
+      ee.Filter.notNull(['Retained break']),
+      ee.Filter.notNull(['PCBF-removed candidate'])
+    ));
+}
+
+
+var observationFeatures = buildObservationFeatures(inputCollection);
+var modelFeatures = buildModelFeatures(ccdc);
+var breakMarkerFeatures = buildBreakMarkerFeatures(ccdc, pcbf);
+var chartFeatures = observationFeatures
+  .merge(modelFeatures)
+  .merge(breakMarkerFeatures)
+  .sort('system:time_start');
+
+var swir2Chart = ui.Chart.feature.byFeature({
+  features: chartFeatures,
+  xProperty: 'system:time_start',
+  yProperties: [
+    'Observations',
+    'CCDC fitted trajectory',
+    'Retained break',
+    'PCBF-removed candidate'
+  ]
+})
+  .setChartType('LineChart')
+  .setOptions({
+    title: 'CCDC time series and PCBF break screening',
+    titleTextStyle: {fontSize: 16, bold: true, color: '#202124'},
+    hAxis: {
+      title: 'Observation date',
+      format: 'yyyy',
+      gridlines: {color: '#E6E9ED'},
+      minorGridlines: {color: '#F3F4F6'},
+      textStyle: {fontSize: 11, color: '#3C4043'},
+      titleTextStyle: {fontSize: 12, bold: true, italic: false}
+    },
+    vAxis: {
+      title: 'SWIR2 × 10,000',
+      gridlines: {color: '#E6E9ED'},
+      textStyle: {fontSize: 11, color: '#3C4043'},
+      titleTextStyle: {fontSize: 12, bold: true, italic: false}
+    },
+    legend: {
+      position: 'top',
+      alignment: 'center',
+      textStyle: {fontSize: 11, color: '#3C4043'}
+    },
+    backgroundColor: '#FFFFFF',
+    chartArea: {left: 85, top: 70, width: '82%', height: '68%'},
+    interpolateNulls: true,
+    lineWidth: 0,
+    pointSize: 0,
+    series: {
+      0: {
+        color: '#2B8CBE',
+        lineWidth: 0,
+        pointSize: 4,
+        pointShape: 'circle'
+      },
+      1: {
+        color: '#555555',
+        lineWidth: 3,
+        pointSize: 0
+      },
+      2: {
+        color: '#D73027',
+        lineWidth: 0,
+        pointSize: 9,
+        pointShape: 'circle'
+      },
+      3: {
+        color: '#6B6B6B',
+        lineWidth: 0,
+        pointSize: 9,
+        pointShape: 'diamond'
+      }
+    }
+  });
+
+print(swir2Chart);
+print('Break summary', breakMarkerFeatures.select(['dateLabel', 'status']));
