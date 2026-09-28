@@ -281,7 +281,11 @@ var roi = point.buffer(1500);
 var startDate = '2017-01-01';
 var endDate = '2026-01-01';
 var analysisBands = ['BLUE', 'GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2'];
-var chartStepDays = 8;
+var PLOT_BAND = 'SWIR2';
+var MAX_RNB_WINDOW_DAYS = 32;
+var MODEL_STEP_DAYS = 4;
+var CHART_Y_MIN = 500;
+var CHART_Y_MAX = 6000;
 
 
 function prepareLandsat89(image) {
@@ -320,24 +324,120 @@ var inputCollection = landsat8
   .merge(landsat9)
   .sort('system:time_start');
 
-print('Valid Landsat 8/9 observations', inputCollection.size());
+
+// Select the point-scale maximum-NIR/Blue observation in every complete
+// fixed 32-day window, retaining the acquisition date of the selected image.
+function pointWinnerForWindow(collection, pointGeometry, start, stop) {
+  var scored = collection.filterDate(start, stop).map(function(image) {
+    var blue = image.select('BLUE');
+    var rnb = image.select('NIR').divide(blue)
+      .updateMask(blue.gt(0))
+      .rename('RNB')
+      .toDouble();
+    var sourceTime = ee.Image.constant(
+      ee.Number(image.get('system:time_start'))
+    ).rename('SOURCE_TIME').toDouble();
+    return image.addBands([rnb, sourceTime]);
+  });
+
+  var maxRnb = scored.select('RNB').max();
+  var candidates = scored.map(function(image) {
+    return image.updateMask(image.select('RNB').eq(maxRnb));
+  });
+  var winnerTimeImage = candidates.map(function(image) {
+    return image.select('SOURCE_TIME').rename('WINNER_TIME');
+  }).select('WINNER_TIME').min();
+
+  var winner = candidates.map(function(image) {
+    return image.select(analysisBands).updateMask(
+      image.select('SOURCE_TIME').eq(winnerTimeImage)
+    );
+  }).mosaic().clip(pointGeometry.buffer(30));
+
+  var sampledTime = winnerTimeImage.reduceRegion({
+    reducer: ee.Reducer.first(),
+    geometry: pointGeometry,
+    scale: 30,
+    maxPixels: 16
+  });
+  var hasData = sampledTime.contains('WINNER_TIME');
+  var winnerTime = ee.Number(ee.Algorithms.If(
+    hasData,
+    sampledTime.get('WINNER_TIME'),
+    start.millis()
+  ));
+
+  return winner
+    .set('system:time_start', winnerTime)
+    .set('HAS_DATA', ee.Number(ee.Algorithms.If(hasData, 1, 0)));
+}
+
+
+function emptyWindowImage(windowStart) {
+  return ee.Image.constant([0, 0, 0, 0, 0, 0])
+    .rename(analysisBands)
+    .toFloat()
+    .updateMask(ee.Image.constant(0))
+    .set('system:time_start', windowStart.millis())
+    .set('HAS_DATA', 0);
+}
+
+
+function buildPointMaxRnb32(collection, pointGeometry) {
+  var firstWindow = ee.Date(startDate);
+  var totalDays = Math.floor(
+    (Date.parse(endDate) - Date.parse(startDate)) / (24 * 60 * 60 * 1000)
+  );
+  var completeWindowCount = Math.floor(totalDays / MAX_RNB_WINDOW_DAYS);
+  var indices = ee.List.sequence(0, completeWindowCount - 1);
+
+  var winners = indices.map(function(value) {
+    var index = ee.Number(value);
+    var windowStart = firstWindow.advance(
+      index.multiply(MAX_RNB_WINDOW_DAYS), 'day'
+    );
+    var windowStop = firstWindow.advance(
+      index.add(1).multiply(MAX_RNB_WINDOW_DAYS), 'day'
+    );
+    var subset = collection.filterDate(windowStart, windowStop);
+    return ee.Image(ee.Algorithms.If(
+      subset.size().gt(0),
+      pointWinnerForWindow(subset, pointGeometry, windowStart, windowStop),
+      emptyWindowImage(windowStart)
+    ));
+  });
+
+  return ee.ImageCollection.fromImages(winners)
+    .filter(ee.Filter.eq('HAS_DATA', 1))
+    .select(analysisBands)
+    .sort('system:time_start');
+}
+
+
+var compositingCollection = buildPointMaxRnb32(inputCollection, point);
+
+
+function runCcdc(collection) {
+  return ee.Algorithms.TemporalSegmentation.Ccdc({
+    collection: collection,
+    breakpointBands: analysisBands,
+    tmaskBands: ['GREEN', 'SWIR1'],
+    minObservations: 6,
+    chiSquareProbability: 0.99,
+    minNumOfYearsScaler: 1.33,
+    dateFormat: 0,
+    lambda: 20,
+    maxIterations: 25000
+  });
+}
 
 
 // PCBF requires CCDC dates in Julian days (dateFormat 0).
-var ccdc = ee.Algorithms.TemporalSegmentation.Ccdc({
-  collection: inputCollection,
-  breakpointBands: analysisBands,
-  tmaskBands: ['GREEN', 'SWIR1'],
-  minObservations: 6,
-  chiSquareProbability: 0.99,
-  minNumOfYearsScaler: 1.33,
-  dateFormat: 0,
-  lambda: 20,
-  maxIterations: 25000
-});
+var allObservationCcdc = runCcdc(inputCollection);
+var compositingCcdc = runCcdc(compositingCollection);
 
 
-var pcbf = applyPCBF(ccdc, {
+var pcbf = applyPCBF(allObservationCcdc, {
   durationThresholdDays: 192,
   zValue: 2.326,
   requiredBands: 4
@@ -345,7 +445,7 @@ var pcbf = applyPCBF(ccdc, {
 
 
 // Reduce record-aligned arrays for map display only.
-var originalBreakMask = ccdc.select('tBreak')
+var originalBreakMask = allObservationCcdc.select('tBreak')
   .gt(0)
   .arrayReduce(ee.Reducer.max(), [0])
   .arrayGet([0])
@@ -445,168 +545,247 @@ function ccdcSegmentPredictionAtDate(ccdcImage, bandName, jDay, segmentIndex) {
 }
 
 
-function buildObservationFeatures(collection) {
+function buildObservationFeatures(collection, seriesName) {
   var images = collection.toList(collection.size());
   return ee.FeatureCollection(images.map(function(element) {
     var image = ee.Image(element);
-    var value = scalarAtPoint(image.select('SWIR2'), 'SWIR2');
-    return ee.Feature(null, {
-      'system:time_start': image.get('system:time_start'),
-      'Observations': value
-    });
-  })).filter(ee.Filter.notNull(['Observations']));
+    var value = scalarAtPoint(image.select(PLOT_BAND), PLOT_BAND);
+    return ee.Feature(null)
+      .set('system:time_start', image.get('system:time_start'))
+      .set(seriesName, value);
+  })).filter(ee.Filter.notNull([seriesName]));
 }
 
 
-function buildModelFeatures(ccdcImage) {
+function buildModelGridFeatures() {
   var firstMillis = ee.Date(startDate).millis();
   var lastMillis = ee.Date(endDate).advance(-1, 'day').millis();
   var displayDates = ee.List.sequence(
     firstMillis,
     lastMillis,
-    chartStepDays * MILLIS_PER_DAY
+    MODEL_STEP_DAYS * MILLIS_PER_DAY
   );
   return ee.FeatureCollection(displayDates.map(function(value) {
-    var millis = ee.Number(value);
-    var jDay = millis.divide(MILLIS_PER_DAY).add(CCDC_EPOCH_DAYS);
-    var prediction = scalarAtPoint(
-      ccdcPredictionAtDate(ccdcImage, 'SWIR2', jDay),
-      'prediction'
-    );
     return ee.Feature(null, {
-      'system:time_start': millis,
-      'CCDC fitted trajectory': prediction
+      'system:time_start': ee.Number(value)
     });
-  })).filter(ee.Filter.notNull(['CCDC fitted trajectory']));
+  }));
 }
 
 
-function buildBreakMarkerFeatures(ccdcImage, pcbfResult) {
-  var breakDays = arrayBandAtPoint(ccdcImage, 'tBreak');
-  var retainedFlags = arrayBandAtPoint(
-    pcbfResult.retainedBreakMask,
-    'retainedBreakMask'
-  );
-  var recoveryRejectedFlags = arrayBandAtPoint(
-    pcbfResult.recoveryRejected,
-    'recoveryRejected'
-  );
-  var category2RejectedFlags = arrayBandAtPoint(
-    pcbfResult.category2Rejected,
-    'category2Rejected'
-  );
+function addModelPrediction(features, ccdcImage) {
+  return features.map(function(feature) {
+    feature = ee.Feature(feature);
+    var millis = ee.Number(feature.get('system:time_start'));
+    var jDay = millis.divide(MILLIS_PER_DAY).add(CCDC_EPOCH_DAYS);
+    var prediction = scalarAtPoint(
+      ccdcPredictionAtDate(ccdcImage, PLOT_BAND, jDay),
+      'prediction'
+    );
+    return feature.set('Harmonic model', prediction);
+  });
+}
 
+
+function buildBreakCandidates(ccdcImage, flagImage, flagBand) {
+  var breakDays = arrayBandAtPoint(ccdcImage, 'tBreak');
+  var flags = arrayBandAtPoint(flagImage, flagBand);
   var indices = ee.List.sequence(0, breakDays.length().subtract(1));
   return ee.FeatureCollection(indices.map(function(value) {
     var index = ee.Number(value);
     var breakDay = ee.Number(breakDays.get(index));
-    var retainedFlag = ee.Number(retainedFlags.get(index));
-    var removedFlag = ee.Number(recoveryRejectedFlags.get(index))
-      .max(ee.Number(category2RejectedFlags.get(index)));
+    var flag = ee.Number(flags.get(index));
     var fittedValue = ccdcSegmentPredictionAtDate(
-      ccdcImage, 'SWIR2', breakDay, index
+      ccdcImage, PLOT_BAND, breakDay, index
     );
     var date = ee.Date(
       breakDay.subtract(CCDC_EPOCH_DAYS).multiply(MILLIS_PER_DAY)
     );
-    var status = ee.String(ee.Algorithms.If(
-      retainedFlag.eq(1),
-      'Retained break',
-      'PCBF-removed candidate'
-    ));
     return ee.Feature(null, {
-      'system:time_start': date.millis(),
-      dateLabel: date.format('YYYY-MM-dd'),
-      status: status,
       breakDay: breakDay,
-      'Retained break': ee.Algorithms.If(
-        retainedFlag.eq(1), fittedValue, null
-      ),
-      'PCBF-removed candidate': ee.Algorithms.If(
-        removedFlag.eq(1), fittedValue, null
-      )
+      dateLabel: date.format('YYYY-MM-dd'),
+      fittedValue: fittedValue,
+      flag: flag,
+      valid: breakDay.gt(0).and(flag.gt(0))
     });
   }))
-    .filter(ee.Filter.gt('breakDay', 0))
-    .filter(ee.Filter.or(
-      ee.Filter.notNull(['Retained break']),
-      ee.Filter.notNull(['PCBF-removed candidate'])
-    ));
+    .filter(ee.Filter.eq('valid', 1))
+    .sort('breakDay');
 }
 
 
-var observationFeatures = buildObservationFeatures(inputCollection);
-var modelFeatures = buildModelFeatures(ccdc);
-var breakMarkerFeatures = buildBreakMarkerFeatures(ccdc, pcbf);
-var chartFeatures = observationFeatures
-  .merge(modelFeatures)
-  .merge(breakMarkerFeatures)
-  .sort('system:time_start');
+function buildVerticalBreakFeatures(ccdcImage, flagImage, flagBand,
+                                    seriesName) {
+  var candidates = buildBreakCandidates(ccdcImage, flagImage, flagBand);
+  var fallback = ee.Feature(null, {
+    breakDay: 0,
+    dateLabel: 'none',
+    fittedValue: 0,
+    valid: 0
+  });
+  var first = ee.Feature(candidates.toList(1).cat([fallback]).get(0));
+  var breakDay = ee.Number(first.get('breakDay'));
+  var breakMillis = breakDay.subtract(CCDC_EPOCH_DAYS)
+    .multiply(MILLIS_PER_DAY);
+  var valid = ee.Number(first.get('valid'));
 
-var swir2Chart = ui.Chart.feature.byFeature({
-  features: chartFeatures,
-  xProperty: 'system:time_start',
-  yProperties: [
-    'Observations',
-    'CCDC fitted trajectory',
-    'Retained break',
-    'PCBF-removed candidate'
-  ]
-})
-  .setChartType('LineChart')
-  .setOptions({
-    title: 'CCDC time series and PCBF break screening',
+  var lower = ee.Feature(null)
+    .set('system:time_start', breakMillis.add(1))
+    .set(seriesName, CHART_Y_MIN)
+    .set('valid', valid);
+  var upper = ee.Feature(null)
+    .set('system:time_start', breakMillis.add(2))
+    .set(seriesName, CHART_Y_MAX)
+    .set('valid', valid);
+
+  return ee.Dictionary({
+    features: ee.FeatureCollection([lower, upper])
+      .filter(ee.Filter.eq('valid', 1)),
+    dateLabel: first.get('dateLabel'),
+    fittedValue: first.get('fittedValue')
+  });
+}
+
+
+var removedBreakMask = pcbf.recoveryRejected
+  .max(pcbf.category2Rejected)
+  .rename('removedBreakMask');
+var compositingBreakMask = compositingCcdc.select('changeProb')
+  .gt(0)
+  .rename('compositingBreakMask');
+
+var removedBreak = buildVerticalBreakFeatures(
+  allObservationCcdc,
+  removedBreakMask,
+  'removedBreakMask',
+  'PCBF-removed candidate'
+);
+var compositingBreak = buildVerticalBreakFeatures(
+  compositingCcdc,
+  compositingBreakMask,
+  'compositingBreakMask',
+  'Retained break'
+);
+
+var modelGrid = buildModelGridFeatures();
+var pcbfChartRows = buildObservationFeatures(
+  inputCollection,
+  'All valid observations'
+)
+  .merge(modelGrid)
+  .merge(ee.FeatureCollection(removedBreak.get('features')));
+pcbfChartRows = addModelPrediction(
+  pcbfChartRows,
+  allObservationCcdc
+).sort('system:time_start');
+
+var compositingChartRows = buildObservationFeatures(
+  compositingCollection,
+  '32-day selected observations'
+)
+  .merge(modelGrid)
+  .merge(ee.FeatureCollection(compositingBreak.get('features')));
+compositingChartRows = addModelPrediction(
+  compositingChartRows,
+  compositingCcdc
+).sort('system:time_start');
+
+
+function buildComparisonChart(features, title, observationSeries,
+                              breakSeries, observationColor,
+                              observationShape, breakColor, dashedBreak) {
+  var options = {
+    title: title,
     titleTextStyle: {fontSize: 16, bold: true, color: '#202124'},
     hAxis: {
       title: 'Observation date',
       format: 'yyyy',
-      gridlines: {color: '#E6E9ED'},
-      minorGridlines: {color: '#F3F4F6'},
+      viewWindow: {
+        min: new Date(startDate + 'T00:00:00Z'),
+        max: new Date(endDate + 'T00:00:00Z')
+      },
+      gridlines: {color: '#E2E6EA'},
+      minorGridlines: {color: '#F3F5F7'},
+      baselineColor: '#6F7378',
       textStyle: {fontSize: 11, color: '#3C4043'},
       titleTextStyle: {fontSize: 12, bold: true, italic: false}
     },
     vAxis: {
       title: 'SWIR2 × 10,000',
-      gridlines: {color: '#E6E9ED'},
+      viewWindow: {min: CHART_Y_MIN, max: CHART_Y_MAX},
+      gridlines: {color: '#E2E6EA'},
+      minorGridlines: {color: '#F3F5F7'},
+      baselineColor: '#6F7378',
       textStyle: {fontSize: 11, color: '#3C4043'},
       titleTextStyle: {fontSize: 12, bold: true, italic: false}
     },
     legend: {
       position: 'top',
       alignment: 'center',
-      textStyle: {fontSize: 11, color: '#3C4043'}
+      textStyle: {fontSize: 11, color: '#30343B'}
     },
     backgroundColor: '#FFFFFF',
-    chartArea: {left: 85, top: 70, width: '82%', height: '68%'},
-    interpolateNulls: true,
+    chartArea: {left: 82, top: 72, width: '87%', height: '66%'},
+    interpolateNulls: false,
     lineWidth: 0,
     pointSize: 0,
+    width: 1120,
+    height: 350,
     series: {
       0: {
-        color: '#2B8CBE',
+        color: observationColor,
         lineWidth: 0,
-        pointSize: 4,
-        pointShape: 'circle'
+        pointSize: observationShape === 'square' ? 6 : 4,
+        pointShape: observationShape
       },
       1: {
-        color: '#555555',
-        lineWidth: 3,
+        color: '#4E4E4E',
+        lineWidth: 2.6,
         pointSize: 0
       },
       2: {
-        color: '#D73027',
-        lineWidth: 0,
-        pointSize: 9,
-        pointShape: 'circle'
-      },
-      3: {
-        color: '#6B6B6B',
-        lineWidth: 0,
-        pointSize: 9,
-        pointShape: 'diamond'
+        color: breakColor,
+        lineWidth: 1.5,
+        pointSize: 0
       }
     }
-  });
+  };
+  if (dashedBreak) {
+    options.series[2].lineDashStyle = [6, 4];
+  }
 
-print(swir2Chart);
-print('Break summary', breakMarkerFeatures.select(['dateLabel', 'status']));
+  return ui.Chart.feature.byFeature({
+    features: features,
+    xProperty: 'system:time_start',
+    yProperties: [observationSeries, 'Harmonic model', breakSeries]
+  })
+    .setChartType('LineChart')
+    .setOptions(options);
+}
+
+
+ee.Dictionary({
+  removedDate: removedBreak.get('dateLabel'),
+  compositingDate: compositingBreak.get('dateLabel')
+}).evaluate(function(labels) {
+  print(buildComparisonChart(
+    pcbfChartRows,
+    '(a) CCDC+PCBF — candidate removed on ' + labels.removedDate,
+    'All valid observations',
+    'PCBF-removed candidate',
+    '#1593C4',
+    'circle',
+    '#6B6B6B',
+    true
+  ));
+  print(buildComparisonChart(
+    compositingChartRows,
+    '(b) CCDC+Compositing — retained break on ' + labels.compositingDate,
+    '32-day selected observations',
+    'Retained break',
+    '#E99A18',
+    'square',
+    '#D73027',
+    false
+  ));
+});
