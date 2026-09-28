@@ -804,7 +804,7 @@ print(buildComparisonChart(
 ));
 print(buildComparisonChart(
   compositingChartRows,
-  '(b) CCDC+Compositing',
+  '(b) Compositing+CCDC',
   '32-day selected observations',
   'Retained break',
   '#E99A18',
