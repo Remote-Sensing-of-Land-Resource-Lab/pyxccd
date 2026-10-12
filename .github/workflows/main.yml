@@ -79,7 +79,6 @@ jobs:
       scm_version: ${{ needs.lint_job.outputs.scm_version }}
   build_and_test_macos_wheels:
     needs: lint_job # run linting before building and testing
-    if: github.event_name == 'push' && (github.event.ref =='refs/heads/master' || github.event.ref =='refs/heads/devel' || startsWith(github.event.ref, 'refs/tags')) 
     uses: ./.github/workflows/macos_wheels.yml
     with:
       scm_version: ${{ needs.lint_job.outputs.scm_version }}
