@@ -43,7 +43,7 @@ jobs:
       with:
         platforms: all
     - name: Build binary wheels
-      uses: pypa/cibuildwheel@v4.3.1
+      uses: pypa/cibuildwheel@v4.3.2
       with:
         output-dir: wheelhouse
         config-file: pyproject.toml
