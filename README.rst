@@ -240,72 +240,68 @@ Landsat time series. *Remote Sensing of Environment*, *238*, 111116.
 ----------------
 The following publications have used `pyxccd` in their research.
 
+**Publications by the Development Team:**
 
-Publications by the Development Team:
-
-```
-
-Liao, R., Guo, C., Chen, L., Jiang, Y., Tao, Y., Liao, J., ... & Ye, S.
+1. Liao, R., Guo, C., Chen, L., Jiang, Y., Tao, Y., Liao, J., ... & Ye, S.
 (2026). Near-real-time mapping for causal agents of forest disturbances in
 China using harmonized Landsat and Sentinel-2 dataset. *Remote Sensing of
 Environment*, **342**, 115461.
 
-Ye, S., & Hu, Y. (2026). *Pyxccd: An Efficient Python Package for Break-Aware
+2. Ye, S., & Hu, Y. (2026). *Pyxccd: An Efficient Python Package for Break-Aware
 Time Series Analysis of Earth Observation Data.*
 
-Ye, S., Zhu, Z., & Suh, J. W. (2024). Leveraging past information and
+3. Ye, S., Zhu, Z., & Suh, J. W. (2024). Leveraging past information and
 machine learning to accelerate land disturbance monitoring. *Remote Sensing of
 Environment*, **305**, 114071.
 
-Ye, S., Zhu, Z., & Cao, G. (2023). Object-based continuous monitoring of land
+4. Ye, S., Zhu, Z., & Cao, G. (2023). Object-based continuous monitoring of land
 disturbances from dense Landsat time series. *Remote Sensing of Environment*,
 **287**, 113462.
 
-Ye, S., Rogan, J., Zhu, Z., Hawbaker, T. J., Hart, S. J., Andrus, R. A.,
+5. Ye, S., Rogan, J., Zhu, Z., Hawbaker, T. J., Hart, S. J., Andrus, R. A.,
 ... & Kulakowski, D. (2021). Detecting subtle change from dense Landsat time
 series: Case studies of mountain pine beetle and spruce beetle disturbance.
 *Remote Sensing of Environment*, **263**, 112560.
 
-Ye, S., Rogan, J., Zhu, Z., & Eastman, J. R. (2021). A near-real-time
+6. Ye, S., Rogan, J., Zhu, Z., & Eastman, J. R. (2021). A near-real-time
 approach for monitoring forest disturbance using Landsat time series:
 Stochastic continuous change detection. *Remote Sensing of Environment*,
 **252**, 112167.
 
 
-Applications and Studies by Other Researchers:
-```
+**Applications and Studies by Other Researchers:**
 
-Schiller, C., & Fassnacht, F. E. (2026). Comparative study of near real-time
+7. Schiller, C., & Fassnacht, F. E. (2026). Comparative study of near real-time
 monitoring algorithms for early detection of bark beetle infestations in
 Germany with Sentinel-2. *European Journal of Remote Sensing*, 59(1),
 2662660.
 
-Schraik, D., Ursin, A., & Packalen, P. (2026). Detection of non-stand-replacing
+8. Schraik, D., Ursin, A., & Packalen, P. (2026). Detection of non-stand-replacing
 cuttings using satellite image time series with a Kalman filter. *IEEE Journal
 of Selected Topics in Applied Earth Observations and Remote Sensing*.
 
-Wang, S., & Wang, L. (2026). Quantifying high spatiotemporal impervious surface
+9. Wang, S., & Wang, L. (2026). Quantifying high spatiotemporal impervious surface
 change with time series PlanetScope imagery. *Remote Sensing Applications:
 Society and Environment*, 101890.
 
-Hong, F., Hedges, S. B., Yang, Z., Suh, J. W., Qiu, S., Timyan, J., & Zhu, Z.
+10. Hong, F., Hedges, S. B., Yang, Z., Suh, J. W., Qiu, S., Timyan, J., & Zhu, Z.
 (2025). Decoding primary forest changes in Haiti and the Dominican Republic
 using Landsat time series. *Remote Sensing of Environment*, **318**, 114590.
 
-Abdallah, M., Ali, E., Ding, X., & Wu, S. (2025). An improved COLD approach
+11. Abdallah, M., Ali, E., Ding, X., & Wu, S. (2025). An improved COLD approach
 for monitoring construction dynamics using HLS and LULC data: A case study in
 the New Capital of Egypt. *ISPRS Annals of the Photogrammetry, Remote Sensing
 and Spatial Information Sciences*, 3--10.
 
-Healey, N. C., Barber, C. P., Smith, K., Mital, R., Brown, J. F., & Robison,
+12. Healey, N. C., Barber, C. P., Smith, K., Mital, R., Brown, J. F., & Robison,
 C. (2025). Resiliency of land change monitoring efforts to input data
 resampling. *Frontiers in Remote Sensing*, **6**, 1570580.
 
-Suh, J. W., Zhu, Z., & Zhao, Y. (2024). Monitoring construction changes using
+13. Suh, J. W., Zhu, Z., & Zhao, Y. (2024). Monitoring construction changes using
 dense satellite time series and deep learning. *Remote Sensing of Environment*,
 **309**, 114207.
 
-Mota, F. B. D. S., Ferreira, K. R., & Escada, M. I. S. (2024). Evaluating
+14. Mota, F. B. D. S., Ferreira, K. R., & Escada, M. I. S. (2024). Evaluating
 forest disturbance detection methods based on satellite image time series for
 Amazon deforestation alerts. *The International Archives of the
 Photogrammetry, Remote Sensing and Spatial Information Sciences*, **48**,
