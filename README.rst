@@ -236,7 +236,7 @@ Zhou, C. (2020). Continuous monitoring of land disturbance based on
 Landsat time series. *Remote Sensing of Environment*, *238*, 111116.
 
 
-7. Applications
+7. Bibliography
 ----------------
 The following publications have used `pyxccd` in their research.
 

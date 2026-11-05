@@ -3,6 +3,9 @@
 This is a [Changelog](https://keepachangelog.com/en/1.0.0/) 
 that conforms to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Version 1.1.1] - Released 2026-11-5
+* Add post-processing break filter for consistency improvement; fix multiple bugs for phenology extraction
+
 ## [Version 1.1.0] - Released 2026-8-16
 * Add new module for phenology extraction; redefine lambda for S-CCD and allow band-specific lambda input
 
