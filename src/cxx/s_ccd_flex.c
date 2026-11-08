@@ -1962,6 +1962,7 @@ int step3_processing_end_flex(
     int t_start,
     int conse,
     short int *min_rmse,
+    double tcg,
     double anomaly_tcg,
     bool change_detected,
     double predictability_tcg,
@@ -2330,7 +2331,7 @@ int step3_processing_end_flex(
                         /**********************************************************/
                         /*            check if a new break is detected            */
                         /**********************************************************/
-                        if ((nrt_model->anomaly_conse >= conse) && (nrt_model->norm_cm >= anomaly_tcg * 100) && (nrt_model->cm_angle < NSIGN * 100) && (*nrt_mode % 10 == NRT_MONITOR_STANDARD))
+                        if ((nrt_model->anomaly_conse >= conse) && (nrt_model->norm_cm >= tcg * 100) && (nrt_model->cm_angle < NSIGN * 100) && (*nrt_mode % 10 == NRT_MONITOR_STANDARD))
                         {
                             for (i_b = 0; i_b < nbands; i_b++)
                             {
@@ -2933,7 +2934,8 @@ int sccd_standard_flex(
     status = step3_processing_end_flex(instance, cov_p, fit_cft, clrx, clry, i, n_clr, nrt_mode,
                                        i_start, prev_i_break, nrt_model, num_obs_queue, obs_queue,
                                        sum_square_vt, num_obs_processed, t_start, conse, min_rmse,
-                                       anomaly_tcg, change_detected, predictability_tcg, nbands, lambda, fitting_coefs, n_coefs, num_fc, rec_cg);
+                                       tcg, anomaly_tcg, change_detected, predictability_tcg,
+                                       nbands, lambda, fitting_coefs, n_coefs, num_fc, rec_cg);
 
     // update mode - condition 4
     //    if ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) && (bl_train == 0))

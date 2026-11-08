@@ -143,6 +143,7 @@ int step3_processing_end_flex(
     int t_start,
     int conse,
     short int *min_rmse,
+    double tcg,
     double anomaly_tcg,
     bool change_detected,
     double predictability_tcg,
