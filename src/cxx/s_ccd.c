@@ -82,9 +82,6 @@ int sccd(
     int *clrx;                 /* I: clear pixel curve in X direction (date)             */
     float **clry;              /* O: clear pixel curve in Y direction (spectralbands)    */
     bool b_snow;               // indicate if snow pixels
-    float max_date_difference; /* maximum difference between two neighbor dates        */
-    float date_vario;          /* median date                                          */
-    float min_rmse_float[TOTAL_IMAGE_BANDS_SCCD];
     int len_clrx; /* length of clrx  */
     int n_clr_record;
     int valid_nrt_mode[] = {0, 1, 2, 3, 4, 5, 11, 12};
@@ -247,19 +244,6 @@ int sccd(
 
         if (n_clr > n_clr_record)
         {
-
-            /* need to calculate min_rmse at the beginning of the monitoring */
-            if (*num_fc == 0)
-            {
-                if (*nrt_mode == NRT_VOID)
-                {
-                    status = adjust_median_variogram(clrx, clry, TOTAL_IMAGE_BANDS_SCCD, 0,
-                                                     n_clr - 1, &date_vario, &max_date_difference,
-                                                     min_rmse_float, 1);
-                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
-                        min_rmse[i_b] = (short int)min_rmse_float[i_b];
-                }
-            }
 
             result = sccd_standard(clrx, clry, &n_clr, tcg, rec_cg, num_fc, nrt_mode, nrt_model, num_obs_queue, obs_queue, min_rmse, conse, output_anomaly, rec_cg_anomaly, num_fc_anomaly, anomaly_tcg, anomaly_conse, anomaly_interval, predictability_tcg, b_output_state, &n_coefs_records, coefs_records, fitting_coefs, lambda);
         }
@@ -2646,6 +2630,24 @@ int sccd_standard(
     float *CM_outputs;
     bool change_detected = FALSE; // change_detected is only used to mark change to be detected for online mode
 
+    /*
+     * min_rmse is fixed within an initialized segment.
+     *
+     * For a newly trained segment, recalculate it immediately before each
+     * step1_cold_initialize() attempt until initialization succeeds.
+     * After a confirmed break, reset this flag so the next segment gets a
+     * new min_rmse.
+     *
+     * NRT_MONITOR_STANDARD and NRT_MONITOR2QUEUE already carry min_rmse
+     * from the previous run, so no min_rmse initialization is needed on
+     * entry for those modes.
+     */
+    bool min_rmse_initialized =
+        ((*nrt_mode % 10 == NRT_MONITOR_STANDARD) ||
+         (*nrt_mode % 10 == NRT_MONITOR2QUEUE));
+    float min_rmse_date_vario;
+    float min_rmse_max_date_difference;
+
     cov_p = (gsl_matrix **)allocate_2d_array(TOTAL_IMAGE_BANDS_SCCD, 1, sizeof(gsl_matrix));
     if (cov_p == NULL)
     {
@@ -2821,6 +2823,32 @@ int sccd_standard(
             {
                 /**************************************************************/
                 /*                                                            */
+                /* Calculate min_rmse immediately before cold initialization. */
+                /*                                                            */
+                /* Recalculate it while initialization of the current segment */
+                /* is incomplete. Freeze it once initialization succeeds.     */
+                /*                                                            */
+                /**************************************************************/
+                if (min_rmse_initialized == FALSE)
+                {
+                    status = adjust_median_variogram(clrx, clry,
+                                                     TOTAL_IMAGE_BANDS_SCCD,
+                                                     i_start, i,
+                                                     &min_rmse_date_vario,
+                                                     &min_rmse_max_date_difference,
+                                                     rmse_ini, 1);
+                    if (status != SUCCESS)
+                    {
+                        RETURN_ERROR("Calling adjust_median_variogram before model initialization",
+                                     FUNC_NAME, FAILURE);
+                    }
+
+                    for (i_b = 0; i_b < TOTAL_IMAGE_BANDS_SCCD; i_b++)
+                        min_rmse[i_b] = (short int)rmse_ini[i_b];
+                }
+
+                /**************************************************************/
+                /*                                                            */
                 /* step1: initialize a ccd model.                            */
                 /*                                                            */
                 /**************************************************************/
@@ -2835,6 +2863,12 @@ int sccd_standard(
             }
             else if (SUCCESS == status)
             {
+                /*
+                 * The current segment is initialized. Keep this min_rmse
+                 * unchanged until the next confirmed break.
+                 */
+                min_rmse_initialized = TRUE;
+
                 /**************************************************************/
                 /*                                                            */
                 /* step 1 - conti: initialize ssm models .                    */
@@ -2904,6 +2938,12 @@ int sccd_standard(
                 /*                                            */
                 /**********************************************/
                 bl_train = 0;
+
+                /*
+                 * A confirmed break starts a new segment.
+                 * Recalculate min_rmse for that segment.
+                 */
+                min_rmse_initialized = FALSE;
 
                 /****************************************************/
                 /*   need to save nrt records into nrt_model        */
