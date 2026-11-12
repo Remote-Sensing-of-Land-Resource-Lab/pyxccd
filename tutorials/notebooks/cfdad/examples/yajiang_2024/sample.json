@@ -1,0 +1,42 @@
+{
+  "year": 2024,
+  "production_build": "1110_v2",
+  "output_bounds_wgs84": [
+    100.79991668788387,
+    29.84978063295759,
+    101.43027869586945,
+    30.330042729535265
+  ],
+  "database_buffer_native_pixels": 300,
+  "tiles": {
+    "47RPP": {
+      "candidate_rows": 1590715,
+      "native_window": {
+        "row_start": 1105,
+        "row_stop": 3518,
+        "col_start": 2134,
+        "col_stop": 3660
+      }
+    },
+    "47RQP": {
+      "candidate_rows": 1894483,
+      "native_window": {
+        "row_start": 1105,
+        "row_stop": 3518,
+        "col_start": 0,
+        "col_stop": 1461
+      }
+    }
+  },
+  "training_rows_by_source": {
+    "47RPM": 8790,
+    "47RPN": 8685,
+    "47RPP": 8401,
+    "47RQM": 9503,
+    "47RQN": 8676,
+    "47RQP": 8829,
+    "48RTS": 8769,
+    "48RTT": 8631,
+    "48RTU": 8596
+  }
+}

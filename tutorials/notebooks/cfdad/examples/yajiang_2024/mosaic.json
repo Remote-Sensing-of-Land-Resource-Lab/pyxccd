@@ -1,0 +1,12 @@
+[
+  {
+    "tile": "47RPP",
+    "disturbance": "../../output/47RPP_2024_ADDDS.tif",
+    "forest": "47RPP_forest_clcd_2016.tif"
+  },
+  {
+    "tile": "47RQP",
+    "disturbance": "../../output/47RQP_2024_ADDDS.tif",
+    "forest": "47RQP_forest_clcd_2016.tif"
+  }
+]
